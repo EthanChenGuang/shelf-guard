@@ -35,21 +35,24 @@ ShelfGuard v1 delivers a 30-second shelf inspection loop for retail field reps: 
   6. User sees an offline indicator when disconnected; PWA installable and usable offline via vite-plugin-pwa Service Worker (app shell only)
   7. When analysis exceeds the scan animation duration, the UI transitions to a visible PROCESSING state instead of appearing frozen
 
-**Plans**: 4 plans
+**Plans**: 5/5 plans executed
 
 Plans:
+
+- [x] 01-05-PLAN.md
+
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Docs reconciliation (Vite stack) + Vitest Wave 0 scaffold
-- [ ] 01-02-PLAN.md — Vercel deploy tracer + demo capture fix + dependency hygiene
+- [x] 01-01-PLAN.md — Docs reconciliation (Vite stack) + Vitest Wave 0 scaffold
+- [x] 01-02-PLAN.md — Vercel deploy tracer + demo capture fix + dependency hygiene
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-03-PLAN.md — FSM stability (shutter lock, PROCESSING, torch, baseline dimensions)
+- [x] 01-03-PLAN.md — FSM stability (shutter lock, PROCESSING, torch, baseline dimensions)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-04-PLAN.md — Camera error banner + offline indicator i18n + verification gate
+- [x] 01-04-PLAN.md — Camera error banner + offline indicator i18n + verification gate
 
 **UI hint**: yes
 
@@ -127,7 +130,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Capture Foundation & Vercel Deploy | 0/4 | Not started | - |
+| 1. Capture Foundation & Vercel Deploy | 5/5 | In Progress|  |
 | 2. Multi-Shelf Data Layer | 0/TBD | Not started | - |
 | 3. Guided Capture Quality | 0/TBD | Not started | - |
 | 4. Real Inspection Pipeline | 0/TBD | Not started | - |

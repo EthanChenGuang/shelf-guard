@@ -78,7 +78,7 @@
 
 - [ ] **PWA-01**: 应用可安装为 PWA，离线时完整巡检流程可用（客户端差分路径）
 - [ ] **PWA-02**: Service Worker 仅缓存应用壳，不缓存用户拍摄图片
-- [ ] **PWA-03**: 离线状态指示器在断网时可见
+- [x] **PWA-03**: 离线状态指示器在断网时可见
 
 ### App Stability (STAB)
 
@@ -175,7 +175,7 @@
 | DATA-05 | Phase 2 | Pending |
 | PWA-01 | Phase 1 | Pending |
 | PWA-02 | Phase 1 | Pending |
-| PWA-03 | Phase 1 | Pending |
+| PWA-03 | Phase 1 | Complete |
 | STAB-01 | Phase 1 | Pending |
 | STAB-02 | Phase 1 | Pending |
 | STAB-03 | Phase 1 | Pending |
@@ -184,6 +184,7 @@
 | I18N-02 | Phase 5 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 54 total
 - Mapped to phases: 54
 - Unmapped: 0 ✓
