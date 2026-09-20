@@ -7,13 +7,13 @@
 
 ### Tech Stack (TECH)
 
-- [ ] **TECH-01**: 应用基于 Next.js (App Router) + React 19 + TypeScript + Tailwind CSS 构建
-- [ ] **TECH-02**: 所有相机/Canvas/IndexedDB/设备 API 交互组件使用 `"use client"`，无 Server Component 业务逻辑
+- [ ] **TECH-01**: 应用基于 Vite 8 + React 19 + TypeScript + Tailwind CSS 4 构建
+- [ ] **TECH-02**: 所有相机/Canvas/IndexedDB/设备 API 代码在 Vite SPA 客户端挂载树中运行，无服务端业务逻辑
 - [ ] **TECH-03**: 运行时无后端依赖 — 不部署 Express/API Route/Server Action 业务逻辑；移除 `@google/genai`、`express`、`dotenv` 等未用服务端依赖
 - [ ] **TECH-04**: 使用 `idb-keyval` 持久化大分辨率基准图片、ROI 坐标、巡检历史与设置
 - [ ] **TECH-05**: 使用 `lucide-react` 作为全局图标库
-- [ ] **TECH-06**: 视觉差分使用 `@techstark/opencv-js` **或** 端侧 Canvas 轻量像素操作库（pixelmatch + Canvas 2D），在 Web Worker 中执行
-- [ ] **TECH-07**: PWA 离线能力通过 Next.js 兼容方案实现（如 `@serwist/next` 或等效 SW 配置），Service Worker 仅缓存应用壳
+- [ ] **TECH-06**: 视觉差分使用 `@techstark/opencv-js` 在 Web Worker 中执行（v1 锁定 OpenCV，不含 pixelmatch）
+- [ ] **TECH-07**: PWA 离线能力通过 `vite-plugin-pwa` 实现（registerType autoUpdate），Service Worker 仅缓存应用壳
 
 ### Design System (DSGN)
 
@@ -121,7 +121,8 @@
 | 原生 iOS/Android App | PWA 优先 |
 | Express / API Route 业务逻辑 | 纯客户端 PWA 约束 |
 | Gemini / 云端 Vision API | 无后端依赖；v2+ 若引入需独立后端 |
-| Vite 生产构建 | 迁移至 Next.js App Router |
+| Next.js App Router 迁移 | 推迟至 v2+；v1 保留 Vite 纯客户端 PWA（D-01） |
+| pixelmatch / Canvas 轻量像素差分 | v1 锁定 @techstark/opencv-js only（D-13） |
 
 ## Traceability
 
