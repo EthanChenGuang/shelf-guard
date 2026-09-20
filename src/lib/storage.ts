@@ -1,8 +1,16 @@
 import { get, set, del } from 'idb-keyval';
 import { AuditRecord, Language, ShelfCalibration, ToleranceLevel } from '../types';
-import { DEFAULT_CALIBRATION } from './constants';
+import { DEFAULT_CALIBRATION, DEFAULT_SHELF_IMAGE_URL } from './constants';
 
 const KEY_BASELINE = 'shelfguard_baseline';
+const LEGACY_CDN_BASELINE_PATTERN = /googleusercontent\.com/i;
+
+function migrateBaselineIfNeeded(data: ShelfCalibration): ShelfCalibration {
+  if (LEGACY_CDN_BASELINE_PATTERN.test(data.imageDataUrl)) {
+    return {...data, imageDataUrl: DEFAULT_SHELF_IMAGE_URL};
+  }
+  return data;
+}
 const KEY_HISTORY = 'shelfguard_audit_history';
 const KEY_LANG = 'shelfguard_lang';
 const KEY_TOLERANCE = 'shelfguard_tolerance';
@@ -11,7 +19,11 @@ export async function loadBaseline(): Promise<ShelfCalibration> {
   try {
     const data = await get<ShelfCalibration>(KEY_BASELINE);
     if (data && data.splitYPercentages && data.splitYPercentages.length === 4) {
-      return data;
+      const migrated = migrateBaselineIfNeeded(data);
+      if (migrated.imageDataUrl !== data.imageDataUrl) {
+        await set(KEY_BASELINE, migrated);
+      }
+      return migrated;
     }
   } catch (err) {
     console.warn('Failed to load baseline from IndexedDB, using default:', err);
