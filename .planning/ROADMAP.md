@@ -10,26 +10,26 @@ ShelfGuard v1 delivers a 30-second shelf inspection loop for retail field reps: 
 - Integer phases (1–6): Planned v1 milestone work
 - Decimal phases (e.g., 2.1): Urgent insertions via `/gsd-phase --insert`
 
-- [ ] **Phase 1: Capture Foundation & Stability** - Fix known FSM/camera bugs, wire PROCESSING mode, and harden PWA offline shell
+- [ ] **Phase 1: Next.js Migration & Capture Foundation** - Migrate Vite prototype to Next.js App Router (`"use client"` PWA), fix FSM/camera bugs, remove backend deps
 - [ ] **Phase 2: Multi-Shelf Data Layer** - Namespaced IndexedDB schema with Blob storage and legacy migration before carousel UI
 - [ ] **Phase 3: Guided Capture Quality** - Ghost overlay, level gauge, and iOS orientation permission for aligned re-shoots
 - [ ] **Phase 4: Real Inspection Pipeline** - Replace mock vision with ROI-scoped pixel diff, Web Worker analysis, and result interactions
 - [ ] **Phase 5: PRD UI & Multi-Shelf Experience** - Minimalist Light design system, shelf carousel swipe, PRD animations, and i18n polish
-- [ ] **Phase 6: Optional Gemini Refinement** - User-toggle hybrid detection with graceful offline degradation
-
 ## Phase Details
 
-### Phase 1: Capture Foundation & Stability
-**Goal**: Users can reliably capture and process shelf photos without race conditions, silent camera failures, or broken demo-mode frames — and the app works offline as an installable PWA.
+### Phase 1: Next.js Migration & Capture Foundation
+**Goal**: App runs on Next.js App Router as a pure-client PWA with no backend dependencies; users can reliably capture shelf photos without race conditions, silent camera failures, or broken demo-mode frames.
 **Mode:** mvp
 **Depends on**: Nothing (first phase)
-**Requirements**: STAB-01, STAB-02, STAB-03, STAB-04, CAM-08, CAM-09, PWA-01, PWA-02, PWA-03
+**Requirements**: TECH-01, TECH-02, TECH-03, TECH-05, TECH-07, STAB-01, STAB-02, STAB-03, STAB-04, CAM-08, CAM-09, PWA-01, PWA-02, PWA-03
 **Success Criteria** (what must be TRUE):
-  1. User cannot double-trigger the shutter during the 800ms scan animation; a second tap is ignored until capture completes
-  2. User sees a clear in-app message (not console-only) when camera permission is denied or the stream fails — including iOS standalone PWA fallback guidance
-  3. Demo mode captures the currently displayed frame, not a fixed CDN URL
-  4. User sees an offline indicator when disconnected; the app remains installable and usable offline for the client-diff inspection path
-  5. When analysis exceeds the scan animation duration, the UI transitions to a visible PROCESSING state instead of appearing frozen
+  1. App builds and runs on Next.js App Router; all camera/Canvas/IndexedDB code lives in `"use client"` components with no server-side business logic
+  2. `@google/genai`, `express`, `dotenv` removed from dependencies; no API routes or Server Actions for inspection workflow
+  3. User cannot double-trigger the shutter during the 800ms scan animation; a second tap is ignored until capture completes
+  4. User sees a clear in-app message (not console-only) when camera permission is denied or the stream fails — including iOS standalone PWA fallback guidance
+  5. Demo mode captures the currently displayed frame, not a fixed CDN URL
+  6. User sees an offline indicator when disconnected; PWA installable and usable offline via Next.js-compatible Service Worker (app shell only)
+  7. When analysis exceeds the scan animation duration, the UI transitions to a visible PROCESSING state instead of appearing frozen
 **Plans**: TBD
 **UI hint**: yes
 
@@ -37,7 +37,7 @@ ShelfGuard v1 delivers a 30-second shelf inspection loop for retail field reps: 
 **Goal**: Five independent shelf datasets (baseline + history) persist correctly in IndexedDB with efficient Blob storage and safe migration from the legacy single-shelf schema.
 **Mode:** mvp
 **Depends on**: Phase 1
-**Requirements**: DATA-01, DATA-02, DATA-03, DATA-04, DATA-05, SHLF-02, SHLF-03, SHLF-04
+**Requirements**: TECH-04, DATA-01, DATA-02, DATA-03, DATA-04, DATA-05, SHLF-02, SHLF-03, SHLF-04
 **Success Criteria** (what must be TRUE):
   1. User's baseline and inspection history for shelf A do not appear when switching to shelf B — data is fully isolated per shelf (0–4)
   2. User reopens the app and lands on the same shelf they last selected
@@ -63,10 +63,10 @@ ShelfGuard v1 delivers a 30-second shelf inspection loop for retail field reps: 
 **Goal**: Users get real missing/displaced detection from client-side pixel diff per ROI tier — with interactive result review — replacing all mock anomaly data.
 **Mode:** mvp
 **Depends on**: Phase 3
-**Requirements**: VIS-01, VIS-02, VIS-03, VIS-04, ROI-01, ROI-02, ROI-03, ROI-04, ROI-05, RSLT-01, RSLT-02, RSLT-03, RSLT-04, RSLT-05, RSLT-06
+**Requirements**: TECH-06, VIS-01, VIS-02, VIS-03, VIS-04, ROI-01, ROI-02, ROI-03, ROI-04, ROI-05, RSLT-01, RSLT-02, RSLT-03, RSLT-04, RSLT-05, RSLT-06
 **Success Criteria** (what must be TRUE):
   1. User completes first capture on a shelf with no baseline and calibrates 4 draggable ROI dividers with magnifier assist, then saves a per-shelf baseline
-  2. User captures a follow-up photo and sees red (missing) and yellow (displaced) bounding boxes on real diff results — not hardcoded mock anomalies
+  2. User captures a follow-up photo and sees red (missing) and yellow (displaced) bounding boxes from client-side diff (`@techstark/opencv-js` or Canvas pixel library in Web Worker) — not hardcoded mock anomalies
   3. User adjusts the tolerance slider and anomaly boxes update from a re-run diff pipeline, not pre-filtered mock data
   4. User long-presses to blink-compare against the baseline; tap-to-dismiss removes false-positive boxes and decrements counts
   5. Scan-line animation plays smoothly for 0.8s while diff runs in a Web Worker without UI jank
@@ -88,31 +88,20 @@ ShelfGuard v1 delivers a 30-second shelf inspection loop for retail field reps: 
 **Plans**: TBD
 **UI hint**: yes
 
-### Phase 6: Optional Gemini Refinement
-**Goal**: Users can optionally enable Gemini Vision for secondary analysis on low-confidence regions when online — without blocking the offline-first core loop.
-**Mode:** mvp
-**Depends on**: Phase 5
-**Requirements**: VIS-05
-**Success Criteria** (what must be TRUE):
-  1. User can toggle Gemini refinement in settings; when off, inspection uses client diff only with no network dependency
-  2. When toggle is on and device is online, low-confidence anomaly regions receive secondary Gemini analysis and results merge into the result view
-  3. When toggle is on but device is offline, inspection completes with client diff only and user sees a clear "AI refinement unavailable" indicator — no blocking or error crash
-**Plans**: TBD
-
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Capture Foundation & Stability | 0/TBD | Not started | - |
+| 1. Next.js Migration & Capture Foundation | 0/TBD | Not started | - |
 | 2. Multi-Shelf Data Layer | 0/TBD | Not started | - |
 | 3. Guided Capture Quality | 0/TBD | Not started | - |
 | 4. Real Inspection Pipeline | 0/TBD | Not started | - |
 | 5. PRD UI & Multi-Shelf Experience | 0/TBD | Not started | - |
-| 6. Optional Gemini Refinement | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-09-20*
-*Requirements mapped: 48/48 v1*
+*Last updated: 2026-09-20 after tech stack constraint alignment*
+*Requirements mapped: 54/54 v1*

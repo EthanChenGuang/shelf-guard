@@ -2,7 +2,7 @@
 gsd_state_version: '1.0'
 status: planning
 progress:
-  total_phases: 6
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -16,14 +16,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-20)
 
 **Core value:** 用户能在 30 秒内完成一次展架巡检，并清晰看到「哪里缺了、哪里动了」
-**Current focus:** Phase 1 — Capture Foundation & Stability
+**Current focus:** Phase 1 — Next.js Migration & Capture Foundation
 
 ## Current Position
 
-Phase: 1 of 6 (Capture Foundation & Stability)
+Phase: 1 of 5 (Next.js Migration & Capture Foundation)
 Plan: Not yet planned
 Status: Ready to plan
-Last activity: 2026-09-20 — Roadmap created with 6 phases, 48 v1 requirements mapped
+Last activity: 2026-09-20 — Tech stack aligned to Next.js App Router + pure-client PWA; 54 v1 requirements mapped
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -55,7 +55,8 @@ Recent decisions affecting current work:
 
 - **Roadmap:** Camera/FSM hardening (Phase 1) and storage migration (Phase 2) precede multi-shelf UI (Phase 5) and real vision sign-off (Phase 4) — balances UI-first priority with brownfield dependencies
 - **Roadmap:** PRD UI polish deferred to Phase 5 until real diff replaces mock — prevents false QA sign-off on polished mock data
-- **Roadmap:** Gemini refinement (Phase 6) ships as optional toggle with offline graceful degradation per VIS-05
+- **Tech stack:** Next.js App Router + `"use client"` PWA; no backend; idb-keyval + lucide-react; vision via opencv-js or Canvas pixel lib
+- **Out of scope:** Gemini/cloud Vision API (conflicts with pure-client constraint)
 
 ### Pending Todos
 

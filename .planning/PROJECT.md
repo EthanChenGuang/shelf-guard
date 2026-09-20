@@ -30,8 +30,8 @@ ShelfGuard 是一款跨平台 PWA 展架陈列即时巡检应用。门店员工�
 - [ ] UI/UX 100% 对齐 PRD 设计 Token（Minimalist Light、色彩体系、圆角、毛玻璃、投影）
 - [ ] 三视图交互与动效完全匹配 PRD 规格（水平仪、扫描线、放大镜、统计胶囊等）
 - [ ] Google Stitch 设计稿生成并与 React 实现对齐
-- [ ] 客户端 Canvas 像素差分初筛（按 4 排 ROI 分区比对）
-- [ ] 可选 Gemini Vision 精检（混合检测管线）
+- [ ] 迁移至 Next.js App Router（纯客户端 PWA，`"use client"`）
+- [ ] 客户端图像差分（`@techstark/opencv-js` 或 Canvas 轻量像素库，按 4 排 ROI 分区比对）
 - [ ] 首次引导流程（无基准图时 INITIAL_GUIDE）
 - [ ] 修复已知缺陷（Demo 模式抓拍、Torch 状态、双快门竞态等）
 
@@ -44,19 +44,28 @@ ShelfGuard 是一款跨平台 PWA 展架陈列即时巡检应用。门店员工�
 
 ## Context
 
-**Brownfield 起点：** 仓库已有 ShelfGuard React 19 + Vite 8 + Tailwind 4 原型，三视图与 IndexedDB 持久化已实现。视觉分析 `analyzeShelfCapture()` 当前为 Mock 数据（硬编码异常），未做真实图像处理。`@google/genai` 已声明但未接入。
+**Brownfield 起点：** 仓库已有 ShelfGuard React 19 + Vite 8 + Tailwind 4 原型，三视图与 IndexedDB 持久化已实现。视觉分析 `analyzeShelfCapture()` 当前为 Mock 数据（硬编码异常），未做真实图像处理。需迁移至 **Next.js App Router** 纯客户端 PWA 架构。
+
+**技术栈约束（2026-09-20 确认）：**
+- 框架：Next.js (App Router) + React 19 + TypeScript + Tailwind CSS
+- 运行时：纯客户端 PWA（`"use client"`），无后端依赖，支持离线运行与本地保存
+- 关键库：`idb-keyval`（IndexedDB 持久化）、`lucide-react`（图标）、`@techstark/opencv-js` 或端侧 Canvas 轻量像素操作库（如 pixelmatch）
 
 **PRD 模块一：** Google Stitch 专用 UI/UX 设计规范与 Prompt，定义 Minimalist Light 设计语言、三视图详细交互、5 柜架滑动选择。
 
 **用户决策（2026-09-20）：**
 - 5 柜架：各自独立基准图 + 独立巡检历史，左右滑动切换
-- 视觉检测：混合方案 — 客户端初筛 + 可选 Gemini 精检
+- 视觉检测：纯端侧 — `@techstark/opencv-js` 或 Canvas 轻量像素库，无后端
 - Stitch 定位：Stitch 出稿 + 代码实现完全匹配 PRD
 - v1 优先级：UI/UX 100% 还原 PRD（三视图 + 动效 + 多柜架）
 
 ## Constraints
 
-- **Tech stack**: 保持 React 19 + Vite 8 + Tailwind 4 + TypeScript，不引入新框架
+- **Tech stack**: Next.js (App Router) + React 19 + TypeScript + Tailwind CSS — 从现有 Vite 原型迁移
+- **Runtime**: 纯客户端 PWA — 所有交互组件 `"use client"`；无 Express/API Route/Server Action 业务逻辑；无后端依赖
+- **Vision libs**: `@techstark/opencv-js` **或** 端侧 Canvas 轻量像素库（pixelmatch + Canvas 2D）；优先轻量方案，OpenCV 仅在需要 homography/高级 CV 时启用
+- **Storage**: `idb-keyval` 持久化大分辨率基准图与 ROI 坐标
+- **Icons**: `lucide-react`
 - **Platform**: 浏览器 PWA，支持离线；相机/陀螺仪需 HTTPS 或 localhost
 - **Design**: 严格遵循 PRD 色彩 Token（#FFFFFF, #F8FAFC, #0F172A, #10B981, #EF4444, #F59E0B 等）
 - **Performance**: 扫描动效 0.8s；水平仪 ±1.5° 吸附；放大镜 2x 80px 圆形
@@ -68,10 +77,11 @@ ShelfGuard 是一款跨平台 PWA 展架陈列即时巡检应用。门店员工�
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | 5 柜架独立基准 + 历史 | 每个物理柜架拍摄位置与基准不同，需隔离数据 | — Pending |
-| 混合视觉检测（客户端 + Gemini） | 离线初筛保证速度，Gemini 可选提升精度 | — Pending |
+| 纯端侧视觉检测（无后端） | 用户约束：无后端依赖，离线可用 | — Pending |
+| Next.js App Router 迁移 | 用户指定框架；Vite 原型作为迁移源 | — Pending |
+| Canvas 轻量像素库优先 | bundle 更小；`@techstark/opencv-js` 为备选 | — Pending |
 | v1 UI-first | 用户明确优先级：先还原 PRD 三视图与多柜架 | — Pending |
 | Stitch 出稿 + 代码对齐 | 设计规范作为单一真相源，Stitch 生成 + React 实现 | — Pending |
-| 保持现有技术栈 | Brownfield 原型已验证架构，避免重写成本 | — Pending |
 
 ## Evolution
 
@@ -91,4 +101,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-20 after initialization*
+*Last updated: 2026-09-20 after tech stack constraint alignment*

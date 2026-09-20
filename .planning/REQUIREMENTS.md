@@ -5,6 +5,16 @@
 
 ## v1 Requirements
 
+### Tech Stack (TECH)
+
+- [ ] **TECH-01**: 应用基于 Next.js (App Router) + React 19 + TypeScript + Tailwind CSS 构建
+- [ ] **TECH-02**: 所有相机/Canvas/IndexedDB/设备 API 交互组件使用 `"use client"`，无 Server Component 业务逻辑
+- [ ] **TECH-03**: 运行时无后端依赖 — 不部署 Express/API Route/Server Action 业务逻辑；移除 `@google/genai`、`express`、`dotenv` 等未用服务端依赖
+- [ ] **TECH-04**: 使用 `idb-keyval` 持久化大分辨率基准图片、ROI 坐标、巡检历史与设置
+- [ ] **TECH-05**: 使用 `lucide-react` 作为全局图标库
+- [ ] **TECH-06**: 视觉差分使用 `@techstark/opencv-js` **或** 端侧 Canvas 轻量像素操作库（pixelmatch + Canvas 2D），在 Web Worker 中执行
+- [ ] **TECH-07**: PWA 离线能力通过 Next.js 兼容方案实现（如 `@serwist/next` 或等效 SW 配置），Service Worker 仅缓存应用壳
+
 ### Design System (DSGN)
 
 - [ ] **DSGN-01**: 应用全局使用 Minimalist Light 设计 Token（#FFFFFF/#F8FAFC 底色、#0F172A 主字色、#64748B 次字色、#E2E8F0 边框）
@@ -55,7 +65,6 @@
 - [ ] **VIS-02**: 差分结果分类为 MISSING（缺失）与 DISPLACED（位移），输出带 bounding box 的异常列表
 - [ ] **VIS-03**: 容差滑块变更时重新执行差分管线（非仅过滤预设 Mock）
 - [ ] **VIS-04**: 差分在 Web Worker 中执行，不阻塞 0.8s 扫描动效 UI
-- [ ] **VIS-05**: 可选 Gemini Vision 精检 — 用户开启且在线时对低置信度区域二次分析（v1 可 ship 开关 + 占位，v1.x 完整接入）
 
 ### Storage & Data (DATA)
 
@@ -87,7 +96,8 @@
 
 ### Vision Enhancement
 
-- **VIS-06**: Gemini Vision 完整接入 — 结构化 JSON 输出、置信度阈值自动触发
+- **VIS-05**: 可选云端 Vision API 精检（需后端，与纯客户端约束冲突 — 仅 v2+ 考虑）
+- **VIS-06**: `@techstark/opencv-js` 高级 CV（homography、形态学）— 当 Canvas 轻量方案精度不足时升级
 - **VIS-07**: 单应性（Homography）自动对齐 — 当 Ghost Overlay 不足时
 
 ### Reporting
@@ -109,13 +119,21 @@
 | 多门店 SaaS + 用户认证 | v1 单设备本地 PWA |
 | SKU 级识别 | v2+；v1 区域级 missing/displaced 足够 |
 | 原生 iOS/Android App | PWA 优先 |
-| OpenCV.js WASM | 8MB+ 体积；pixelmatch 足够 v1 |
-| Express 后端 v1 | 零后端单设备；Gemini 走 AI Studio 代理 |
+| Express / API Route 业务逻辑 | 纯客户端 PWA 约束 |
+| Gemini / 云端 Vision API | 无后端依赖；v2+ 若引入需独立后端 |
+| Vite 生产构建 | 迁移至 Next.js App Router |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| TECH-01 | Phase 1 | Pending |
+| TECH-02 | Phase 1 | Pending |
+| TECH-03 | Phase 1 | Pending |
+| TECH-04 | Phase 2 | Pending |
+| TECH-05 | Phase 1 | Pending |
+| TECH-06 | Phase 4 | Pending |
+| TECH-07 | Phase 1 | Pending |
 | DSGN-01 | Phase 5 | Pending |
 | DSGN-02 | Phase 5 | Pending |
 | DSGN-03 | Phase 5 | Pending |
@@ -149,7 +167,6 @@
 | VIS-02 | Phase 4 | Pending |
 | VIS-03 | Phase 4 | Pending |
 | VIS-04 | Phase 4 | Pending |
-| VIS-05 | Phase 6 | Pending |
 | DATA-01 | Phase 2 | Pending |
 | DATA-02 | Phase 2 | Pending |
 | DATA-03 | Phase 2 | Pending |
@@ -166,10 +183,10 @@
 | I18N-02 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 48 total
-- Mapped to phases: 48
+- v1 requirements: 54 total
+- Mapped to phases: 54
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-09-20*
-*Last updated: 2026-09-20 after roadmap traceability*
+*Last updated: 2026-09-20 after tech stack constraint alignment*
