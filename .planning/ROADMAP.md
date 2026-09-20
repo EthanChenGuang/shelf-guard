@@ -35,10 +35,11 @@ ShelfGuard v1 delivers a 30-second shelf inspection loop for retail field reps: 
   6. User sees an offline indicator when disconnected; PWA installable and usable offline via vite-plugin-pwa Service Worker (app shell only)
   7. When analysis exceeds the scan animation duration, the UI transitions to a visible PROCESSING state instead of appearing frozen
 
-**Plans**: 5/5 plans executed
+**Plans**: 6/6 plans executed
 
 Plans:
 
+- [x] 01-06-PLAN.md — G-01-4 gap closure: raise offline pill to bottom-28 + fix shutter-top layout test
 - [x] 01-05-PLAN.md
 
 **Wave 1**
@@ -130,7 +131,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Capture Foundation & Vercel Deploy | 5/5 | In Progress|  |
+| 1. Capture Foundation & Vercel Deploy | 6/6 | In Progress|  |
 | 2. Multi-Shelf Data Layer | 0/TBD | Not started | - |
 | 3. Guided Capture Quality | 0/TBD | Not started | - |
 | 4. Real Inspection Pipeline | 0/TBD | Not started | - |

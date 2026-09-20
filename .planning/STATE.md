@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Capture Foundation & Vercel Deploy
 status: executing
-stopped_at: Completed 01-05-PLAN.md
-last_updated: "2026-09-20T19:26:23.233Z"
+stopped_at: Completed 01-06-PLAN.md
+last_updated: "2026-09-20T19:41:09.435Z"
 last_activity: 2026-09-20
 last_activity_desc: Phase 01 execution resumed (wave continue)
-state_head: 6b1e921d18038fde1b1bf6979f342654795aa82d
+state_head: 6841f97efba828c3d5c33c4ddbf30d37b8de04cc
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 6
+  completed_plans: 6
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-09-20)
 ## Current Position
 
 Phase: 01 (Capture Foundation & Vercel Deploy) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-09-20 — Phase 01 execution resumed (wave continue)
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 01-next-js-migration-capture-foundation P05 | 5min | 3 tasks | 2 files |
+| Phase 01-next-js-migration-capture-foundation P06 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,7 @@ Recent decisions affecting current work:
 - **Tech stack:** Next.js App Router + `"use client"` PWA; no backend; idb-keyval + lucide-react; vision via opencv-js or Canvas pixel lib
 - **Out of scope:** Gemini/cloud Vision API (conflicts with pure-client constraint)
 - [Phase 01]: Used bottom-24 for offline pill clearance at 320px (G-01-4)
+- [Phase 01]: Used bottom-28 over bottom-[6.75rem] for 4px clearance below shutter top 532 (G-01-4)
 
 ### Pending Todos
 
@@ -91,6 +93,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-09-20T19:26:23.216Z
-Stopped at: Completed 01-05-PLAN.md
+Last session: 2026-09-20T19:41:09.415Z
+Stopped at: Completed 01-06-PLAN.md
 Resume file: None
