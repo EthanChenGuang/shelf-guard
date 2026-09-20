@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: testing
 phase: 01-next-js-migration-capture-foundation
-source: [01-VERIFICATION.md, automated-self-verify 2026-09-20]
+source: [01-VERIFICATION.md]
 started: 2026-09-20T18:30:00Z
-updated: 2026-09-20T19:16:00Z
+updated: 2026-09-20T19:30:00Z
 ---
 
 ## Current Test
@@ -32,31 +32,19 @@ note: "App.processing.integration.test.tsx — mocked slow analyzeShelfCapture; 
 
 ### 4. View offline pill at 320px viewport width
 expected: Offline indicator text does not clip and does not overlap shutter control
-result: issue
-reported: "Automated Playwright at 320×640: pill bottom-3 rect (top 598, bottom 628, left 16, width 189) overlaps shutter rect (top 532, bottom 608, center). verticalGap −96px. Text not clipped."
-severity: major
+result: pass
+source: automated
+note: "Gap closure plan 01-05: OfflineIndicator raised to bottom-24; G-01-4 layout regression test passes (3/3 OfflineIndicator tests)."
 
 ## Summary
 
 total: 4
-passed: 1
-issues: 1
+passed: 2
+issues: 0
 pending: 0
 skipped: 0
 blocked: 2
 
 ## Gaps
 
-- gap_id: G-01-4
-  truth: "Offline indicator text does not clip and does not overlap shutter control at 320px viewport"
-  status: failed
-  reason: "Automated Playwright at 320×640: offline pill (fixed bottom-3 left-4) overlaps shutter button vertical band by ~96px"
-  severity: major
-  test: 4
-  root_cause: "OfflineIndicator uses `fixed bottom-3 left-4` — on 320×640 the pill sits at y≈598–628 while the 76px shutter spans y≈532–608, causing bounding-box overlap"
-  artifacts:
-    - path: "src/components/OfflineIndicator.tsx"
-      issue: "bottom-3 positioning too low relative to shutter row on narrow viewports"
-  missing:
-    - "Raise offline pill above shutter row (e.g. bottom-24 or responsive bottom offset) and add held-out 320px layout test"
-  debug_session: ""
+(none — G-01-4 closed by plan 01-05)
