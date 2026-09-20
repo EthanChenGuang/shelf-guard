@@ -116,13 +116,60 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated by roadmapper) | | |
+| DSGN-01 | Phase 5 | Pending |
+| DSGN-02 | Phase 5 | Pending |
+| DSGN-03 | Phase 5 | Pending |
+| DSGN-04 | Phase 5 | Pending |
+| SHLF-01 | Phase 5 | Pending |
+| SHLF-02 | Phase 2 | Pending |
+| SHLF-03 | Phase 2 | Pending |
+| SHLF-04 | Phase 2 | Pending |
+| SHLF-05 | Phase 5 | Pending |
+| CAM-01 | Phase 3 | Pending |
+| CAM-02 | Phase 3 | Pending |
+| CAM-03 | Phase 3 | Pending |
+| CAM-04 | Phase 5 | Pending |
+| CAM-05 | Phase 5 | Pending |
+| CAM-06 | Phase 5 | Pending |
+| CAM-07 | Phase 3 | Pending |
+| CAM-08 | Phase 1 | Pending |
+| CAM-09 | Phase 1 | Pending |
+| ROI-01 | Phase 4 | Pending |
+| ROI-02 | Phase 4 | Pending |
+| ROI-03 | Phase 4 | Pending |
+| ROI-04 | Phase 4 | Pending |
+| ROI-05 | Phase 4 | Pending |
+| RSLT-01 | Phase 4 | Pending |
+| RSLT-02 | Phase 4 | Pending |
+| RSLT-03 | Phase 4 | Pending |
+| RSLT-04 | Phase 4 | Pending |
+| RSLT-05 | Phase 4 | Pending |
+| RSLT-06 | Phase 4 | Pending |
+| VIS-01 | Phase 4 | Pending |
+| VIS-02 | Phase 4 | Pending |
+| VIS-03 | Phase 4 | Pending |
+| VIS-04 | Phase 4 | Pending |
+| VIS-05 | Phase 6 | Pending |
+| DATA-01 | Phase 2 | Pending |
+| DATA-02 | Phase 2 | Pending |
+| DATA-03 | Phase 2 | Pending |
+| DATA-04 | Phase 2 | Pending |
+| DATA-05 | Phase 2 | Pending |
+| PWA-01 | Phase 1 | Pending |
+| PWA-02 | Phase 1 | Pending |
+| PWA-03 | Phase 1 | Pending |
+| STAB-01 | Phase 1 | Pending |
+| STAB-02 | Phase 1 | Pending |
+| STAB-03 | Phase 1 | Pending |
+| STAB-04 | Phase 1 | Pending |
+| I18N-01 | Phase 5 | Pending |
+| I18N-02 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 44 total
-- Mapped to phases: 0
-- Unmapped: 44 ⚠️
+- v1 requirements: 48 total
+- Mapped to phases: 48
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-09-20*
-*Last updated: 2026-09-20 after initial definition*
+*Last updated: 2026-09-20 after roadmap traceability*
