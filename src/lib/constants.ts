@@ -1,6 +1,7 @@
 import { DetectedAnomaly, Language, ShelfCalibration } from '../types';
 
-export const DEFAULT_SHELF_IMAGE_URL = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBzPTns1lwroCgu9pqzPlbk2dkUZ213Ldfq4DwksHwhzPfnmYBvmL7c-FysMzu2fGvI_6h5sHM9mZw4ABvAiyBW4p-4bme1xj6NMOLOLu-wwh7hYKZs2tWooib1VoHLu1I9bBU2TL_8k-DBHBTrNtbXLbkNRuIArojykTF0WFrTL8m5AaybxgJRXtsx_GZgrCzDpw26rtdnq2HWFGiWUeZ-ze78doCkNnjkLtjrppGuQocyV19TNWSxXg';
+/** Same-origin demo shelf image — avoids canvas CORS taint on capture (G-01-7). */
+export const DEFAULT_SHELF_IMAGE_URL = '/demo-shelf.jpg';
 
 export const DEFAULT_SPLIT_Y: [number, number, number, number] = [0.295, 0.455, 0.618, 0.782];
 

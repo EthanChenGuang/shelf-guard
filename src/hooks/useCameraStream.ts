@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DEFAULT_SHELF_IMAGE_URL } from '../lib/constants';
 
 /** Draw baseline image URL to canvas — exported for CAM-09 unit tests. */
 export async function captureDemoFrameFromUrl(
@@ -15,6 +14,9 @@ export async function captureDemoFrameFromUrl(
 
   return new Promise((resolve) => {
     const img = new Image();
+    if (/^https?:\/\//i.test(baselineImageUrl)) {
+      img.crossOrigin = 'anonymous';
+    }
     img.onload = () => {
       ctx.drawImage(img, 0, 0, width, height);
       resolve(canvas.toDataURL('image/jpeg', 0.92));

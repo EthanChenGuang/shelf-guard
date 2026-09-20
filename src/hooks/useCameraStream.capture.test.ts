@@ -8,6 +8,7 @@ const TEST_DATA_URL =
 class MockImage {
   naturalWidth = 100;
   naturalHeight = 100;
+  crossOrigin: string | null = null;
   onload: (() => void) | null = null;
   onerror: (() => void) | null = null;
   private _src = '';
@@ -47,5 +48,20 @@ describe('useCameraStream captureFrame (CAM-09)', () => {
     expect(drawImage).toHaveBeenCalled();
     const drawnImg = drawImage.mock.calls[0]?.[0] as MockImage;
     expect(drawnImg?.src).toBe(TEST_DATA_URL);
+  });
+
+  it('sets crossOrigin anonymous for http(s) baseline URLs (G-01-7)', async () => {
+    const drawImage = vi.fn();
+    HTMLCanvasElement.prototype.getContext = vi.fn(() => ({drawImage})) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+
+    await captureDemoFrameFromUrl('https://example.com/shelf.jpg');
+
+    const drawnImg = drawImage.mock.calls[0]?.[0] as MockImage;
+    expect(drawnImg?.crossOrigin).toBe('anonymous');
+  });
+
+  it('DEFAULT_SHELF_IMAGE_URL is same-origin for PWA capture', () => {
+    expect(DEFAULT_SHELF_IMAGE_URL).toBe('/demo-shelf.jpg');
+    expect(DEFAULT_SHELF_IMAGE_URL.startsWith('http')).toBe(false);
   });
 });
