@@ -30,6 +30,7 @@ export function useCameraStream() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [isTorchOn, setIsTorchOn] = useState<boolean>(false);
+  const [hasTorch, setHasTorch] = useState<boolean>(false);
   const [isUsingDemoFeed, setIsUsingDemoFeed] = useState<boolean>(true); // default to high-res demo shelf feed so user sees instant live planogram!
 
   const startCamera = useCallback(async () => {
@@ -54,6 +55,14 @@ export function useCameraStream() {
       setCameraError(null);
       setIsUsingDemoFeed(false);
 
+      const track = mediaStream.getVideoTracks()[0];
+      if (track) {
+        const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown>;
+        setHasTorch('torch' in capabilities);
+      } else {
+        setHasTorch(false);
+      }
+
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
         videoRef.current.play().catch(() => {});
@@ -69,6 +78,8 @@ export function useCameraStream() {
     if (stream) {
       stream.getTracks().forEach((t) => t.stop());
       setStream(null);
+      setHasTorch(false);
+      setIsTorchOn(false);
     }
     if (videoRef.current) {
       videoRef.current.srcObject = null;
@@ -76,27 +87,20 @@ export function useCameraStream() {
   }, [stream]);
 
   const toggleTorch = useCallback(async () => {
-    if (!stream) {
-      setIsTorchOn((prev) => !prev);
-      return;
-    }
+    if (!stream) return;
     const track = stream.getVideoTracks()[0];
-    if (track) {
-      try {
-        const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown>;
-        if ('torch' in capabilities) {
-          const nextState = !isTorchOn;
-          await track.applyConstraints({
-            advanced: [{ torch: nextState } as MediaTrackConstraintSet],
-          });
-          setIsTorchOn(nextState);
-          return;
-        }
-      } catch (e) {
-        console.warn('Torch constraint failed:', e);
-      }
+    if (!track) return;
+    try {
+      const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown>;
+      if (!('torch' in capabilities)) return;
+      const nextState = !isTorchOn;
+      await track.applyConstraints({
+        advanced: [{ torch: nextState } as MediaTrackConstraintSet],
+      });
+      setIsTorchOn(nextState);
+    } catch (e) {
+      console.warn('Torch constraint failed:', e);
     }
-    setIsTorchOn((prev) => !prev);
   }, [isTorchOn, stream]);
 
   const toggleCameraFacing = useCallback(() => {
@@ -141,6 +145,7 @@ export function useCameraStream() {
     isUsingDemoFeed,
     cameraError,
     isTorchOn,
+    hasTorch,
     facingMode,
     startCamera,
     stopCamera,

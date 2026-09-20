@@ -1,0 +1,413 @@
+import React, { useState } from 'react';
+import {
+  Camera,
+  CheckCircle2,
+  Flashlight,
+  FlashlightOff,
+  Grid3X3,
+  Layers,
+  RotateCcw,
+  ScanLine,
+  SlidersVertical,
+  Sparkles,
+  Smartphone,
+  Info,
+} from 'lucide-react';
+import { Language, ShelfCalibration, AuditRecord } from '../types';
+import { I18N } from '../lib/constants';
+
+interface CameraViewProps {
+  baseline: ShelfCalibration;
+  lang: Language;
+  onLanguageToggle: () => void;
+  onShutterClick: () => void;
+  onOpenRoiConfig: () => void;
+  onOpenHistory: () => void;
+  onResetBaselinePrompt: () => void;
+  lastAudit?: AuditRecord | null;
+  tilt: number;
+  isLevel: boolean;
+  onSimulateTiltToggle?: () => void;
+  isUsingDemoFeed: boolean;
+  onToggleDemoMode: () => void;
+  isTorchOn: boolean;
+  onToggleTorch: () => void;
+  hasTorch?: boolean;
+  isShutterLocked?: boolean;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  ghostOpacity: number;
+  onGhostOpacityChange: (val: number) => void;
+  onInstallPwa?: () => void;
+  isInstallable?: boolean;
+}
+
+export const CameraView: React.FC<CameraViewProps> = ({
+  baseline,
+  lang,
+  onLanguageToggle,
+  onShutterClick,
+  onOpenRoiConfig,
+  onOpenHistory,
+  onResetBaselinePrompt,
+  lastAudit,
+  tilt,
+  isLevel,
+  onSimulateTiltToggle,
+  isUsingDemoFeed,
+  onToggleDemoMode,
+  isTorchOn,
+  onToggleTorch,
+  hasTorch = false,
+  isShutterLocked = false,
+  videoRef,
+  ghostOpacity,
+  onGhostOpacityChange,
+  onInstallPwa,
+  isInstallable,
+}) => {
+  const t = I18N[lang];
+  const [showRoiGuides, setShowRoiGuides] = useState(true);
+
+  return (
+    <div className="relative w-full h-full min-h-[100dvh] bg-[#0F172A] overflow-hidden flex flex-col justify-between select-none">
+      {/* 1. Camera Video Stream or Demo Shelf Feed */}
+      <div className="absolute inset-0 w-full h-full overflow-hidden">
+        {isUsingDemoFeed ? (
+          <img
+            src={baseline.imageDataUrl}
+            alt="Retail Shelf Demo Stream"
+            className="w-full h-full object-cover object-center pointer-events-none transition-transform duration-300 scale-105"
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full object-cover object-center pointer-events-none"
+          />
+        )}
+
+        {/* 2. Ghost Overlay (Golden Baseline) */}
+        {baseline && (
+          <div
+            className="absolute inset-0 w-full h-full pointer-events-none mix-blend-screen transition-opacity duration-150"
+            style={{ opacity: ghostOpacity / 100 }}
+          >
+            <img
+              src={baseline.imageDataUrl}
+              alt="Baseline Ghost Overlay"
+              className="w-full h-full object-cover object-center filter contrast-125 brightness-110"
+            />
+            <div className="absolute inset-0 bg-emerald-500/10 mix-blend-overlay" />
+          </div>
+        )}
+
+        {/* Ambient Dark Gradient Framing */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0F172A]/70 via-transparent to-[#0F172A]/85 pointer-events-none" />
+
+        {/* 3. AR ROI 4-Tier Shelf Guides */}
+        {showRoiGuides && (
+          <div className="absolute inset-x-5 inset-y-16 pointer-events-none transition-all duration-300">
+            <svg
+              className="w-full h-full text-white/75 drop-shadow-sm"
+              fill="none"
+              preserveAspectRatio="none"
+              viewBox="0 0 100 100"
+            >
+              {/* Corner Brackets */}
+              <path d="M 0 10 L 0 0 L 10 0" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              <path d="M 90 0 L 100 0 L 100 10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              <path d="M 100 90 L 100 100 L 90 100" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              <path d="M 10 100 L 0 100 L 0 90" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+
+              {/* 4 Tier Partition Lines from baseline */}
+              {baseline.splitYPercentages.map((percent, index) => (
+                <line
+                  key={index}
+                  x1="2"
+                  x2="98"
+                  y1={percent * 100}
+                  y2={percent * 100}
+                  stroke="rgba(255,255,255,0.35)"
+                  strokeWidth="0.8"
+                  strokeDasharray="2 3"
+                />
+              ))}
+            </svg>
+
+            {/* ROI Zone Badge */}
+            <div className="absolute -top-3 left-4 bg-[#0F172A]/80 backdrop-blur-md px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-sm border border-white/10">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+              <span className="font-mono-numbers text-[10px] text-white uppercase tracking-wider font-medium">
+                {t.roiZone}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* 4. Center Leveling Crosshair */}
+        <div
+          className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
+          id="level-crosshair"
+        >
+          <div className="relative w-44 h-44 flex items-center justify-center">
+            {/* Horizon Rotating Line */}
+            <div
+              className={`absolute w-36 h-[1.5px] transition-all duration-150 ${
+                isLevel
+                  ? 'bg-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.9)]'
+                  : 'bg-white/70 shadow-[0_0_6px_rgba(255,255,255,0.4)]'
+              }`}
+              style={{ transform: `rotate(${tilt}deg)` }}
+            />
+
+            {/* Vertical Center Axis Line */}
+            <div
+              className={`absolute h-36 w-[1.5px] ${
+                isLevel
+                  ? 'bg-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.9)]'
+                  : 'bg-white/70'
+              }`}
+            />
+
+            {/* Central Circular Bullseye */}
+            <div
+              className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-[2px] transition-colors duration-200 ${
+                isLevel
+                  ? 'border-[#10B981] bg-[#10B981]/15 shadow-[0_0_14px_rgba(16,185,129,0.7)]'
+                  : 'border-white/40 bg-black/20'
+              }`}
+            >
+              <div
+                className={`w-2 h-2 rounded-full transition-colors duration-150 ${
+                  isLevel ? 'bg-[#10B981] shadow-[0_0_8px_#10B981]' : 'bg-white/80'
+                }`}
+              />
+            </div>
+
+            {/* Corner Precision Markers */}
+            <div className={`absolute top-1 left-1 w-2 h-2 border-t border-l ${isLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
+            <div className={`absolute top-1 right-1 w-2 h-2 border-t border-r ${isLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
+            <div className={`absolute bottom-1 left-1 border-b border-l ${isLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
+            <div className={`absolute bottom-1 right-1 border-b border-r ${isLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
+
+            {/* Level status indicator pill with click-to-simulate for desktop testing */}
+            <button
+              onClick={onSimulateTiltToggle}
+              className={`absolute -bottom-8 px-2.5 py-0.5 rounded-full backdrop-blur-md shadow-md flex items-center gap-1.5 transition-all pointer-events-auto cursor-pointer ${
+                isLevel
+                  ? 'bg-white/95 text-[#0F172A] border border-emerald-300'
+                  : 'bg-[#0F172A]/85 text-amber-300 border border-amber-500/30'
+              }`}
+              title="Click to toggle level / tilt"
+            >
+              {isLevel ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />
+                  <span className="font-mono-numbers text-[10px] font-bold tracking-wide">
+                    0.0° {t.level}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="font-mono-numbers text-[10px] font-semibold tracking-wide">
+                    {tilt > 0 ? `+${tilt}°` : `${tilt}°`} {t.plumb}
+                  </span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* TOP FLOATING BAR */}
+      <div className="relative z-20 px-4 pt-3 pb-2 flex items-center justify-between gap-2">
+        {/* Left: Baseline Status Button */}
+        <button
+          onClick={onResetBaselinePrompt}
+          className="flex items-center gap-1.5 bg-white/85 hover:bg-white backdrop-blur-xl px-3 py-1.5 rounded-full shadow-md text-[#0F172A] border border-slate-200/60 active:scale-95 transition-all"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10B981] opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#10B981]" />
+          </span>
+          <span className="text-xs font-semibold tracking-tight">{t.baselineEstablished}</span>
+          <span className="font-mono-numbers text-[10px] text-slate-500 font-medium">/{t.baselineTag}</span>
+        </button>
+
+        {/* Right Tools: Camera/Demo toggle, Flashlight, Language, PWA */}
+        <div className="flex items-center gap-1.5 bg-white/85 backdrop-blur-xl p-1 rounded-full shadow-md border border-slate-200/60">
+          {/* Feed Source Toggle */}
+          <button
+            onClick={onToggleDemoMode}
+            className={`px-2 h-7 rounded-full flex items-center gap-1 text-[11px] font-medium transition-colors ${
+              isUsingDemoFeed
+                ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                : 'bg-emerald-50 text-emerald-700 font-semibold'
+            }`}
+            title={isUsingDemoFeed ? t.useRealCamera : t.useSampleFeed}
+          >
+            <Camera className="w-3.5 h-3.5" />
+            <span>{isUsingDemoFeed ? 'Demo' : 'Cam'}</span>
+          </button>
+
+          {/* Torch Toggle — hidden when unsupported or demo feed */}
+          {hasTorch && !isUsingDemoFeed && (
+            <button
+              onClick={onToggleTorch}
+              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                isTorchOn
+                  ? 'bg-[#10B981] text-white shadow-sm'
+                  : 'text-[#0F172A] hover:bg-slate-100'
+              }`}
+              title={isTorchOn ? t.torchOff : t.torchOn}
+            >
+              {isTorchOn ? <Flashlight className="w-3.5 h-3.5" /> : <FlashlightOff className="w-3.5 h-3.5 text-slate-600" />}
+            </button>
+          )}
+
+          {/* Language Toggle */}
+          <button
+            onClick={onLanguageToggle}
+            className="px-2 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-mono-numbers text-[11px] text-[#006C49] font-bold transition-colors"
+          >
+            {lang.toUpperCase()}
+          </button>
+
+          {/* PWA Install Button if available */}
+          {isInstallable && onInstallPwa && (
+            <button
+              onClick={onInstallPwa}
+              className="px-2.5 h-7 rounded-full bg-[#10B981] text-white flex items-center gap-1 text-[11px] font-semibold hover:bg-emerald-600 transition-colors shadow-sm"
+              title={t.installPwa}
+            >
+              <Smartphone className="w-3 h-3" />
+              <span>PWA</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* RIGHT EDGE VERTICAL SLIDER (GHOST TRANSPARENCY) */}
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center bg-white/85 backdrop-blur-xl px-2 py-3.5 rounded-full shadow-lg border border-slate-200/70">
+        <div className="flex items-center justify-center mb-1 text-slate-600">
+          <Layers className="w-4 h-4 text-slate-700" />
+        </div>
+
+        <div className="relative w-6 h-40 flex flex-col items-center justify-between py-1">
+          <span className="font-mono-numbers text-[9px] text-slate-400 uppercase font-semibold">100</span>
+
+          {/* Slider track */}
+          <div className="relative w-2 h-28 bg-slate-200 rounded-full overflow-hidden flex flex-col justify-end">
+            <div
+              className="w-full bg-[#10B981] rounded-full transition-all duration-75"
+              style={{ height: `${ghostOpacity}%` }}
+            />
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={ghostOpacity}
+              onChange={(e) => onGhostOpacityChange(Number(e.target.value))}
+              aria-label={t.ghostOpacity}
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+            />
+          </div>
+
+          <span className="font-mono-numbers text-[9px] text-slate-400 uppercase font-semibold">0</span>
+        </div>
+
+        <div className="mt-1 text-center">
+          <span className="font-mono-numbers text-[10px] text-[#006C49] font-bold block">
+            {ghostOpacity}%
+          </span>
+          <span className="font-mono-numbers text-[8px] text-slate-400 uppercase tracking-tighter block">
+            {t.ghost}
+          </span>
+        </div>
+      </div>
+
+      {/* BOTTOM CONTROL AREA */}
+      <div className="relative z-20 pb-8 pt-3 px-6 flex flex-col items-center">
+        {/* Shutter Prompt Pill */}
+        <div className="mb-4 px-3 py-1 rounded-full bg-[#0F172A]/75 backdrop-blur-md shadow-sm border border-white/10">
+          <p className="text-xs text-white/95 flex items-center gap-1.5 font-medium">
+            <ScanLine className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+            <span>{t.tapShutterToScan}</span>
+          </p>
+        </div>
+
+        {/* Bottom Actions Row */}
+        <div className="w-full flex items-center justify-between max-w-sm px-2">
+          {/* Left: Grid & Calibration Button */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowRoiGuides(!showRoiGuides)}
+              className={`w-12 h-12 rounded-full backdrop-blur-xl shadow-md flex items-center justify-center transition-all active:scale-95 border ${
+                showRoiGuides
+                  ? 'bg-white text-[#0F172A] border-slate-200'
+                  : 'bg-white/50 text-slate-500 border-white/20'
+              }`}
+              title="Toggle ROI Grid"
+            >
+              <Grid3X3 className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={onOpenRoiConfig}
+              className="w-10 h-10 rounded-full bg-white/80 hover:bg-white backdrop-blur-xl shadow-md flex items-center justify-center text-[#0F172A] transition-all active:scale-95 border border-slate-200"
+              title={t.tierCalibration}
+            >
+              <SlidersVertical className="w-4 h-4 text-slate-700" />
+            </button>
+          </div>
+
+          {/* Center: 76px Circular Shutter Trigger with breathing glow */}
+          <div className="relative flex items-center justify-center">
+            <div className="absolute w-24 h-24 rounded-full bg-[#10B981]/25 animate-ping opacity-60 pointer-events-none" />
+            <div className="absolute w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm pointer-events-none" />
+            
+            <button
+              id="shutter-trigger"
+              onClick={onShutterClick}
+              aria-label={isShutterLocked ? t.shutterLocked : 'Capture & Scan Planogram'}
+              aria-disabled={isShutterLocked}
+              disabled={isShutterLocked}
+              className={`relative w-[76px] h-[76px] rounded-full bg-white p-1.5 shadow-[0_4px_24px_rgba(0,0,0,0.35)] flex items-center justify-center transition-transform duration-150 group ${
+                isShutterLocked
+                  ? 'opacity-50 cursor-not-allowed pointer-events-none'
+                  : 'active:scale-90 cursor-pointer'
+              }`}
+            >
+              <div className="w-full h-full rounded-full bg-gradient-to-tr from-[#0F172A] to-[#283044] flex items-center justify-center shadow-inner">
+                <div className="w-6 h-6 rounded-full bg-[#10B981] flex items-center justify-center transition-transform group-hover:scale-110 shadow-[0_0_8px_rgba(16,185,129,0.8)]">
+                  <Sparkles className="w-3.5 h-3.5 text-white" />
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* Right: Last Audit History Thumbnail Preview */}
+          <div className="relative flex flex-col items-center">
+            <button
+              onClick={onOpenHistory}
+              aria-label="View Previous Shelf Audit"
+              className="w-12 h-12 rounded-xl bg-white/85 backdrop-blur-xl shadow-md p-0.5 overflow-hidden active:scale-95 transition-transform border border-slate-200 hover:border-emerald-400"
+            >
+              <img
+                src={lastAudit ? lastAudit.thumbnailUrl : baseline.imageDataUrl}
+                alt="Audit Thumbnail"
+                className="w-full h-full object-cover rounded-[10px]"
+              />
+            </button>
+            <span className="absolute -bottom-2 bg-[#0F172A]/85 text-white font-mono-numbers text-[9px] px-1.5 py-0.2 rounded-full font-medium shadow-sm border border-white/10">
+              {lastAudit ? lastAudit.timeStr : '14:20'}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

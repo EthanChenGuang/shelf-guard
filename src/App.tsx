@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AuditRecord,
   AppMode,
@@ -20,6 +20,8 @@ import {
   saveTolerance,
 } from './lib/storage';
 import { analyzeShelfCapture } from './lib/vision';
+import { isCaptureLocked } from './lib/captureLock';
+import { loadImageDimensions } from './lib/imageDimensions';
 import { useCameraStream } from './hooks/useCameraStream';
 import { useDeviceOrientation } from './hooks/useDeviceOrientation';
 import { usePWAInstall } from './hooks/usePWAInstall';
@@ -62,10 +64,15 @@ export default function App() {
 
   // Device hooks
   const { tilt, isLevel, setSimulatedTilt } = useDeviceOrientation();
+  const captureLockRef = useRef(false);
+  const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isShutterLocked, setIsShutterLocked] = useState(false);
+
   const {
     videoRef,
     isUsingDemoFeed,
     isTorchOn,
+    hasTorch,
     toggleTorch,
     toggleDemoMode,
     captureFrame,
@@ -112,29 +119,53 @@ export default function App() {
 
   // Shutter action: snaps frame, runs 0.8s scanning beam animation, then shows inspect view
   const handleShutterClick = async () => {
-    const frame = await captureFrame(baseline.imageDataUrl);
-    setCapturedFrame(frame);
-    setAppMode('SCANNING_ANIM');
+    if (isCaptureLocked(appMode, captureLockRef.current)) return;
+
+    captureLockRef.current = true;
+    setIsShutterLocked(true);
 
     try {
-      navigator.vibrate?.([30, 40, 30]);
-    } catch {
-      // ignore
-    }
+      const frame = await captureFrame(baseline.imageDataUrl);
+      setCapturedFrame(frame);
+      setAppMode('SCANNING_ANIM');
 
-    // Compute differential analysis in parallel
-    const result = await analyzeShelfCapture(frame, baseline, tolerance);
-    setAnomalies(result.anomalies);
-    setComplianceRate(result.complianceRate);
-    setStandardCount(result.standardCount);
-    setActualCount(result.actualCount);
-    setDisplacedCount(result.displacedCount);
-    setMissingCount(result.missingCount);
+      try {
+        navigator.vibrate?.([30, 40, 30]);
+      } catch {
+        // ignore
+      }
 
-    // 0.8s animation duration per PRD
-    setTimeout(() => {
+      let analysisDone = false;
+      const analysisPromise = analyzeShelfCapture(frame, baseline, tolerance).then(
+        (result) => {
+          analysisDone = true;
+          return result;
+        },
+      );
+
+      scanTimerRef.current = setTimeout(() => {
+        if (!analysisDone) {
+          setAppMode((mode) => (mode === 'SCANNING_ANIM' ? 'PROCESSING' : mode));
+        }
+      }, 800);
+
+      const result = await analysisPromise;
+      setAnomalies(result.anomalies);
+      setComplianceRate(result.complianceRate);
+      setStandardCount(result.standardCount);
+      setActualCount(result.actualCount);
+      setDisplacedCount(result.displacedCount);
+      setMissingCount(result.missingCount);
+
+      if (scanTimerRef.current) {
+        clearTimeout(scanTimerRef.current);
+        scanTimerRef.current = null;
+      }
       setAppMode('RESULT_INSPECT');
-    }, 800);
+    } finally {
+      captureLockRef.current = false;
+      setIsShutterLocked(false);
+    }
   };
 
   // Anomaly tap-to-dismiss handler
@@ -211,10 +242,12 @@ export default function App() {
       reader.onload = async (ev) => {
         const dataUrl = ev.target?.result as string;
         if (dataUrl) {
+          const dimensions = await loadImageDimensions(dataUrl);
           const newCalibration: ShelfCalibration = {
             ...baseline,
             id: `custom-baseline-${Date.now()}`,
             imageDataUrl: dataUrl,
+            imageDimensions: dimensions,
             createdAt: Date.now(),
           };
           setBaseline(newCalibration);
@@ -248,6 +281,8 @@ export default function App() {
           lang={lang}
           onLanguageToggle={handleLanguageToggle}
           onShutterClick={handleShutterClick}
+          isShutterLocked={isShutterLocked}
+          hasTorch={hasTorch}
           onOpenRoiConfig={() => setAppMode('ROI_CONFIG')}
           onOpenHistory={() => setShowHistoryModal(true)}
           onResetBaselinePrompt={() => setShowResetModal(true)}
@@ -268,10 +303,11 @@ export default function App() {
       )}
 
       {/* 2. Scanning 0.8s Laser Beam Transition */}
-      {appMode === 'SCANNING_ANIM' && (
+      {(appMode === 'SCANNING_ANIM' || appMode === 'PROCESSING') && (
         <ScanningAnimationOverlay
           lang={lang}
           frozenFrameUrl={capturedFrame}
+          variant={appMode === 'PROCESSING' ? 'processing' : 'scanning'}
         />
       )}
 
