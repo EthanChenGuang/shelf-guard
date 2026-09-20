@@ -81,7 +81,7 @@ Each task was committed atomically:
 1. **Task 1: Raise pill position** - `5fccce1` (fix)
 2. **Task 2: Add layout regression test** - `6b1e921` (test)
 
-**Plan metadata:** pending final docs commit
+**Plan metadata:** `c8a501a` (docs: complete plan)
 
 ## Files Created/Modified
 
