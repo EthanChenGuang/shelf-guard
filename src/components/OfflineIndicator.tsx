@@ -29,7 +29,7 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({ lang }) => {
   if (isOnline) return null;
 
   return (
-    <div className="fixed bottom-3 left-4 z-50 flex items-center gap-2 rounded-full bg-amber-600/90 backdrop-blur-md px-3 py-1.5 text-xs font-medium text-white shadow-lg border border-amber-400/30">
+    <div className="fixed bottom-24 left-4 z-50 flex items-center gap-2 rounded-full bg-amber-600/90 backdrop-blur-md px-3 py-1.5 text-xs font-medium text-white shadow-lg border border-amber-400/30">
       <WifiOff className="w-3.5 h-3.5" />
       <span>{t.offlineMode}</span>
     </div>
