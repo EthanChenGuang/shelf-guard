@@ -2,8 +2,8 @@
 phase: "01"
 slug: "next-js-migration-capture-foundation"
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: "2026-09-20"
 ---
 
@@ -38,16 +38,17 @@ created: "2026-09-20"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 01-01-01 | 01 | 0 | TECH-01/07 | — | Build produces SW + manifest | smoke | `bun run build && test -f dist/sw.js` | ✅ | ⬜ pending |
-| 01-02-01 | 02 | 1 | STAB-01 | — | Shutter ignores second tap during capture lock | unit | `npx vitest run src/App.capture.test.ts` | ❌ W0 | ⬜ pending |
-| 01-02-02 | 02 | 1 | STAB-02 | — | Torch hidden when capability absent | unit | `npx vitest run src/hooks/useCameraStream.torch.test.ts` | ❌ W0 | ⬜ pending |
-| 01-02-03 | 02 | 1 | STAB-03 | — | PROCESSING shown when analysis slow | unit | `npx vitest run src/App.processing.test.ts` | ❌ W0 | ⬜ pending |
-| 01-02-04 | 02 | 1 | STAB-04 | — | Upload sets imageDimensions | unit | `npx vitest run src/App.baseline.test.ts` | ❌ W0 | ⬜ pending |
-| 01-03-01 | 03 | 1 | CAM-08 | T-01-01 | cameraError renders banner text | component | `npx vitest run src/components/CameraView.error.test.tsx` | ❌ W0 | ⬜ pending |
-| 01-03-02 | 03 | 1 | CAM-09 | — | Demo capture uses baseline URL not CDN constant | unit | `npx vitest run src/hooks/useCameraStream.capture.test.ts` | ❌ W0 | ⬜ pending |
-| 01-04-01 | 04 | 1 | PWA-03 | — | OfflineIndicator shows when offline | component | `npx vitest run src/components/OfflineIndicator.test.tsx` | ❌ W0 | ⬜ pending |
-| 01-04-02 | 04 | 1 | TECH-03 | T-01-05 | No server imports in src | static | `rg '@google/genai|express|dotenv' src/` | ✅ | ⬜ pending |
-| 01-04-03 | 04 | 1 | PWA-02 | T-01-01 | SW precache excludes user image patterns | smoke | Manual: inspect `dist/sw.js` precache list post-build | ✅ manual | ⬜ pending |
+| 01-01-01 | 01 | 0 | TECH-01/07 | — | Docs sync + Vitest scaffold | smoke | `bun run test -- --passWithNoTests` | ❌ W0 | ⬜ pending |
+| 01-02-01 | 02 | 1 | TECH-01/07/CAM-09/PWA-02 | — | Build produces SW + manifest; demo capture fix | smoke | `bun run build && test -f dist/sw.js` | ✅ | ⬜ pending |
+| 01-02-02 | 02 | 1 | CAM-09 | — | Demo capture uses baseline URL not CDN constant | unit | `npx vitest run src/hooks/useCameraStream.capture.test.ts` | ❌ W0 | ⬜ pending |
+| 01-02-03 | 02 | 1 | TECH-03/TECH-05 | T-01-05 | No server imports; lucide-react retained | static | `rg '@google/genai|express|dotenv' src/` | ✅ | ⬜ pending |
+| 01-03-01 | 03 | 2 | STAB-01 | — | Shutter ignores second tap during capture lock | unit | `npx vitest run src/App.capture.test.ts` | ❌ W0 | ⬜ pending |
+| 01-03-02 | 03 | 2 | STAB-03 | — | PROCESSING shown when analysis slow | unit | `npx vitest run src/App.processing.test.ts` | ❌ W0 | ⬜ pending |
+| 01-03-03 | 03 | 2 | STAB-02 | — | Torch hidden when capability absent | unit | `npx vitest run src/hooks/useCameraStream.torch.test.ts` | ❌ W0 | ⬜ pending |
+| 01-03-04 | 03 | 2 | STAB-04 | — | Upload sets imageDimensions | unit | `npx vitest run src/App.baseline.test.ts` | ❌ W0 | ⬜ pending |
+| 01-04-01 | 04 | 3 | CAM-08 | T-01-01 | cameraError renders banner text | component | `npx vitest run src/components/CameraView.error.test.tsx` | ❌ W0 | ⬜ pending |
+| 01-04-02 | 04 | 3 | PWA-03 | — | OfflineIndicator shows when offline | component | `npx vitest run src/components/OfflineIndicator.test.tsx` | ❌ W0 | ⬜ pending |
+| 01-04-03 | 04 | 3 | PWA-02 | T-01-01 | SW precache excludes user image patterns | smoke | Manual: inspect `dist/sw.js` precache list post-build | ✅ manual | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 

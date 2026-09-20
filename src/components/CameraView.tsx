@@ -11,7 +11,8 @@ import {
   SlidersVertical,
   Sparkles,
   Smartphone,
-  Info,
+  AlertCircle,
+  X,
 } from 'lucide-react';
 import { Language, ShelfCalibration, AuditRecord } from '../types';
 import { I18N } from '../lib/constants';
@@ -39,6 +40,9 @@ interface CameraViewProps {
   onGhostOpacityChange: (val: number) => void;
   onInstallPwa?: () => void;
   isInstallable?: boolean;
+  cameraError?: string | null;
+  onRetryCamera?: () => void;
+  onDismissCameraError?: () => void;
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -64,6 +68,9 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onGhostOpacityChange,
   onInstallPwa,
   isInstallable,
+  cameraError,
+  onRetryCamera,
+  onDismissCameraError,
 }) => {
   const t = I18N[lang];
   const [showRoiGuides, setShowRoiGuides] = useState(true);
@@ -331,6 +338,43 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
       {/* BOTTOM CONTROL AREA */}
       <div className="relative z-20 pb-8 pt-3 px-6 flex flex-col items-center">
+        {cameraError && (
+          <div
+            role="alert"
+            className="mb-4 w-full max-w-sm rounded-2xl border border-amber-400/40 bg-slate-900/90 backdrop-blur-md px-4 py-3 text-white shadow-lg"
+          >
+            <div className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold">{t.cameraPermissionDenied}</p>
+                <p className="mt-1 text-xs text-slate-300">{cameraError}</p>
+                <p className="mt-2 text-xs text-slate-400">{t.cameraErrorIosGuide}</p>
+                <div className="mt-3 flex items-center gap-3">
+                  {onRetryCamera && (
+                    <button
+                      type="button"
+                      onClick={onRetryCamera}
+                      className="text-xs font-semibold text-emerald-400 hover:text-emerald-300"
+                    >
+                      {t.useRealCamera}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {onDismissCameraError && (
+                <button
+                  type="button"
+                  onClick={onDismissCameraError}
+                  aria-label={t.close}
+                  className="shrink-0 text-slate-400 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Shutter Prompt Pill */}
         <div className="mb-4 px-3 py-1 rounded-full bg-[#0F172A]/75 backdrop-blur-md shadow-sm border border-white/10">
           <p className="text-xs text-white/95 flex items-center gap-1.5 font-medium">

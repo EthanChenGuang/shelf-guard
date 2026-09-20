@@ -107,6 +107,10 @@ export function useCameraStream() {
     setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
   }, []);
 
+  const clearCameraError = useCallback(() => {
+    setCameraError(null);
+  }, []);
+
   const toggleDemoMode = useCallback(() => {
     if (isUsingDemoFeed) {
       startCamera();
@@ -152,6 +156,7 @@ export function useCameraStream() {
     toggleTorch,
     toggleCameraFacing,
     toggleDemoMode,
+    clearCameraError,
     captureFrame,
   };
 }

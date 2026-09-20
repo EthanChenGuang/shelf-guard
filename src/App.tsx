@@ -75,6 +75,9 @@ export default function App() {
     hasTorch,
     toggleTorch,
     toggleDemoMode,
+    startCamera,
+    clearCameraError,
+    cameraError,
     captureFrame,
   } = useCameraStream();
   const { isInstallable, install } = usePWAInstall();
@@ -294,6 +297,9 @@ export default function App() {
           onToggleDemoMode={toggleDemoMode}
           isTorchOn={isTorchOn}
           onToggleTorch={toggleTorch}
+          cameraError={cameraError}
+          onRetryCamera={startCamera}
+          onDismissCameraError={clearCameraError}
           videoRef={videoRef}
           ghostOpacity={ghostOpacity}
           onGhostOpacityChange={setGhostOpacity}
@@ -366,7 +372,7 @@ export default function App() {
       )}
 
       {/* PWA Offline Connection Indicator */}
-      <OfflineIndicator />
+      <OfflineIndicator lang={lang} />
     </div>
   );
 }

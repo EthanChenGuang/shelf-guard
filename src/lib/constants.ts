@@ -122,7 +122,10 @@ export const I18N = {
     scanning: '正在进行透视配准与差分分析...',
     useSampleFeed: '切换为演示货架画面',
     useRealCamera: '切换为物理摄像头',
-    cameraPermissionDenied: '未能启动摄像头，已无缝切换至高精演示展架',
+    cameraPermissionDenied: '无法访问摄像头',
+    cameraErrorIosGuide:
+      '请在 Safari 中打开本页 → 设置 → [ShelfGuard] → 允许相机；或从 Safari「添加到主屏幕」重新安装。也可继续使用演示画面。',
+    offlineMode: '离线模式 · 本地缓存已就绪',
     switchCamera: '切换镜头',
     torchOn: '开启补光灯',
     torchOff: '关闭补光灯',
@@ -183,7 +186,10 @@ export const I18N = {
     scanning: 'Aligning homography & computing differences...',
     useSampleFeed: 'Use Demo Shelf',
     useRealCamera: 'Use Camera',
-    cameraPermissionDenied: 'Camera unavailable. Switched to high-res demo shelf.',
+    cameraPermissionDenied: 'Camera access denied',
+    cameraErrorIosGuide:
+      'Open in Safari → Settings → [ShelfGuard] → allow Camera, or reinstall via Safari Add to Home Screen. You can keep using Demo mode.',
+    offlineMode: 'Offline mode · Local cache ready',
     switchCamera: 'Switch Camera',
     torchOn: 'Flashlight On',
     torchOff: 'Flashlight Off',
