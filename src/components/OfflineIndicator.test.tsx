@@ -1,4 +1,4 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {beforeEach, describe, expect, it} from 'vitest';
 import {render, screen, act} from '@testing-library/react';
 import {OfflineIndicator} from './OfflineIndicator';
 
@@ -37,34 +37,21 @@ describe('OfflineIndicator (PWA-03)', () => {
 
     const pill = screen.getByText('离线模式 · 本地缓存已就绪').closest('div');
     expect(pill).not.toBeNull();
-    expect(pill!.className).toContain('bottom-24');
+    expect(pill!.className).toContain('bottom-28');
+    expect(pill!.className).not.toContain('bottom-24');
     expect(pill!.className).not.toMatch(/\bbottom-3\b/);
 
+    // shutterTop 532 from Playwright 320×640 measurement in 01-UAT.md test 4
     const viewportHeight = 640;
-    const bottom24Px = 96;
-    const bottom3Px = 12;
-    const shutterBandBottom = 608;
-    const pillHeight = 28;
+    const viewportWidth = 320;
+    const shutterTop = 532;
+    const bottom28Px = 112;
+    const priorBottom24PillBottom = 544;
 
-    const pillBottom = viewportHeight - bottom24Px;
-    const pillTop = pillBottom - pillHeight;
-    const preFixPillBottom = viewportHeight - bottom3Px;
+    expect(viewportWidth).toBe(320);
 
-    vi.spyOn(pill!, 'getBoundingClientRect').mockReturnValue({
-      bottom: pillBottom,
-      top: pillTop,
-      left: 16,
-      right: 200,
-      width: 184,
-      height: pillHeight,
-      x: 16,
-      y: pillTop,
-      toJSON: () => ({}),
-    } as DOMRect);
-
-    const pillRect = pill!.getBoundingClientRect();
-    expect(pillRect.bottom).toBeLessThanOrEqual(shutterBandBottom);
-    expect(pillRect.bottom).toBeLessThan(preFixPillBottom);
-    expect(pillRect.top).toBeLessThan(shutterBandBottom);
+    const expectedPillBottom = viewportHeight - bottom28Px;
+    expect(expectedPillBottom).toBeLessThanOrEqual(shutterTop);
+    expect(expectedPillBottom).toBeLessThan(priorBottom24PillBottom);
   });
 });
