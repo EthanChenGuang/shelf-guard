@@ -10,27 +10,33 @@ ShelfGuard v1 delivers a 30-second shelf inspection loop for retail field reps: 
 - Integer phases (1–6): Planned v1 milestone work
 - Decimal phases (e.g., 2.1): Urgent insertions via `/gsd-phase --insert`
 
-- [ ] **Phase 1: Next.js Migration & Capture Foundation** - Migrate Vite prototype to Next.js App Router (`"use client"` PWA), fix FSM/camera bugs, remove backend deps
+- [ ] **Phase 1: Capture Foundation & Vercel Deploy** - Retain Vite 8 pure-client PWA on Vercel, fix FSM/camera bugs, remove backend deps
 - [ ] **Phase 2: Multi-Shelf Data Layer** - Namespaced IndexedDB schema with Blob storage and legacy migration before carousel UI
 - [ ] **Phase 3: Guided Capture Quality** - Ghost overlay, level gauge, and iOS orientation permission for aligned re-shoots
 - [ ] **Phase 4: Real Inspection Pipeline** - Replace mock vision with ROI-scoped pixel diff, Web Worker analysis, and result interactions
 - [ ] **Phase 5: PRD UI & Multi-Shelf Experience** - Minimalist Light design system, shelf carousel swipe, PRD animations, and i18n polish
 ## Phase Details
 
-### Phase 1: Next.js Migration & Capture Foundation
-**Goal**: App runs on Next.js App Router as a pure-client PWA with no backend dependencies; users can reliably capture shelf photos without race conditions, silent camera failures, or broken demo-mode frames.
+### Phase 1: Capture Foundation & Vercel Deploy
+**Goal**: App runs as a Vite 8 pure-client PWA deployed to Vercel with no backend dependencies; users can reliably capture shelf photos without race conditions, silent camera failures, or broken demo-mode frames.
 **Mode:** mvp
 **Depends on**: Nothing (first phase)
 **Requirements**: TECH-01, TECH-02, TECH-03, TECH-05, TECH-07, STAB-01, STAB-02, STAB-03, STAB-04, CAM-08, CAM-09, PWA-01, PWA-02, PWA-03
 **Success Criteria** (what must be TRUE):
-  1. App builds and runs on Next.js App Router; all camera/Canvas/IndexedDB code lives in `"use client"` components with no server-side business logic
-  2. `@google/genai`, `express`, `dotenv` removed from dependencies; no API routes or Server Actions for inspection workflow
+  1. App builds with Vite 8 and deploys to Vercel static hosting; all camera/Canvas/IndexedDB code runs client-side in the SPA with no server-side business logic
+  2. `@google/genai`, `express`, `dotenv` removed from dependencies; no backend or API routes for inspection workflow
   3. User cannot double-trigger the shutter during the 800ms scan animation; a second tap is ignored until capture completes
   4. User sees a clear in-app message (not console-only) when camera permission is denied or the stream fails — including iOS standalone PWA fallback guidance
   5. Demo mode captures the currently displayed frame, not a fixed CDN URL
-  6. User sees an offline indicator when disconnected; PWA installable and usable offline via Next.js-compatible Service Worker (app shell only)
+  6. User sees an offline indicator when disconnected; PWA installable and usable offline via vite-plugin-pwa Service Worker (app shell only)
   7. When analysis exceeds the scan animation duration, the UI transitions to a visible PROCESSING state instead of appearing frozen
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Docs reconciliation (Vite stack) + Vitest Wave 0 scaffold
+- [ ] 01-02-PLAN.md — Vercel deploy tracer + demo capture fix + dependency hygiene
+- [ ] 01-03-PLAN.md — FSM stability (shutter lock, PROCESSING, torch, baseline dimensions)
+- [ ] 01-04-PLAN.md — Camera error banner + offline indicator i18n + verification gate
 **UI hint**: yes
 
 ### Phase 2: Multi-Shelf Data Layer
@@ -95,7 +101,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Next.js Migration & Capture Foundation | 0/TBD | Not started | - |
+| 1. Capture Foundation & Vercel Deploy | 0/4 | Not started | - |
 | 2. Multi-Shelf Data Layer | 0/TBD | Not started | - |
 | 3. Guided Capture Quality | 0/TBD | Not started | - |
 | 4. Real Inspection Pipeline | 0/TBD | Not started | - |
