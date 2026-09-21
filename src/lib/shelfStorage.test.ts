@@ -5,10 +5,11 @@ vi.mock('idb-keyval', async (importOriginal) => {
   return {
     ...actual,
     set: vi.fn(actual.set),
+    setMany: vi.fn(actual.setMany),
   };
 });
 
-import {clear, get, set} from 'idb-keyval';
+import {clear, get, set, setMany} from 'idb-keyval';
 import {DEFAULT_CALIBRATION} from './constants';
 import type {AuditRecord, ShelfCalibration} from '../types';
 import {
@@ -146,6 +147,16 @@ describe('runSchemaMigrationIfNeeded (DATA-03)', () => {
     const result = await runSchemaMigrationIfNeeded();
     expect(result).toEqual({ok: true});
     expect((await get('shelf:0:baseline') as {id: string}).id).toBe('existing');
+  });
+
+  it('returns QUOTA_EXCEEDED when setMany fails during legacy migration (D-20)', async () => {
+    await set(LEGACY_BASELINE_KEY, makeCalibration('legacy-quota'));
+    vi.mocked(setMany).mockRejectedValueOnce(
+      new DOMException('Quota exceeded', 'QuotaExceededError'),
+    );
+
+    const result = await runSchemaMigrationIfNeeded();
+    expect(result).toEqual({ok: false, error: 'QUOTA_EXCEEDED'});
   });
 });
 
