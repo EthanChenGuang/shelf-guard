@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Multi-Shelf Data Layer
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-09-21T11:55:33.182Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-09-21T11:59:43.810Z"
 last_activity: 2026-09-21
 last_activity_desc: Phase 02 execution started
-state_head: c9d0e50fe2e88b4f988713d528dfbcd3fdda99de
+state_head: ebc86aa9a2d32b278ff3d3fccb215605a13f132a
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-09-20)
 ## Current Position
 
 Phase: 02 (Multi-Shelf Data Layer) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-09-21 — Phase 02 execution started
 
@@ -61,6 +61,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-next-js-migration-capture-foundation P05 | 5min | 3 tasks | 2 files |
 | Phase 01-next-js-migration-capture-foundation P06 | 2min | 2 tasks | 2 files |
 | Phase 02-multi-shelf-data-layer P01 | 8min | 3 tasks | 7 files |
+| Phase 02-multi-shelf-data-layer P02 | 12min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,8 @@ Recent decisions affecting current work:
 - [Phase 01]: Used bottom-24 for offline pill clearance at 320px (G-01-4)
 - [Phase 01]: Used bottom-28 over bottom-[6.75rem] for 4px clearance below shutter top 532 (G-01-4)
 - [Phase 02]: Option A: embedded Blob at shelf:{0-4} keys, HISTORY_CAP=20, one-way schema v2 (D-04, D-17)
+- [Phase 02]: App imports shelf CRUD from shelfStorage; storage.ts global lang/tolerance only (D-17)
+- [Phase 02]: objectUrlRegistry guards non-Blob values from fake-indexeddb in tests
 
 ### Pending Todos
 
@@ -95,6 +98,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-09-21T11:55:33.153Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-09-21T11:59:43.792Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
