@@ -71,7 +71,13 @@ Plans:
   4. User sees a friendly storage-full message (not console-only) if IndexedDB quota is exceeded
   5. Per-shelf history stays bounded (≤20 records) with compressed thumbnails so five shelves don't exhaust device storage
 
-**Plans**: TBD
+**Plans**: 3 plans in 3 waves
+
+Plans:
+
+- [ ] 02-01-PLAN.md — Wave 0: fake-indexeddb, blobUtils, persisted types, shelfStorage migration & CRUD
+- [ ] 02-02-PLAN.md — Wave 1 tracer: App shelf isolation, objectUrlRegistry, ShelfSelector, integration tests (D-16)
+- [ ] 02-03-PLAN.md — Wave 2: quota banner, thumbnail compression, FIFO history cap, phase verification gate
 
 ### Phase 3: Guided Capture Quality
 
@@ -132,7 +138,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Capture Foundation & Vercel Deploy | 6/6 | In Progress|  |
-| 2. Multi-Shelf Data Layer | 0/TBD | Not started | - |
+| 2. Multi-Shelf Data Layer | 0/3 | Not started | - |
 | 3. Guided Capture Quality | 0/TBD | Not started | - |
 | 4. Real Inspection Pipeline | 0/TBD | Not started | - |
 | 5. PRD UI & Multi-Shelf Experience | 0/TBD | Not started | - |
