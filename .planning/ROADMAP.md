@@ -71,7 +71,7 @@ Plans:
   4. User sees a friendly storage-full message (not console-only) if IndexedDB quota is exceeded
   5. Per-shelf history stays bounded (≤20 records) with compressed thumbnails so five shelves don't exhaust device storage
 
-**Plans**: 2/3 plans executed in 3 waves
+**Plans**: 3/3 plans executed in 3 waves
 
 Plans:
 **Wave 1**
@@ -81,7 +81,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 02-03-PLAN.md — Wave 2: quota banner, thumbnail compression, FIFO history cap, phase verification gate
+- [x] 02-03-PLAN.md — Wave 2: quota banner, thumbnail compression, FIFO history cap, phase verification gate
 
 ### Phase 3: Guided Capture Quality
 
@@ -142,7 +142,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Capture Foundation & Vercel Deploy | 6/6 | In Progress|  |
-| 2. Multi-Shelf Data Layer | 2/3 | In Progress|  |
+| 2. Multi-Shelf Data Layer | 3/3 | In Progress|  |
 | 3. Guided Capture Quality | 0/TBD | Not started | - |
 | 4. Real Inspection Pipeline | 0/TBD | Not started | - |
 | 5. PRD UI & Multi-Shelf Experience | 0/TBD | Not started | - |

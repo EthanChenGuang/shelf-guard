@@ -71,8 +71,8 @@
 - [x] **DATA-01**: IndexedDB 使用 namespaced keys（shelf:{0-4}:*）隔离 5 柜架数据
 - [x] **DATA-02**: 基准图以 JPEG Blob 存储（非 base64 DataURL），降低配额压力
 - [x] **DATA-03**: 旧版单 key 基准数据迁移至 shelf-1
-- [ ] **DATA-04**: IndexedDB QuotaExceededError 在 UI 提示（非仅 console）
-- [ ] **DATA-05**: 每柜架巡检历史有合理上限（建议 20 条）与缩略图压缩
+- [x] **DATA-04**: IndexedDB QuotaExceededError 在 UI 提示（非仅 console）
+- [x] **DATA-05**: 每柜架巡检历史有合理上限（建议 20 条）与缩略图压缩
 
 ### PWA & Platform (PWA)
 
@@ -171,8 +171,8 @@
 | DATA-01 | Phase 2 | Complete |
 | DATA-02 | Phase 2 | Complete |
 | DATA-03 | Phase 2 | Complete |
-| DATA-04 | Phase 2 | Pending |
-| DATA-05 | Phase 2 | Pending |
+| DATA-04 | Phase 2 | Complete |
+| DATA-05 | Phase 2 | Complete |
 | PWA-01 | Phase 1 | Pending |
 | PWA-02 | Phase 1 | Pending |
 | PWA-03 | Phase 1 | Complete |
