@@ -74,9 +74,13 @@ Plans:
 **Plans**: 3 plans in 3 waves
 
 Plans:
+**Wave 1**
 
 - [ ] 02-01-PLAN.md — Wave 0: fake-indexeddb, blobUtils, persisted types, shelfStorage migration & CRUD
 - [ ] 02-02-PLAN.md — Wave 1 tracer: App shelf isolation, objectUrlRegistry, ShelfSelector, integration tests (D-16)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 02-03-PLAN.md — Wave 2: quota banner, thumbnail compression, FIFO history cap, phase verification gate
 
 ### Phase 3: Guided Capture Quality
