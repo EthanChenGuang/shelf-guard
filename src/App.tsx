@@ -301,6 +301,7 @@ export default function App() {
       setQuotaError(true);
       return;
     }
+    urlRegistryRef.current.revoke(`baseline:${activeShelfId}`);
     setBaseline(DEFAULT_CALIBRATION);
     setShowResetModal(false);
   };
