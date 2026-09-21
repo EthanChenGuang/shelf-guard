@@ -1,4 +1,13 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
+
+vi.mock('idb-keyval', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('idb-keyval')>();
+  return {
+    ...actual,
+    set: vi.fn(actual.set),
+  };
+});
+
 import {clear, get, set} from 'idb-keyval';
 import {DEFAULT_CALIBRATION} from './constants';
 import type {AuditRecord, ShelfCalibration} from '../types';
@@ -11,7 +20,32 @@ import {
   saveActiveShelfId,
   saveBaseline,
 } from './shelfStorage';
-import * as idbKeyval from 'idb-keyval';
+
+class MockImage {
+  naturalWidth = 640;
+  naturalHeight = 480;
+  width = 640;
+  height = 480;
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  private _src = '';
+
+  get src() {
+    return this._src;
+  }
+
+  set src(value: string) {
+    this._src = value;
+    queueMicrotask(() => this.onload?.());
+  }
+}
+
+function expectBlob(value: unknown) {
+  expect(value).toBeDefined();
+  expect(typeof value).not.toBe('string');
+  expect(typeof (value as Blob).size).toBe('number');
+  expect(typeof (value as Blob).type).toBe('string');
+}
 
 const TEST_DATA_URL =
   'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA//2Q==';
@@ -49,6 +83,28 @@ function makeAuditRecord(id: string): AuditRecord {
 }
 
 beforeEach(async () => {
+  vi.mocked(set).mockImplementation(
+    (await vi.importActual<typeof import('idb-keyval')>('idb-keyval')).set,
+  );
+  vi.stubGlobal('Image', MockImage);
+  vi.stubGlobal(
+    'createImageBitmap',
+    vi.fn(async (source: {width: number; height: number}) => ({
+      width: source.width ?? 640,
+      height: source.height ?? 480,
+      close: vi.fn(),
+    })),
+  );
+  HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
+    drawImage: vi.fn(),
+  })) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.toBlob = vi.fn(function (
+    this: HTMLCanvasElement,
+    callback: BlobCallback,
+    type?: string,
+  ) {
+    callback(new Blob(['jpeg-bytes'], {type: type ?? 'image/jpeg'}));
+  });
   await clear();
 });
 
@@ -66,18 +122,11 @@ describe('runSchemaMigrationIfNeeded (DATA-03)', () => {
 
     const migratedBaseline = await get('shelf:0:baseline');
     expect(migratedBaseline).toBeDefined();
-    expect((migratedBaseline as {imageBlob: unknown}).imageBlob).toBeInstanceOf(
-      Blob,
-    );
-    expect(typeof (migratedBaseline as {imageBlob: unknown}).imageBlob).not.toBe(
-      'string',
-    );
+    expectBlob((migratedBaseline as {imageBlob: unknown}).imageBlob);
 
     const migratedHistory = await get('shelf:0:history');
     expect(Array.isArray(migratedHistory)).toBe(true);
-    expect((migratedHistory as {thumbnailBlob: Blob}[])[0].thumbnailBlob).toBeInstanceOf(
-      Blob,
-    );
+    expectBlob((migratedHistory as {thumbnailBlob: unknown}[])[0].thumbnailBlob);
 
     expect(await get(LEGACY_BASELINE_KEY)).toBeUndefined();
     expect(await get(LEGACY_HISTORY_KEY)).toBeUndefined();
@@ -122,8 +171,7 @@ describe('loadBaseline / saveBaseline (DATA-01, DATA-02)', () => {
   it('persists imageBlob as Blob, not string', async () => {
     await saveBaseline(0, makeCalibration('blob-check'));
     const raw = await get('shelf:0:baseline');
-    expect((raw as {imageBlob: unknown}).imageBlob).toBeInstanceOf(Blob);
-    expect(typeof (raw as {imageBlob: unknown}).imageBlob).not.toBe('string');
+    expectBlob((raw as {imageBlob: unknown}).imageBlob);
   });
 });
 
@@ -143,14 +191,12 @@ describe('appendAuditRecord history cap (DATA-05)', () => {
 
 describe('quota errors (DATA-04)', () => {
   it('returns QUOTA_EXCEEDED when saveBaseline hits QuotaExceededError', async () => {
-    vi.spyOn(idbKeyval, 'set').mockRejectedValueOnce(
+    vi.mocked(set).mockRejectedValueOnce(
       new DOMException('Quota exceeded', 'QuotaExceededError'),
     );
 
     const result = await saveBaseline(0, makeCalibration('quota-test'));
     expect(result).toEqual({ok: false, error: 'QUOTA_EXCEEDED'});
-
-    vi.restoreAllMocks();
   });
 });
 
