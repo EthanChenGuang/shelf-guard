@@ -10,7 +10,7 @@
 - [ ] **TECH-01**: 应用基于 Vite 8 + React 19 + TypeScript + Tailwind CSS 4 构建
 - [ ] **TECH-02**: 所有相机/Canvas/IndexedDB/设备 API 代码在 Vite SPA 客户端挂载树中运行，无服务端业务逻辑
 - [ ] **TECH-03**: 运行时无后端依赖 — 不部署 Express/API Route/Server Action 业务逻辑；移除 `@google/genai`、`express`、`dotenv` 等未用服务端依赖
-- [ ] **TECH-04**: 使用 `idb-keyval` 持久化大分辨率基准图片、ROI 坐标、巡检历史与设置
+- [x] **TECH-04**: 使用 `idb-keyval` 持久化大分辨率基准图片、ROI 坐标、巡检历史与设置
 - [ ] **TECH-05**: 使用 `lucide-react` 作为全局图标库
 - [ ] **TECH-06**: 视觉差分使用 `@techstark/opencv-js` 在 Web Worker 中执行（v1 锁定 OpenCV，不含 pixelmatch）
 - [ ] **TECH-07**: PWA 离线能力通过 `vite-plugin-pwa` 实现（registerType autoUpdate），Service Worker 仅缓存应用壳
@@ -27,7 +27,7 @@
 - [ ] **SHLF-01**: 用户可在 5 个柜架间左右滑动切换，当前柜架指示清晰可见
 - [ ] **SHLF-02**: 每个柜架拥有独立基准图（baseline），切换柜架时加载对应基准
 - [ ] **SHLF-03**: 每个柜架拥有独立巡检历史，互不污染
-- [ ] **SHLF-04**: 当前选中柜架 ID 持久化，重启应用后恢复上次选中柜架
+- [x] **SHLF-04**: 当前选中柜架 ID 持久化，重启应用后恢复上次选中柜架
 - [ ] **SHLF-05**: 柜架无基准图时进入首次引导流程（INITIAL_GUIDE），而非静默使用 Demo 基准
 
 ### Camera Live View (CAM)
@@ -68,9 +68,9 @@
 
 ### Storage & Data (DATA)
 
-- [ ] **DATA-01**: IndexedDB 使用 namespaced keys（shelf:{0-4}:*）隔离 5 柜架数据
-- [ ] **DATA-02**: 基准图以 JPEG Blob 存储（非 base64 DataURL），降低配额压力
-- [ ] **DATA-03**: 旧版单 key 基准数据迁移至 shelf-1
+- [x] **DATA-01**: IndexedDB 使用 namespaced keys（shelf:{0-4}:*）隔离 5 柜架数据
+- [x] **DATA-02**: 基准图以 JPEG Blob 存储（非 base64 DataURL），降低配额压力
+- [x] **DATA-03**: 旧版单 key 基准数据迁移至 shelf-1
 - [ ] **DATA-04**: IndexedDB QuotaExceededError 在 UI 提示（非仅 console）
 - [ ] **DATA-05**: 每柜架巡检历史有合理上限（建议 20 条）与缩略图压缩
 
@@ -131,7 +131,7 @@
 | TECH-01 | Phase 1 | Pending |
 | TECH-02 | Phase 1 | Pending |
 | TECH-03 | Phase 1 | Pending |
-| TECH-04 | Phase 2 | Pending |
+| TECH-04 | Phase 2 | Complete |
 | TECH-05 | Phase 1 | Pending |
 | TECH-06 | Phase 4 | Pending |
 | TECH-07 | Phase 1 | Pending |
@@ -142,7 +142,7 @@
 | SHLF-01 | Phase 5 | Pending |
 | SHLF-02 | Phase 2 | Pending |
 | SHLF-03 | Phase 2 | Pending |
-| SHLF-04 | Phase 2 | Pending |
+| SHLF-04 | Phase 2 | Complete |
 | SHLF-05 | Phase 5 | Pending |
 | CAM-01 | Phase 3 | Pending |
 | CAM-02 | Phase 3 | Pending |
@@ -168,9 +168,9 @@
 | VIS-02 | Phase 4 | Pending |
 | VIS-03 | Phase 4 | Pending |
 | VIS-04 | Phase 4 | Pending |
-| DATA-01 | Phase 2 | Pending |
-| DATA-02 | Phase 2 | Pending |
-| DATA-03 | Phase 2 | Pending |
+| DATA-01 | Phase 2 | Complete |
+| DATA-02 | Phase 2 | Complete |
+| DATA-03 | Phase 2 | Complete |
 | DATA-04 | Phase 2 | Pending |
 | DATA-05 | Phase 2 | Pending |
 | PWA-01 | Phase 1 | Pending |
