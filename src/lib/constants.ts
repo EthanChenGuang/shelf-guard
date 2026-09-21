@@ -132,6 +132,8 @@ export const I18N = {
     torchOff: '关闭补光灯',
     processing: '正在分析展架差异，请稍候...',
     shutterLocked: '扫描进行中，请稍候',
+    quotaExceededTitle: '本地存储空间已满',
+    quotaExceededGuide: '请先在其它货架完成巡检，或清除部分历史记录后再试。',
   },
   en: {
     appTitle: 'ShelfGuard Planogram Audit',
@@ -196,5 +198,8 @@ export const I18N = {
     torchOff: 'Flashlight Off',
     processing: 'Analyzing shelf differences, please wait...',
     shutterLocked: 'Scan in progress, please wait',
+    quotaExceededTitle: 'Local storage is full',
+    quotaExceededGuide:
+      'Try completing audits on other shelves or clearing old history records, then retry.',
   },
 };

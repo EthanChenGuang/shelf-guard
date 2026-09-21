@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Language, ShelfCalibration, AuditRecord } from '../types';
 import { I18N } from '../lib/constants';
+import { ShelfSelector } from './ShelfSelector';
 
 interface CameraViewProps {
   baseline: ShelfCalibration;
@@ -43,6 +44,10 @@ interface CameraViewProps {
   cameraError?: string | null;
   onRetryCamera?: () => void;
   onDismissCameraError?: () => void;
+  activeShelfId?: number;
+  onShelfChange?: (shelfId: number) => void;
+  quotaError?: boolean;
+  onDismissQuotaError?: () => void;
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -71,12 +76,20 @@ export const CameraView: React.FC<CameraViewProps> = ({
   cameraError,
   onRetryCamera,
   onDismissCameraError,
+  activeShelfId = 0,
+  onShelfChange,
+  quotaError,
+  onDismissQuotaError,
 }) => {
   const t = I18N[lang];
   const [showRoiGuides, setShowRoiGuides] = useState(true);
 
   return (
-    <div className="relative w-full h-full min-h-[100dvh] bg-[#0F172A] overflow-hidden flex flex-col justify-between select-none">
+    <div
+      className="relative w-full h-full min-h-[100dvh] bg-[#0F172A] overflow-hidden flex flex-col justify-between select-none"
+      data-baseline-id={baseline.id}
+      data-testid="camera-view"
+    >
       {/* 1. Camera Video Stream or Demo Shelf Feed */}
       <div className="absolute inset-0 w-full h-full overflow-hidden">
         {isUsingDemoFeed ? (
@@ -244,8 +257,15 @@ export const CameraView: React.FC<CameraViewProps> = ({
           <span className="font-mono-numbers text-[10px] text-slate-500 font-medium">/{t.baselineTag}</span>
         </button>
 
-        {/* Right Tools: Camera/Demo toggle, Flashlight, Language, PWA */}
+        {/* Right Tools: Shelf selector, Camera/Demo toggle, Flashlight, Language, PWA */}
         <div className="flex items-center gap-1.5 bg-white/85 backdrop-blur-xl p-1 rounded-full shadow-md border border-slate-200/60">
+          {onShelfChange && (
+            <ShelfSelector
+              activeShelfId={activeShelfId}
+              onShelfChange={onShelfChange}
+              lang={lang}
+            />
+          )}
           {/* Feed Source Toggle */}
           <button
             onClick={onToggleDemoMode}
@@ -338,6 +358,31 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
       {/* BOTTOM CONTROL AREA */}
       <div className="relative z-20 pb-8 pt-3 px-6 flex flex-col items-center">
+        {quotaError && (
+          <div
+            role="alert"
+            className="mb-4 w-full max-w-sm rounded-2xl border border-amber-400/40 bg-slate-900/90 backdrop-blur-md px-4 py-3 text-white shadow-lg"
+          >
+            <div className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold">{t.quotaExceededTitle}</p>
+                <p className="mt-1 text-xs text-slate-300">{t.quotaExceededGuide}</p>
+              </div>
+              {onDismissQuotaError && (
+                <button
+                  type="button"
+                  onClick={onDismissQuotaError}
+                  aria-label={t.close}
+                  className="shrink-0 text-slate-400 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {cameraError && (
           <div
             role="alert"

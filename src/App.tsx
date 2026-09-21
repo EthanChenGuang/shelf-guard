@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AuditRecord,
   AppMode,
@@ -9,16 +9,23 @@ import {
 } from './types';
 import { DEFAULT_CALIBRATION, DEFAULT_SHELF_IMAGE_URL, I18N } from './lib/constants';
 import {
-  clearBaseline,
-  loadAuditHistory,
-  loadBaseline,
   loadSavedLanguage,
   loadSavedTolerance,
-  saveAuditRecord,
-  saveBaseline,
   saveLanguage,
   saveTolerance,
 } from './lib/storage';
+import {
+  appendAuditRecord,
+  clearBaseline,
+  loadActiveShelfId,
+  loadAuditHistory,
+  loadBaselineRaw,
+  runSchemaMigrationIfNeeded,
+  saveActiveShelfId,
+  saveBaseline,
+  toViewBaseline,
+} from './lib/shelfStorage';
+import { createDisplayUrlRegistry } from './lib/objectUrlRegistry';
 import { analyzeShelfCapture } from './lib/vision';
 import { isCaptureLocked } from './lib/captureLock';
 import { loadImageDimensions } from './lib/imageDimensions';
@@ -36,6 +43,11 @@ import { OfflineIndicator } from './components/OfflineIndicator';
 export default function App() {
   // State machine
   const [appMode, setAppMode] = useState<AppMode>('CAMERA_IDLE');
+
+  // Multi-shelf state
+  const [activeShelfId, setActiveShelfId] = useState<number>(0);
+  const [quotaError, setQuotaError] = useState<boolean>(false);
+  const urlRegistryRef = useRef(createDisplayUrlRegistry());
 
   // Baseline calibration
   const [baseline, setBaseline] = useState<ShelfCalibration>(DEFAULT_CALIBRATION);
@@ -82,21 +94,54 @@ export default function App() {
   } = useCameraStream();
   const { isInstallable, install } = usePWAInstall();
 
-  // Load initial settings & baseline from IndexedDB
+  const loadShelfData = useCallback(async (shelfId: number) => {
+    const registry = urlRegistryRef.current;
+    const persisted = await loadBaselineRaw(shelfId);
+    let nextBaseline: ShelfCalibration;
+    if (persisted) {
+      const displayUrl = registry.set(`baseline:${shelfId}`, persisted.imageBlob);
+      nextBaseline = toViewBaseline(persisted, displayUrl);
+    } else {
+      nextBaseline = DEFAULT_CALIBRATION;
+    }
+
+    const nextHistory = await loadAuditHistory(shelfId, (blob, recordId) =>
+      registry.set(`history:${shelfId}:${recordId}`, blob),
+    );
+
+    setBaseline(nextBaseline);
+    setAuditHistory(nextHistory);
+  }, []);
+
+  // Load migration, active shelf, and shelf-scoped data on mount
   useEffect(() => {
     async function init() {
-      const [savedBase, savedLang, savedTol, savedHistory] = await Promise.all([
-        loadBaseline(),
+      const migration = await runSchemaMigrationIfNeeded();
+      if (!migration.ok) {
+        setQuotaError(true);
+        return;
+      }
+
+      const shelfId = await loadActiveShelfId();
+      setActiveShelfId(shelfId);
+
+      const [savedLang, savedTol] = await Promise.all([
         loadSavedLanguage(),
         loadSavedTolerance(),
-        loadAuditHistory(),
       ]);
-      setBaseline(savedBase);
       setLang(savedLang);
       setTolerance(savedTol);
-      setAuditHistory(savedHistory);
+
+      await loadShelfData(shelfId);
     }
     init();
+  }, [loadShelfData]);
+
+  useEffect(() => {
+    const registry = urlRegistryRef.current;
+    return () => {
+      registry.revokeAll();
+    };
   }, []);
 
   // Language toggle handler
@@ -118,6 +163,17 @@ export default function App() {
     setActualCount(result.actualCount);
     setDisplacedCount(result.displacedCount);
     setMissingCount(result.missingCount);
+  };
+
+  const handleShelfChange = async (newShelfId: number) => {
+    urlRegistryRef.current.revokeAll();
+    setActiveShelfId(newShelfId);
+    const saveResult = await saveActiveShelfId(newShelfId);
+    if (!saveResult.ok) {
+      setQuotaError(true);
+      return;
+    }
+    await loadShelfData(newShelfId);
   };
 
   // Shutter action: snaps frame, runs 0.8s scanning beam animation, then shows inspect view
@@ -207,7 +263,11 @@ export default function App() {
       tolerance,
     };
 
-    await saveAuditRecord(newRecord);
+    const result = await appendAuditRecord(activeShelfId, newRecord);
+    if (!result.ok) {
+      setQuotaError(true);
+      return;
+    }
     setAuditHistory((prev) => [newRecord, ...prev]);
 
     // Return to Camera view after brief delay
@@ -225,14 +285,22 @@ export default function App() {
       splitYPercentages: updatedPercentages,
       createdAt: Date.now(),
     };
+    const result = await saveBaseline(activeShelfId, updated);
+    if (!result.ok) {
+      setQuotaError(true);
+      return;
+    }
     setBaseline(updated);
-    await saveBaseline(updated);
     setAppMode('CAMERA_IDLE');
   };
 
   // Reset baseline to default demo shelf
   const handleResetToDefault = async () => {
-    await clearBaseline();
+    const result = await clearBaseline(activeShelfId);
+    if (!result.ok) {
+      setQuotaError(true);
+      return;
+    }
     setBaseline(DEFAULT_CALIBRATION);
     setShowResetModal(false);
   };
@@ -253,8 +321,16 @@ export default function App() {
             imageDimensions: dimensions,
             createdAt: Date.now(),
           };
-          setBaseline(newCalibration);
-          await saveBaseline(newCalibration);
+          const result = await saveBaseline(activeShelfId, newCalibration);
+          if (!result.ok) {
+            setQuotaError(true);
+            return;
+          }
+          const registry = urlRegistryRef.current;
+          registry.revoke(`baseline:${activeShelfId}`);
+          const blob = await fetch(dataUrl).then((r) => r.blob());
+          const displayUrl = registry.set(`baseline:${activeShelfId}`, blob);
+          setBaseline({ ...newCalibration, imageDataUrl: displayUrl });
           setShowResetModal(false);
           // Prompt user to check ROI dividers
           setAppMode('ROI_CONFIG');
@@ -282,6 +358,10 @@ export default function App() {
         <CameraView
           baseline={baseline}
           lang={lang}
+          activeShelfId={activeShelfId}
+          onShelfChange={handleShelfChange}
+          quotaError={quotaError}
+          onDismissQuotaError={() => setQuotaError(false)}
           onLanguageToggle={handleLanguageToggle}
           onShutterClick={handleShutterClick}
           isShutterLocked={isShutterLocked}

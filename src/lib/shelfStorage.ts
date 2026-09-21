@@ -1,4 +1,4 @@
-import {delMany, get, set, setMany} from 'idb-keyval';
+import {del, delMany, get, set, setMany} from 'idb-keyval';
 import type {AuditRecord, ShelfCalibration} from '../types';
 import type {
   PersistedAuditRecord,
@@ -178,23 +178,49 @@ export async function runSchemaMigrationIfNeeded(): Promise<StorageWriteResult> 
   }
 }
 
-export async function loadBaseline(
+export async function loadBaselineRaw(
   shelfId: number,
-  displayUrl = '',
-): Promise<ShelfCalibration> {
+): Promise<PersistedBaseline | null> {
   const id = validateShelfId(shelfId);
   try {
     const data = await get<PersistedBaseline>(baselineKey(id));
     if (data && isValidSplitY(data.splitYPercentages)) {
-      return toViewBaseline(data, displayUrl);
+      return data;
     }
   } catch (err) {
     console.warn(
-      `Failed to load baseline for shelf ${id}, using default:`,
+      `Failed to load baseline raw for shelf ${id}:`,
       err,
     );
   }
+  return null;
+}
+
+export async function loadBaseline(
+  shelfId: number,
+  displayUrl = '',
+): Promise<ShelfCalibration> {
+  const data = await loadBaselineRaw(shelfId);
+  if (data) {
+    return toViewBaseline(data, displayUrl);
+  }
   return DEFAULT_CALIBRATION;
+}
+
+export async function clearBaseline(
+  shelfId: number,
+): Promise<StorageWriteResult> {
+  const id = validateShelfId(shelfId);
+  try {
+    await del(baselineKey(id));
+    return {ok: true};
+  } catch (err) {
+    if (isQuotaError(err)) {
+      return {ok: false, error: 'QUOTA_EXCEEDED'};
+    }
+    console.error(`Failed to clear baseline for shelf ${id}:`, err);
+    throw err;
+  }
 }
 
 export async function saveBaseline(
@@ -232,13 +258,15 @@ export async function loadAuditHistoryRaw(
 
 export async function loadAuditHistory(
   shelfId: number,
-  thumbUrlResolver?: (blob: Blob) => string,
+  thumbUrlResolver?: (blob: Blob, recordId: string) => string,
 ): Promise<AuditRecord[]> {
   const raw = await loadAuditHistoryRaw(shelfId);
   return raw.map((record) =>
     toViewAuditRecord(
       record,
-      thumbUrlResolver ? thumbUrlResolver(record.thumbnailBlob) : '',
+      thumbUrlResolver
+        ? thumbUrlResolver(record.thumbnailBlob, record.id)
+        : '',
     ),
   );
 }
