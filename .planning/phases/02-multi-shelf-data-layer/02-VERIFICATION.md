@@ -1,10 +1,17 @@
 ---
 phase: 02-multi-shelf-data-layer
-verified: 2026-09-21T12:05:00Z
-status: human_needed
-score: 14/15 must-haves verified
+verified: 2026-09-21T13:05:00Z
+status: passed
+score: 15/15 must-haves verified
 covered_files:
+  - .planning/phases/02-multi-shelf-data-layer/02-01-PLAN.md
+  - .planning/phases/02-multi-shelf-data-layer/02-01-SUMMARY.md
+  - .planning/phases/02-multi-shelf-data-layer/02-02-PLAN.md
+  - .planning/phases/02-multi-shelf-data-layer/02-02-SUMMARY.md
+  - .planning/phases/02-multi-shelf-data-layer/02-03-PLAN.md
+  - .planning/phases/02-multi-shelf-data-layer/02-03-SUMMARY.md
   - package.json
+  - src/App.migrationQuota.integration.test.tsx
   - src/App.shelfIsolation.integration.test.tsx
   - src/App.tsx
   - src/components/CameraView.quota.test.tsx
@@ -19,26 +26,19 @@ covered_files:
   - src/lib/storage.ts
   - src/types/persisted.ts
   - vitest.setup.ts
-covered_digest: "v1:sha256:8c4b0206d53395b1e608df5259e0906c2a02bfbe5c8c17f47ddd64faf3b4e9ef"
-behavior_unverified: 1
+covered_digest: "v1:sha256:e862c9da03265d84e2e6a0f949a305c8a2789a384aecd19ebbffc6565c76d096"
+behavior_unverified: 0
 overrides_applied: 0
-behavior_unverified_items:
-  - truth: "Migration write failure surfaces quota banner (D-20)"
-    test: "Seed legacy shelfguard_baseline data, mock idb-keyval setMany to throw QuotaExceededError during runSchemaMigrationIfNeeded, render App"
-    expected: "CameraView quota banner (role=alert) visible with quotaExceededTitle copy; hydration skipped"
-    why_human: "App.tsx wires setQuotaError on !migration.ok and runSchemaMigrationIfNeeded returns QUOTA_EXCEEDED on quota errors, but no test exercises the migration-failure → banner state transition"
-human_verification:
-  - test: "Seed legacy baseline in IndexedDB, mock migration write to throw QuotaExceededError, open app"
-    expected: "Inline amber quota banner appears on camera view with localized title; app does not hydrate shelf data"
-    why_human: "Migration quota path is wired but not covered by any automated test (D-20)"
+behavior_unverified_items: []
+human_verification: []
 ---
 
 # Phase 2: Multi-Shelf Data Layer Verification Report
 
 **Phase Goal:** Five independent shelf datasets (baseline + history) persist correctly in IndexedDB with efficient Blob storage and safe migration from the legacy single-shelf schema.
-**Verified:** 2026-09-21T12:05:00Z
-**Status:** human_needed
-**Re-verification:** No — initial verification
+**Verified:** 2026-09-21T13:05:00Z
+**Status:** passed
+**Re-verification:** Yes — D-20 migration quota banner covered by UAT automated verification
 
 > **MVP mode note:** ROADMAP marks this phase `mode: mvp`, but the phase goal is not in user-story format (`user-story.validate` → `false`). Plan-level user stories were used for User Flow Coverage below. Consider running `/gsd mvp-phase 2` to align the ROADMAP goal wording.
 
@@ -75,9 +75,9 @@ Composite user story (from plans 02-01/02/03):
 | 12 | Object URLs revoked on shelf switch and unmount (D-07) | ✓ VERIFIED | `handleShelfChange` calls `revokeAll()`; unmount cleanup `App.tsx:143-148`; registry in `objectUrlRegistry.ts` |
 | 13 | Minimal 5-shelf QA selector on camera view (D-15) | ✓ VERIFIED | `ShelfSelector.tsx` rendered in `CameraView.tsx:262-267` when `onShelfChange` provided |
 | 14 | Global settings remain in thin `storage.ts`; shelf CRUD only via `shelfStorage.ts` (D-17) | ✓ VERIFIED | `storage.ts` only lang/tolerance; App imports shelf functions from `shelfStorage.ts` |
-| 15 | Migration write failure surfaces quota banner (D-20) | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | `App.tsx:122-125` sets `quotaError` on `!migration.ok`; `runSchemaMigrationIfNeeded` returns `QUOTA_EXCEEDED` — no test exercises this path |
+| 15 | Migration write failure surfaces quota banner (D-20) | ✓ VERIFIED | `App.migrationQuota.integration.test.tsx` banner + hydration skip; `shelfStorage.test.ts` migration QUOTA_EXCEEDED on setMany |
 
-**Score:** 14/15 truths verified (1 present, behavior-unverified)
+**Score:** 15/15 truths verified
 
 ### Decision Coverage
 
@@ -178,17 +178,11 @@ Step 7c: SKIPPED — no phase-declared probes or `scripts/*/tests/probe-*.sh` fo
 
 ### Human Verification Required
 
-### 1. Migration Quota Banner (D-20)
-
-**Test:** Seed legacy `shelfguard_baseline` in IndexedDB. Simulate or trigger a QuotaExceededError during migration (e.g., DevTools → Application → reduce quota, or temporary mock). Reload the app.
-
-**Expected:** Amber inline quota banner on camera view with localized title; shelf data does not hydrate.
-
-**Why human:** Migration failure → banner wiring exists in code but no automated test covers this state transition.
+None — D-20 migration quota banner verified via UAT automated tests (2026-09-21).
 
 ### Gaps Summary
 
-No blocking implementation gaps. All 9 requirement IDs have automated coverage for their primary behaviors. One plan must-have (D-20 migration quota banner) is present and wired but lacks a behavioral test — routed to human verification rather than `gaps_found`.
+No blocking implementation gaps. All 9 requirement IDs and 15 must-have truths verified with automated coverage.
 
 ---
 
