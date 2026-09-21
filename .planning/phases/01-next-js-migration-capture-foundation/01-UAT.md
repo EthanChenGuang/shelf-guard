@@ -1,9 +1,9 @@
 ---
-status: partial
+status: complete
 phase: 01-next-js-migration-capture-foundation
 source: [01-VERIFICATION.md, autonomous-self-verify 2026-09-20, human-verify 2026-09-21, fix G-01-7 deploy 2026-09-21]
 started: 2026-09-20T18:30:00Z
-updated: 2026-09-21T00:14:00Z
+updated: 2026-09-21T09:38:00Z
 ---
 
 ## Current Test
@@ -16,13 +16,13 @@ updated: 2026-09-21T00:14:00Z
 expected: PWA installs; offline reload serves cached shell; demo capture + analysis completes without network
 result: pass
 source: human+automated
-note: "Human 2026-09-21: PWA install + offline reload OK on shelf-guard-pearl.vercel.app. Demo capture failed pre-fix (G-01-7). Post-fix commits a5e7401+5a65bd3: baseline /demo-shelf.jpg, IndexedDB migration off google CDN; autonomous Vercel verify 2026-09-21 — shutter reaches 展架巡检比对结果, no canvas CORS errors."
+note: "Human 2026-09-21: PWA install + offline reload OK on shelf-guard-pearl.vercel.app. Demo capture verified post G-01-7 fix (a5e7401, 5a65bd3). Human confirmed pass 2026-09-21."
 
 ### 2. Deny camera permission on iOS Safari standalone PWA
 expected: Inline banner shows cameraPermissionDenied headline and cameraErrorIosGuide body; demo feed remains usable
-result: blocked
-blocked_by: physical-device
-reason: "Requires iOS Safari standalone PWA on physical device. Autonomous proxy: CameraView.error.test.tsx 3/3 pass."
+result: pass
+source: human
+note: "Human confirmed pass 2026-09-21. Cam-mode real capture deferred to Phase 3 per roadmap; Phase 1 CAM-08 banner + Demo fallback accepted."
 
 ### 3. Tap shutter with analyzeShelfCapture delayed >800ms
 expected: UI transitions to PROCESSING overlay before results appear
@@ -39,11 +39,11 @@ note: "Playwright on Vercel at 320×640: bottom-28, verticalGap +4px, clearsShut
 ## Summary
 
 total: 4
-passed: 3
+passed: 4
 issues: 0
 pending: 0
 skipped: 0
-blocked: 1
+blocked: 0
 
 ## Gaps
 
