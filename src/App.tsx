@@ -17,12 +17,15 @@ import {
 import {
   appendAuditRecord,
   clearBaseline,
+  HISTORY_CAP,
   loadActiveShelfId,
   loadAuditHistory,
+  loadAuditHistoryRaw,
   loadBaselineRaw,
   runSchemaMigrationIfNeeded,
   saveActiveShelfId,
   saveBaseline,
+  toViewAuditRecord,
   toViewBaseline,
 } from './lib/shelfStorage';
 import { createDisplayUrlRegistry } from './lib/objectUrlRegistry';
@@ -268,7 +271,20 @@ export default function App() {
       setQuotaError(true);
       return;
     }
-    setAuditHistory((prev) => [newRecord, ...prev]);
+
+    const registry = urlRegistryRef.current;
+    const raw = await loadAuditHistoryRaw(activeShelfId);
+    const latest = raw[0];
+    if (latest?.id === newRecord.id) {
+      const thumbUrl = registry.set(
+        `history:${activeShelfId}:${latest.id}`,
+        latest.thumbnailBlob,
+      );
+      const viewRecord = toViewAuditRecord(latest, thumbUrl);
+      setAuditHistory((prev) => [viewRecord, ...prev].slice(0, HISTORY_CAP));
+    } else {
+      setAuditHistory((prev) => [newRecord, ...prev].slice(0, HISTORY_CAP));
+    }
 
     // Return to Camera view after brief delay
     setTimeout(() => {

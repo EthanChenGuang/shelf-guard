@@ -187,6 +187,68 @@ describe('appendAuditRecord history cap (DATA-05)', () => {
     expect(history.some((r) => r.id === 'rec-0')).toBe(false);
     expect(history.some((r) => r.id === 'rec-20')).toBe(true);
   });
+
+  it('stores audit thumbnail as Blob, not data URL string', async () => {
+    await appendAuditRecord(0, makeAuditRecord('thumb-blob'));
+    const stored = await get('shelf:0:history');
+    expect(Array.isArray(stored)).toBe(true);
+    const record = (stored as {thumbnailBlob?: unknown; thumbnailUrl?: unknown}[])[0];
+    expect(record.thumbnailBlob).toBeDefined();
+    expect(typeof record.thumbnailBlob).not.toBe('string');
+    expect(record.thumbnailUrl).toBeUndefined();
+  });
+
+  it('compresses thumbnail width to max 320px before persist', async () => {
+    class WideMockImage extends MockImage {
+      naturalWidth = 800;
+      width = 800;
+    }
+    vi.stubGlobal('Image', WideMockImage);
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn(async () => ({
+        width: 800,
+        height: 600,
+        close: vi.fn(),
+      })),
+    );
+
+    let canvasWidth = 0;
+    const origCreateElement = document.createElement.bind(document);
+    const createElementSpy = vi
+      .spyOn(document, 'createElement')
+      .mockImplementation((tagName) => {
+        const el = origCreateElement(tagName);
+        if (tagName === 'canvas') {
+          Object.defineProperty(el, 'width', {
+            set(value: number) {
+              canvasWidth = value;
+            },
+            get() {
+              return canvasWidth;
+            },
+            configurable: true,
+          });
+        }
+        return el;
+      });
+
+    try {
+      await appendAuditRecord(0, makeAuditRecord('wide-thumb'));
+      expect(canvasWidth).toBeLessThanOrEqual(320);
+    } finally {
+      createElementSpy.mockRestore();
+    }
+  });
+
+  it('idb-keyval shelf:0:history length stays at or below 20 after stress append', async () => {
+    for (let i = 0; i < 25; i++) {
+      await appendAuditRecord(0, makeAuditRecord(`stress-${i}`));
+    }
+    const stored = await get('shelf:0:history');
+    expect(Array.isArray(stored)).toBe(true);
+    expect((stored as unknown[]).length).toBeLessThanOrEqual(20);
+  });
 });
 
 describe('quota errors (DATA-04)', () => {
