@@ -2,7 +2,6 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {act, render, screen} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
-import {DEFAULT_CALIBRATION} from './lib/constants';
 
 vi.mock('./lib/vision', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./lib/vision')>();
@@ -40,29 +39,35 @@ vi.mock('./hooks/useCameraStream', () => ({
     stopCamera: vi.fn(),
     toggleTorch: vi.fn(),
     toggleDemoMode: vi.fn(),
-    retryCamera: vi.fn(),
-    dismissCameraError: vi.fn(),
+    clearCameraError: vi.fn(),
   }),
 }));
 
 vi.mock('./hooks/useDeviceOrientation', () => ({
-  useDeviceOrientation: () => ({tilt: 0, isLevel: true}),
+  useDeviceOrientation: () => ({tilt: 0, isLevel: true, setSimulatedTilt: vi.fn()}),
 }));
 
 vi.mock('./hooks/usePWAInstall', () => ({
-  usePWAInstall: () => ({canInstall: false, promptInstall: vi.fn()}),
+  usePWAInstall: () => ({isInstallable: false, install: vi.fn()}),
 }));
 
 vi.mock('./lib/storage', () => ({
-  loadBaseline: vi.fn(async () => DEFAULT_CALIBRATION),
-  saveBaseline: vi.fn(),
-  clearBaseline: vi.fn(),
-  loadAuditHistory: vi.fn(async () => []),
-  saveAuditRecord: vi.fn(),
   loadSavedLanguage: vi.fn(async () => 'cn'),
   saveLanguage: vi.fn(),
   loadSavedTolerance: vi.fn(async () => 'normal'),
   saveTolerance: vi.fn(),
+}));
+
+vi.mock('./lib/shelfStorage', () => ({
+  runSchemaMigrationIfNeeded: vi.fn(async () => ({ok: true})),
+  loadActiveShelfId: vi.fn(async () => 0),
+  loadBaselineRaw: vi.fn(async () => null),
+  loadAuditHistory: vi.fn(async () => []),
+  saveActiveShelfId: vi.fn(async () => ({ok: true})),
+  saveBaseline: vi.fn(async () => ({ok: true})),
+  clearBaseline: vi.fn(async () => ({ok: true})),
+  appendAuditRecord: vi.fn(async () => ({ok: true})),
+  toViewBaseline: vi.fn((p, url) => ({...p, imageDataUrl: url})),
 }));
 
 describe('App PROCESSING integration (STAB-03)', () => {
