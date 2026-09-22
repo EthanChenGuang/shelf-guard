@@ -96,7 +96,7 @@ Plans:
   3. User sees the crosshair level gauge snap to mint green with haptic feedback when tilt is within ±1.5°
   4. On iOS, orientation permission is requested on a user gesture and the level gauge works after grant
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans executed
 
 Plans:
 
@@ -110,7 +110,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 03-03-PLAN.md — Shelf ghost integration test + phase verification gate (iOS device check)
+- [x] 03-03-PLAN.md — Shelf ghost integration test + phase verification gate (iOS device check)
 
 **UI hint**: yes
 
@@ -158,7 +158,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Capture Foundation & Vercel Deploy | 6/6 | Complete    | 2026-09-22 |
 | 2. Multi-Shelf Data Layer | 3/3 | Complete    | 2026-09-21 |
-| 3. Guided Capture Quality | 2/3 | In Progress|  |
+| 3. Guided Capture Quality | 3/3 | In Progress|  |
 | 4. Real Inspection Pipeline | 0/TBD | Not started | - |
 | 5. PRD UI & Multi-Shelf Experience | 0/TBD | Not started | - |
 
