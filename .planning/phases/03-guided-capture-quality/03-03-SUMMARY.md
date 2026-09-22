@@ -16,7 +16,7 @@ affects: [verify-work, ship, phase-04]
 actuals:
   tokens: 12000
   tasks: 2
-  commits: 1
+  commits: 2
 plan_head_before: 2f9894acf76aa6f948213f72490deeec4340c879
 
 tech-stack:
@@ -104,7 +104,7 @@ Each automated task was committed atomically:
 
 1. **Task 1: Shelf switch ghost source integration test (D-03, D-19, CAM-02)** - `45250ad` (test)
 
-**Plan metadata:** pending (docs commit follows)
+**Plan metadata:** `0e76d0d` (docs: complete plan)
 
 ## Files Created/Modified
 
