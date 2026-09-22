@@ -11,8 +11,8 @@ ShelfGuard v1 delivers a 30-second shelf inspection loop for retail field reps: 
 - Integer phases (1–6): Planned v1 milestone work
 - Decimal phases (e.g., 2.1): Urgent insertions via `/gsd-phase --insert`
 
-- [ ] **Phase 1: Capture Foundation & Vercel Deploy** - Retain Vite 8 pure-client PWA on Vercel, fix FSM/camera bugs, remove backend deps
-- [ ] **Phase 2: Multi-Shelf Data Layer** - Namespaced IndexedDB schema with Blob storage and legacy migration before carousel UI
+- [x] **Phase 1: Capture Foundation & Vercel Deploy** - Retain Vite 8 pure-client PWA on Vercel, fix FSM/camera bugs, remove backend deps (completed 2026-09-22)
+- [x] **Phase 2: Multi-Shelf Data Layer** - Namespaced IndexedDB schema with Blob storage and legacy migration before carousel UI (completed 2026-09-21)
 - [ ] **Phase 3: Guided Capture Quality** - Ghost overlay, level gauge, and iOS orientation permission for aligned re-shoots
 - [ ] **Phase 4: Real Inspection Pipeline** - Replace mock vision with ROI-scoped pixel diff, Web Worker analysis, and result interactions
 - [ ] **Phase 5: PRD UI & Multi-Shelf Experience** - Minimalist Light design system, shelf carousel swipe, PRD animations, and i18n polish
@@ -96,7 +96,22 @@ Plans:
   3. User sees the crosshair level gauge snap to mint green with haptic feedback when tilt is within ±1.5°
   4. On iOS, orientation permission is requested on a user gesture and the level gauge works after grant
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 03-01-PLAN.md — Tracer: ghost overlay visibility (live + persisted baseline only)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03-02-PLAN.md — iOS orientation permission, level gauge hardening, denied banner
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 03-03-PLAN.md — Shelf ghost integration test + phase verification gate (iOS device check)
+
 **UI hint**: yes
 
 ### Phase 4: Real Inspection Pipeline
@@ -141,9 +156,9 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Capture Foundation & Vercel Deploy | 6/6 | In Progress|  |
-| 2. Multi-Shelf Data Layer | 3/3 | In Progress|  |
-| 3. Guided Capture Quality | 0/TBD | Not started | - |
+| 1. Capture Foundation & Vercel Deploy | 6/6 | Complete    | 2026-09-22 |
+| 2. Multi-Shelf Data Layer | 3/3 | Complete    | 2026-09-21 |
+| 3. Guided Capture Quality | 0/3 | Not started | - |
 | 4. Real Inspection Pipeline | 0/TBD | Not started | - |
 | 5. PRD UI & Multi-Shelf Experience | 0/TBD | Not started | - |
 
