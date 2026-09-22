@@ -31,6 +31,7 @@ interface CameraViewProps {
   isLevel: boolean;
   onSimulateTiltToggle?: () => void;
   isUsingDemoFeed: boolean;
+  hasPersistedBaseline?: boolean;
   onToggleDemoMode: () => void;
   isTorchOn: boolean;
   onToggleTorch: () => void;
@@ -63,6 +64,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
   isLevel,
   onSimulateTiltToggle,
   isUsingDemoFeed,
+  hasPersistedBaseline = false,
   onToggleDemoMode,
   isTorchOn,
   onToggleTorch,
@@ -83,6 +85,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
 }) => {
   const t = I18N[lang];
   const [showRoiGuides, setShowRoiGuides] = useState(true);
+  const showGhost = !isUsingDemoFeed && hasPersistedBaseline && !!baseline;
 
   return (
     <div
@@ -108,9 +111,10 @@ export const CameraView: React.FC<CameraViewProps> = ({
           />
         )}
 
-        {/* 2. Ghost Overlay (Golden Baseline) */}
-        {baseline && (
+        {/* 2. Ghost Overlay (Golden Baseline) — live camera + persisted baseline only */}
+        {showGhost && (
           <div
+            data-testid="ghost-overlay"
             className="absolute inset-0 w-full h-full pointer-events-none mix-blend-screen transition-opacity duration-150"
             style={{ opacity: ghostOpacity / 100 }}
           >
@@ -318,6 +322,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
       </div>
 
       {/* RIGHT EDGE VERTICAL SLIDER (GHOST TRANSPARENCY) */}
+      {showGhost && (
       <div className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center bg-white/85 backdrop-blur-xl px-2 py-3.5 rounded-full shadow-lg border border-slate-200/70">
         <div className="flex items-center justify-center mb-1 text-slate-600">
           <Layers className="w-4 h-4 text-slate-700" />
@@ -355,6 +360,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
           </span>
         </div>
       </div>
+      )}
 
       {/* BOTTOM CONTROL AREA */}
       <div className="relative z-20 pb-8 pt-3 px-6 flex flex-col items-center">

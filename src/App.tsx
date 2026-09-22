@@ -54,6 +54,7 @@ export default function App() {
 
   // Baseline calibration
   const [baseline, setBaseline] = useState<ShelfCalibration>(DEFAULT_CALIBRATION);
+  const [hasPersistedBaseline, setHasPersistedBaseline] = useState<boolean>(false);
   // Language
   const [lang, setLang] = useState<Language>('cn');
   // Ghost opacity (0 - 100)
@@ -112,6 +113,7 @@ export default function App() {
       registry.set(`history:${shelfId}:${recordId}`, blob),
     );
 
+    setHasPersistedBaseline(persisted !== null);
     setBaseline(nextBaseline);
     setAuditHistory(nextHistory);
   }, []);
@@ -306,6 +308,7 @@ export default function App() {
       setQuotaError(true);
       return;
     }
+    setHasPersistedBaseline(true);
     setBaseline(updated);
     setAppMode('CAMERA_IDLE');
   };
@@ -318,6 +321,7 @@ export default function App() {
       return;
     }
     urlRegistryRef.current.revoke(`baseline:${activeShelfId}`);
+    setHasPersistedBaseline(false);
     setBaseline(DEFAULT_CALIBRATION);
     setShowResetModal(false);
   };
@@ -347,6 +351,7 @@ export default function App() {
           registry.revoke(`baseline:${activeShelfId}`);
           const blob = await fetch(dataUrl).then((r) => r.blob());
           const displayUrl = registry.set(`baseline:${activeShelfId}`, blob);
+          setHasPersistedBaseline(true);
           setBaseline({ ...newCalibration, imageDataUrl: displayUrl });
           setShowResetModal(false);
           // Prompt user to check ROI dividers
@@ -391,6 +396,7 @@ export default function App() {
           isLevel={isLevel}
           onSimulateTiltToggle={handleSimulateTiltToggle}
           isUsingDemoFeed={isUsingDemoFeed}
+          hasPersistedBaseline={hasPersistedBaseline}
           onToggleDemoMode={toggleDemoMode}
           isTorchOn={isTorchOn}
           onToggleTorch={toggleTorch}
