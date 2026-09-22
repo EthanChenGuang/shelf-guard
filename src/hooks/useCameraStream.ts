@@ -35,7 +35,7 @@ export function useCameraStream() {
   const [hasTorch, setHasTorch] = useState<boolean>(false);
   const [isUsingDemoFeed, setIsUsingDemoFeed] = useState<boolean>(true); // default to high-res demo shelf feed so user sees instant live planogram!
 
-  const startCamera = useCallback(async () => {
+  const startCamera = useCallback(async (): Promise<boolean> => {
     try {
       if (stream) {
         stream.getTracks().forEach((t) => t.stop());
@@ -69,10 +69,12 @@ export function useCameraStream() {
         videoRef.current.srcObject = mediaStream;
         videoRef.current.play().catch(() => {});
       }
+      return true;
     } catch (err) {
       console.warn('Camera access could not be initialized:', err);
       setCameraError((err as Error).message);
       setIsUsingDemoFeed(true);
+      return false;
     }
   }, [facingMode, stream]);
 

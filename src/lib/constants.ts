@@ -134,6 +134,10 @@ export const I18N = {
     shutterLocked: '扫描进行中，请稍候',
     quotaExceededTitle: '本地存储空间已满',
     quotaExceededGuide: '请先在其它货架完成巡检，或清除部分历史记录后再试。',
+    orientationPermissionDenied: '无法访问设备方向传感器',
+    orientationErrorIosGuide:
+      '请在 Safari 中打开本页 → 设置 → Safari → 运动与方向访问，允许后返回重试。',
+    retryOrientation: '重试方向权限',
   },
   en: {
     appTitle: 'ShelfGuard Planogram Audit',
@@ -201,5 +205,9 @@ export const I18N = {
     quotaExceededTitle: 'Local storage is full',
     quotaExceededGuide:
       'Try completing audits on other shelves or clearing old history records, then retry.',
+    orientationPermissionDenied: 'Motion sensor access denied',
+    orientationErrorIosGuide:
+      'Open in Safari → Settings → Safari → Motion & Orientation Access, then return and retry.',
+    retryOrientation: 'Retry orientation',
   },
 };

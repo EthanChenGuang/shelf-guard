@@ -49,6 +49,10 @@ interface CameraViewProps {
   onShelfChange?: (shelfId: number) => void;
   quotaError?: boolean;
   onDismissQuotaError?: () => void;
+  orientationDenied?: boolean;
+  onRetryOrientation?: () => void;
+  onDismissOrientationError?: () => void;
+  hasSensor?: boolean;
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -82,10 +86,18 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onShelfChange,
   quotaError,
   onDismissQuotaError,
+  orientationDenied = false,
+  onRetryOrientation,
+  onDismissOrientationError,
+  hasSensor = false,
 }) => {
   const t = I18N[lang];
   const [showRoiGuides, setShowRoiGuides] = useState(true);
   const showGhost = !isUsingDemoFeed && hasPersistedBaseline && !!baseline;
+  const displayTilt = orientationDenied ? 0 : tilt;
+  const displayIsLevel = orientationDenied ? false : isLevel;
+  const showSimulateToggle =
+    !!onSimulateTiltToggle && !orientationDenied && !hasSensor;
 
   return (
     <div
@@ -179,69 +191,81 @@ export const CameraView: React.FC<CameraViewProps> = ({
             {/* Horizon Rotating Line */}
             <div
               className={`absolute w-36 h-[1.5px] transition-all duration-150 ${
-                isLevel
-                  ? 'bg-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.9)]'
-                  : 'bg-white/70 shadow-[0_0_6px_rgba(255,255,255,0.4)]'
+                orientationDenied
+                  ? 'bg-slate-400/60'
+                  : displayIsLevel
+                    ? 'bg-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.9)]'
+                    : 'bg-white/70 shadow-[0_0_6px_rgba(255,255,255,0.4)]'
               }`}
-              style={{ transform: `rotate(${tilt}deg)` }}
+              style={{ transform: `rotate(${displayTilt}deg)` }}
             />
 
             {/* Vertical Center Axis Line */}
             <div
               className={`absolute h-36 w-[1.5px] ${
-                isLevel
-                  ? 'bg-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.9)]'
-                  : 'bg-white/70'
+                orientationDenied
+                  ? 'bg-slate-400/60'
+                  : displayIsLevel
+                    ? 'bg-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.9)]'
+                    : 'bg-white/70'
               }`}
             />
 
             {/* Central Circular Bullseye */}
             <div
               className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-[2px] transition-colors duration-200 ${
-                isLevel
-                  ? 'border-[#10B981] bg-[#10B981]/15 shadow-[0_0_14px_rgba(16,185,129,0.7)]'
-                  : 'border-white/40 bg-black/20'
+                orientationDenied
+                  ? 'border-slate-400/50 bg-slate-500/10'
+                  : displayIsLevel
+                    ? 'border-[#10B981] bg-[#10B981]/15 shadow-[0_0_14px_rgba(16,185,129,0.7)]'
+                    : 'border-white/40 bg-black/20'
               }`}
             >
               <div
                 className={`w-2 h-2 rounded-full transition-colors duration-150 ${
-                  isLevel ? 'bg-[#10B981] shadow-[0_0_8px_#10B981]' : 'bg-white/80'
+                  orientationDenied
+                    ? 'bg-slate-400/70'
+                    : displayIsLevel
+                      ? 'bg-[#10B981] shadow-[0_0_8px_#10B981]'
+                      : 'bg-white/80'
                 }`}
               />
             </div>
 
             {/* Corner Precision Markers */}
-            <div className={`absolute top-1 left-1 w-2 h-2 border-t border-l ${isLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
-            <div className={`absolute top-1 right-1 w-2 h-2 border-t border-r ${isLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
-            <div className={`absolute bottom-1 left-1 border-b border-l ${isLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
-            <div className={`absolute bottom-1 right-1 border-b border-r ${isLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
+            <div className={`absolute top-1 left-1 w-2 h-2 border-t border-l ${orientationDenied ? 'border-slate-400/50' : displayIsLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
+            <div className={`absolute top-1 right-1 w-2 h-2 border-t border-r ${orientationDenied ? 'border-slate-400/50' : displayIsLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
+            <div className={`absolute bottom-1 left-1 border-b border-l ${orientationDenied ? 'border-slate-400/50' : displayIsLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
+            <div className={`absolute bottom-1 right-1 border-b border-r ${orientationDenied ? 'border-slate-400/50' : displayIsLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
 
             {/* Level status indicator pill with click-to-simulate for desktop testing */}
-            <button
-              onClick={onSimulateTiltToggle}
-              className={`absolute -bottom-8 px-2.5 py-0.5 rounded-full backdrop-blur-md shadow-md flex items-center gap-1.5 transition-all pointer-events-auto cursor-pointer ${
-                isLevel
-                  ? 'bg-white/95 text-[#0F172A] border border-emerald-300'
-                  : 'bg-[#0F172A]/85 text-amber-300 border border-amber-500/30'
-              }`}
-              title="Click to toggle level / tilt"
-            >
-              {isLevel ? (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />
-                  <span className="font-mono-numbers text-[10px] font-bold tracking-wide">
-                    0.0° {t.level}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="font-mono-numbers text-[10px] font-semibold tracking-wide">
-                    {tilt > 0 ? `+${tilt}°` : `${tilt}°`} {t.plumb}
-                  </span>
-                </>
-              )}
-            </button>
+            {showSimulateToggle && (
+              <button
+                onClick={onSimulateTiltToggle}
+                className={`absolute -bottom-8 px-2.5 py-0.5 rounded-full backdrop-blur-md shadow-md flex items-center gap-1.5 transition-all pointer-events-auto cursor-pointer ${
+                  displayIsLevel
+                    ? 'bg-white/95 text-[#0F172A] border border-emerald-300'
+                    : 'bg-[#0F172A]/85 text-amber-300 border border-amber-500/30'
+                }`}
+                title="Click to toggle level / tilt"
+              >
+                {displayIsLevel ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />
+                    <span className="font-mono-numbers text-[10px] font-bold tracking-wide">
+                      0.0° {t.level}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="font-mono-numbers text-[10px] font-semibold tracking-wide">
+                      {displayTilt > 0 ? `+${displayTilt}°` : `${displayTilt}°`} {t.plumb}
+                    </span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -416,6 +440,42 @@ export const CameraView: React.FC<CameraViewProps> = ({
                 <button
                   type="button"
                   onClick={onDismissCameraError}
+                  aria-label={t.close}
+                  className="shrink-0 text-slate-400 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {orientationDenied && (
+          <div
+            role="alert"
+            className="mb-4 w-full max-w-sm rounded-2xl border border-amber-400/40 bg-slate-900/90 backdrop-blur-md px-4 py-3 text-white shadow-lg"
+          >
+            <div className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold">{t.orientationPermissionDenied}</p>
+                <p className="mt-2 text-xs text-slate-400">{t.orientationErrorIosGuide}</p>
+                <div className="mt-3 flex items-center gap-3">
+                  {onRetryOrientation && (
+                    <button
+                      type="button"
+                      onClick={onRetryOrientation}
+                      className="text-xs font-semibold text-emerald-400 hover:text-emerald-300"
+                    >
+                      {t.retryOrientation}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {onDismissOrientationError && (
+                <button
+                  type="button"
+                  onClick={onDismissOrientationError}
                   aria-label={t.close}
                   className="shrink-0 text-slate-400 hover:text-white"
                 >

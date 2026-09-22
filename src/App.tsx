@@ -79,7 +79,15 @@ export default function App() {
   const [showResetModal, setShowResetModal] = useState<boolean>(false);
 
   // Device hooks
-  const { tilt, isLevel, setSimulatedTilt } = useDeviceOrientation();
+  const {
+    tilt,
+    isLevel,
+    hasSensor,
+    orientationPermission,
+    requestOrientationPermission,
+    setSimulatedTilt,
+  } = useDeviceOrientation();
+  const [orientationDismissed, setOrientationDismissed] = useState(false);
   const captureLockRef = useRef(false);
   const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isShutterLocked, setIsShutterLocked] = useState(false);
@@ -362,6 +370,23 @@ export default function App() {
     }
   };
 
+  const handleEnableLiveCamera = useCallback(async () => {
+    if (isUsingDemoFeed) {
+      const cameraOk = await startCamera();
+      if (cameraOk) {
+        setOrientationDismissed(false);
+        await requestOrientationPermission();
+      }
+    } else {
+      toggleDemoMode();
+    }
+  }, [isUsingDemoFeed, startCamera, requestOrientationPermission, toggleDemoMode]);
+
+  const handleRetryOrientation = useCallback(async () => {
+    setOrientationDismissed(false);
+    await requestOrientationPermission();
+  }, [requestOrientationPermission]);
+
   // Toggle simulate level for desktop debugging
   const handleSimulateTiltToggle = () => {
     if (isLevel) {
@@ -397,12 +422,16 @@ export default function App() {
           onSimulateTiltToggle={handleSimulateTiltToggle}
           isUsingDemoFeed={isUsingDemoFeed}
           hasPersistedBaseline={hasPersistedBaseline}
-          onToggleDemoMode={toggleDemoMode}
+          onToggleDemoMode={handleEnableLiveCamera}
           isTorchOn={isTorchOn}
           onToggleTorch={toggleTorch}
           cameraError={cameraError}
           onRetryCamera={startCamera}
           onDismissCameraError={clearCameraError}
+          orientationDenied={orientationPermission === 'denied' && !orientationDismissed}
+          onRetryOrientation={handleRetryOrientation}
+          onDismissOrientationError={() => setOrientationDismissed(true)}
+          hasSensor={hasSensor}
           videoRef={videoRef}
           ghostOpacity={ghostOpacity}
           onGhostOpacityChange={setGhostOpacity}
