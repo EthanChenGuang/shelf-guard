@@ -76,10 +76,12 @@ vi.mock('./lib/vision', async (importOriginal) => {
   };
 });
 
+let mockIsUsingDemoFeed = true;
+
 vi.mock('./hooks/useCameraStream', () => ({
   useCameraStream: () => ({
     videoRef: {current: null},
-    isUsingDemoFeed: true,
+    isUsingDemoFeed: mockIsUsingDemoFeed,
     isTorchOn: false,
     hasTorch: false,
     cameraError: null,
@@ -96,7 +98,10 @@ vi.mock('./hooks/useDeviceOrientation', () => ({
   useDeviceOrientation: () => ({
     tilt: 0,
     isLevel: true,
+    hasSensor: true,
     setSimulatedTilt: vi.fn(),
+    orientationPermission: 'granted' as const,
+    requestOrientationPermission: vi.fn(),
   }),
 }));
 
@@ -135,8 +140,17 @@ function stubCompressionGlobals() {
   });
 }
 
+function getGhostOverlayImg(): HTMLImageElement {
+  return screen.getByAltText('Baseline Ghost Overlay') as HTMLImageElement;
+}
+
+function getGhostImgSrc(img: HTMLImageElement): string {
+  return img.getAttribute('src') ?? img.src;
+}
+
 describe('App shelf isolation integration (D-16, SHLF-02, SHLF-04)', () => {
   beforeEach(async () => {
+    mockIsUsingDemoFeed = true;
     stubCompressionGlobals();
     await clear();
     await saveBaseline(0, makeCalibration('shelf0-test'));
@@ -156,6 +170,41 @@ describe('App shelf isolation integration (D-16, SHLF-02, SHLF-04)', () => {
       'data-baseline-id',
       'shelf0-test',
     );
+  });
+
+  it('updates ghost overlay src on shelf switch without stale blob URLs (D-03, D-19, CAM-02)', async () => {
+    mockIsUsingDemoFeed = false;
+    const user = userEvent.setup();
+    render(<App />);
+
+    await waitForBaselineId('shelf0-test');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ghost-overlay')).toBeInTheDocument();
+    });
+
+    const shelf0Src = getGhostImgSrc(getGhostOverlayImg());
+    expect(shelf0Src).toMatch(/^blob:/);
+
+    await user.click(screen.getByRole('button', {name: 'Shelf 2'}));
+    await waitForBaselineId('shelf1-test');
+
+    await waitFor(() => {
+      const shelf1Src = getGhostImgSrc(getGhostOverlayImg());
+      expect(shelf1Src).toMatch(/^blob:/);
+      expect(shelf1Src).not.toBe(shelf0Src);
+    });
+
+    const shelf1Src = getGhostImgSrc(getGhostOverlayImg());
+
+    await user.click(screen.getByRole('button', {name: 'Shelf 1'}));
+    await waitForBaselineId('shelf0-test');
+
+    await waitFor(() => {
+      const restoredSrc = getGhostImgSrc(getGhostOverlayImg());
+      expect(restoredSrc).toMatch(/^blob:/);
+      expect(restoredSrc).not.toBe(shelf1Src);
+    });
   });
 
   it('does not show shelf 0 history when switched to shelf 1', async () => {
