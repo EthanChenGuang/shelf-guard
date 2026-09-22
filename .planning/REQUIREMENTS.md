@@ -7,13 +7,13 @@
 
 ### Tech Stack (TECH)
 
-- [ ] **TECH-01**: 应用基于 Vite 8 + React 19 + TypeScript + Tailwind CSS 4 构建
-- [ ] **TECH-02**: 所有相机/Canvas/IndexedDB/设备 API 代码在 Vite SPA 客户端挂载树中运行，无服务端业务逻辑
-- [ ] **TECH-03**: 运行时无后端依赖 — 不部署 Express/API Route/Server Action 业务逻辑；移除 `@google/genai`、`express`、`dotenv` 等未用服务端依赖
+- [x] **TECH-01**: 应用基于 Vite 8 + React 19 + TypeScript + Tailwind CSS 4 构建
+- [x] **TECH-02**: 所有相机/Canvas/IndexedDB/设备 API 代码在 Vite SPA 客户端挂载树中运行，无服务端业务逻辑
+- [x] **TECH-03**: 运行时无后端依赖 — 不部署 Express/API Route/Server Action 业务逻辑；移除 `@google/genai`、`express`、`dotenv` 等未用服务端依赖
 - [x] **TECH-04**: 使用 `idb-keyval` 持久化大分辨率基准图片、ROI 坐标、巡检历史与设置
-- [ ] **TECH-05**: 使用 `lucide-react` 作为全局图标库
+- [x] **TECH-05**: 使用 `lucide-react` 作为全局图标库
 - [ ] **TECH-06**: 视觉差分使用 `@techstark/opencv-js` 在 Web Worker 中执行（v1 锁定 OpenCV，不含 pixelmatch）
-- [ ] **TECH-07**: PWA 离线能力通过 `vite-plugin-pwa` 实现（registerType autoUpdate），Service Worker 仅缓存应用壳
+- [x] **TECH-07**: PWA 离线能力通过 `vite-plugin-pwa` 实现（registerType autoUpdate），Service Worker 仅缓存应用壳
 
 ### Design System (DSGN)
 
@@ -32,15 +32,15 @@
 
 ### Camera Live View (CAM)
 
-- [ ] **CAM-01**: 全屏展示后置广角摄像头实时画面（或 Demo 模式下的基准图流）
-- [ ] **CAM-02**: 幽灵覆层（Ghost View）以默认 45% 透明度叠加基准图，右侧垂直条可调节透明度
+- [x] **CAM-01**: 全屏展示后置广角摄像头实时画面（或 Demo 模式下的基准图流）
+- [x] **CAM-02**: 幽灵覆层（Ghost View）以默认 45% 透明度叠加基准图，右侧垂直条可调节透明度
 - [ ] **CAM-03**: 中央十字水平仪 — 浅灰细十字准星；倾角 ±1.5° 内吸附居中变薄荷绿并短振
 - [ ] **CAM-04**: 顶部悬浮栏 — 左：药丸按钮「基准图 (已建立)」弹出重设确认面板；中：水平状态微标；右：闪光灯 + 中/英切换
 - [ ] **CAM-05**: 底部中央 76px 双环快门键，就绪时呼吸微光动效；右下上次巡检缩略图入口
 - [ ] **CAM-06**: 快门后 0.8s 发光浅蓝扫描线自上而下扫过 4 排，随后淡入结果页
 - [ ] **CAM-07**: iOS 设备方向权限在用户手势中请求，水平仪在 iOS 上可用
-- [ ] **CAM-08**: 相机错误/权限拒绝时在 UI 中显示提示（非仅 console）
-- [ ] **CAM-09**: Demo 模式抓拍时捕获当前显示帧（非固定 CDN URL）
+- [x] **CAM-08**: 相机错误/权限拒绝时在 UI 中显示提示（非仅 console）
+- [x] **CAM-09**: Demo 模式抓拍时捕获当前显示帧（非固定 CDN URL）
 
 ### ROI Setup (ROI)
 
@@ -76,16 +76,16 @@
 
 ### PWA & Platform (PWA)
 
-- [ ] **PWA-01**: 应用可安装为 PWA，离线时完整巡检流程可用（客户端差分路径）
-- [ ] **PWA-02**: Service Worker 仅缓存应用壳，不缓存用户拍摄图片
+- [x] **PWA-01**: 应用可安装为 PWA，离线时完整巡检流程可用（客户端差分路径）
+- [x] **PWA-02**: Service Worker 仅缓存应用壳，不缓存用户拍摄图片
 - [x] **PWA-03**: 离线状态指示器在断网时可见
 
 ### App Stability (STAB)
 
-- [ ] **STAB-01**: 快门双击竞态修复 — 800ms 动画期间禁止重复触发
-- [ ] **STAB-02**: 闪光灯 UI 状态与硬件能力一致（不支持时不显示 ON）
-- [ ] **STAB-03**: AppMode PROCESSING 在分析耗时超过扫描动画时使用
-- [ ] **STAB-04**: 上传自定义基准图时更新 imageDimensions
+- [x] **STAB-01**: 快门双击竞态修复 — 800ms 动画期间禁止重复触发
+- [x] **STAB-02**: 闪光灯 UI 状态与硬件能力一致（不支持时不显示 ON）
+- [x] **STAB-03**: AppMode PROCESSING 在分析耗时超过扫描动画时使用
+- [x] **STAB-04**: 上传自定义基准图时更新 imageDimensions
 
 ### Internationalization (I18N)
 
@@ -128,13 +128,13 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TECH-01 | Phase 1 | Pending |
-| TECH-02 | Phase 1 | Pending |
-| TECH-03 | Phase 1 | Pending |
+| TECH-01 | Phase 1 | Complete |
+| TECH-02 | Phase 1 | Complete |
+| TECH-03 | Phase 1 | Complete |
 | TECH-04 | Phase 2 | Complete |
-| TECH-05 | Phase 1 | Pending |
+| TECH-05 | Phase 1 | Complete |
 | TECH-06 | Phase 4 | Pending |
-| TECH-07 | Phase 1 | Pending |
+| TECH-07 | Phase 1 | Complete |
 | DSGN-01 | Phase 5 | Pending |
 | DSGN-02 | Phase 5 | Pending |
 | DSGN-03 | Phase 5 | Pending |
@@ -144,15 +144,15 @@
 | SHLF-03 | Phase 2 | Complete |
 | SHLF-04 | Phase 2 | Complete |
 | SHLF-05 | Phase 5 | Pending |
-| CAM-01 | Phase 3 | Pending |
-| CAM-02 | Phase 3 | Pending |
+| CAM-01 | Phase 3 | Complete |
+| CAM-02 | Phase 3 | Complete |
 | CAM-03 | Phase 3 | Pending |
 | CAM-04 | Phase 5 | Pending |
 | CAM-05 | Phase 5 | Pending |
 | CAM-06 | Phase 5 | Pending |
 | CAM-07 | Phase 3 | Pending |
-| CAM-08 | Phase 1 | Pending |
-| CAM-09 | Phase 1 | Pending |
+| CAM-08 | Phase 1 | Complete |
+| CAM-09 | Phase 1 | Complete |
 | ROI-01 | Phase 4 | Pending |
 | ROI-02 | Phase 4 | Pending |
 | ROI-03 | Phase 4 | Pending |
@@ -173,13 +173,13 @@
 | DATA-03 | Phase 2 | Complete |
 | DATA-04 | Phase 2 | Complete |
 | DATA-05 | Phase 2 | Complete |
-| PWA-01 | Phase 1 | Pending |
-| PWA-02 | Phase 1 | Pending |
+| PWA-01 | Phase 1 | Complete |
+| PWA-02 | Phase 1 | Complete |
 | PWA-03 | Phase 1 | Complete |
-| STAB-01 | Phase 1 | Pending |
-| STAB-02 | Phase 1 | Pending |
-| STAB-03 | Phase 1 | Pending |
-| STAB-04 | Phase 1 | Pending |
+| STAB-01 | Phase 1 | Complete |
+| STAB-02 | Phase 1 | Complete |
+| STAB-03 | Phase 1 | Complete |
+| STAB-04 | Phase 1 | Complete |
 | I18N-01 | Phase 5 | Pending |
 | I18N-02 | Phase 5 | Pending |
 
