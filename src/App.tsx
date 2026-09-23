@@ -55,6 +55,7 @@ export default function App() {
   // Baseline calibration
   const [baseline, setBaseline] = useState<ShelfCalibration>(DEFAULT_CALIBRATION);
   const [hasPersistedBaseline, setHasPersistedBaseline] = useState<boolean>(false);
+  const [pendingBaselineImageUrl, setPendingBaselineImageUrl] = useState<string | null>(null);
   // Language
   const [lang, setLang] = useState<Language>('cn');
   // Ghost opacity (0 - 100)
@@ -198,6 +199,19 @@ export default function App() {
 
     try {
       const frame = await captureFrame(baseline.imageDataUrl);
+
+      if (!hasPersistedBaseline) {
+        const dimensions = await loadImageDimensions(frame);
+        setPendingBaselineImageUrl(frame);
+        setBaseline((prev) => ({
+          ...prev,
+          imageDataUrl: frame,
+          imageDimensions: dimensions,
+        }));
+        setAppMode('ROI_CONFIG');
+        return;
+      }
+
       setCapturedFrame(frame);
       setAppMode('SCANNING_ANIM');
 
@@ -306,18 +320,48 @@ export default function App() {
   const handleSaveRoiCalibration = async (
     updatedPercentages: [number, number, number, number]
   ) => {
+    const imageDataUrl = pendingBaselineImageUrl ?? baseline.imageDataUrl;
     const updated: ShelfCalibration = {
       ...baseline,
+      imageDataUrl,
       splitYPercentages: updatedPercentages,
       createdAt: Date.now(),
+      id: pendingBaselineImageUrl
+        ? `baseline-${activeShelfId}-${Date.now()}`
+        : baseline.id,
     };
     const result = await saveBaseline(activeShelfId, updated);
     if (!result.ok) {
       setQuotaError(true);
       return;
     }
+
+    if (pendingBaselineImageUrl) {
+      const registry = urlRegistryRef.current;
+      registry.revoke(`baseline:${activeShelfId}`);
+      const blob = await fetch(pendingBaselineImageUrl).then((r) => r.blob());
+      const displayUrl = registry.set(`baseline:${activeShelfId}`, blob);
+      setBaseline({ ...updated, imageDataUrl: displayUrl });
+      setPendingBaselineImageUrl(null);
+    } else {
+      setBaseline(updated);
+    }
+
     setHasPersistedBaseline(true);
-    setBaseline(updated);
+    setAppMode('CAMERA_IDLE');
+  };
+
+  const handleRetakeFirstBaseline = () => {
+    setPendingBaselineImageUrl(null);
+    setBaseline(DEFAULT_CALIBRATION);
+    setAppMode('CAMERA_IDLE');
+  };
+
+  const handleCancelRoiConfig = () => {
+    if (pendingBaselineImageUrl) {
+      setPendingBaselineImageUrl(null);
+      setBaseline(DEFAULT_CALIBRATION);
+    }
     setAppMode('CAMERA_IDLE');
   };
 
@@ -455,7 +499,9 @@ export default function App() {
           baseline={baseline}
           lang={lang}
           onSave={handleSaveRoiCalibration}
-          onCancel={() => setAppMode('CAMERA_IDLE')}
+          onCancel={handleCancelRoiConfig}
+          isFirstBaseline={!hasPersistedBaseline && pendingBaselineImageUrl !== null}
+          onRetake={handleRetakeFirstBaseline}
         />
       )}
 

@@ -19,6 +19,8 @@ interface RoiSetupViewProps {
   lang: Language;
   onSave: (updatedPercentages: [number, number, number, number]) => void;
   onCancel: () => void;
+  isFirstBaseline?: boolean;
+  onRetake?: () => void;
 }
 
 export const RoiSetupView: React.FC<RoiSetupViewProps> = ({
@@ -26,6 +28,8 @@ export const RoiSetupView: React.FC<RoiSetupViewProps> = ({
   lang,
   onSave,
   onCancel,
+  isFirstBaseline = false,
+  onRetake,
 }) => {
   const t = I18N[lang];
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -104,7 +108,9 @@ export const RoiSetupView: React.FC<RoiSetupViewProps> = ({
             <h1 className="text-base font-bold text-[#0F172A] leading-tight">
               {t.tierCalibration}
             </h1>
-            <p className="text-xs text-slate-500 font-medium">{t.tierSubtitle}</p>
+            <p className="text-xs text-slate-500 font-medium">
+              {isFirstBaseline ? t.firstBaselineHint : t.tierSubtitle}
+            </p>
           </div>
         </div>
 
@@ -314,6 +320,15 @@ export const RoiSetupView: React.FC<RoiSetupViewProps> = ({
             <RotateCcw className="w-4 h-4" />
             <span>{t.resetSplits}</span>
           </button>
+
+          {isFirstBaseline && onRetake && (
+            <button
+              onClick={onRetake}
+              className="h-12 px-4 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all flex items-center justify-center gap-1.5 flex-shrink-0 font-semibold text-sm border border-slate-200"
+            >
+              <span>{t.retake}</span>
+            </button>
+          )}
 
           {/* Confirm & Save Calibration Button */}
           <button
