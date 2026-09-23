@@ -47,3 +47,52 @@ describe('ResultInspectView tolerance slider (RSLT-05, D-11–D-14)', () => {
     expect(onToleranceChange).toHaveBeenCalledWith(75);
   });
 });
+
+describe('ResultInspectView blink compare (RSLT-02, D-24)', () => {
+  const anomalyProps = {
+    ...baseProps,
+    anomalies: [
+      {
+        id: 'a1',
+        rowIndex: 0,
+        type: 'MISSING' as const,
+        title: 'Tier 1 missing',
+        score: 0.9,
+        boundingBox: { x: 0.1, y: 0.1, width: 0.2, height: 0.1 },
+        dismissed: false,
+      },
+    ],
+  };
+
+  it('swaps to baseline image and hides AR boxes on press, restores on release', () => {
+    render(<ResultInspectView {...anomalyProps} />);
+
+    const viewport = screen.getByAltText('Shelf Inspection Display').closest('div')!;
+    const img = screen.getByAltText('Shelf Inspection Display') as HTMLImageElement;
+
+    expect(img.src).toContain('capture');
+    expect(document.querySelector('.ar-box')).toBeTruthy();
+
+    fireEvent.mouseDown(viewport);
+    expect(img.src).toContain('demo-shelf.jpg');
+    expect(document.querySelector('.ar-box')).toBeNull();
+    expect(screen.getByText('Golden Standard Baseline')).toBeInTheDocument();
+
+    fireEvent.mouseUp(viewport);
+    expect(img.src).toContain('capture');
+    expect(document.querySelector('.ar-box')).toBeTruthy();
+  });
+
+  it('handles touch press and release for blink compare', () => {
+    render(<ResultInspectView {...anomalyProps} />);
+
+    const viewport = screen.getByAltText('Shelf Inspection Display').closest('div')!;
+    const img = screen.getByAltText('Shelf Inspection Display') as HTMLImageElement;
+
+    fireEvent.touchStart(viewport);
+    expect(img.src).toContain('demo-shelf.jpg');
+
+    fireEvent.touchEnd(viewport);
+    expect(img.src).toContain('capture');
+  });
+});
