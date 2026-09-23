@@ -139,6 +139,12 @@ None yet.
 - IndexedDB quota at 5 shelves — Blob storage + 20-record cap in Phase 2
 - Ghost overlay alone may not eliminate 2–5° viewpoint drift false positives — golden test set needed in Phase 4 planning
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260924-12a | 现在我在引导下去拍摄第一张基准图的时候，点快门按钮，它显示出来的还是那个测试的图片。你帮我检查一下是什么原因。如果是 bug，把它修正。 | 2026-09-24 | e5cd051 | [260924-12a-bug](./quick/260924-12a-bug/) |
+
 ## Deferred Items
 
 | Category | Item | Status | Deferred At | Milestone |
@@ -150,3 +156,5 @@ None yet.
 Last session: 2026-09-23T22:12:56.608Z
 Stopped at: Completed 05-07-PLAN.md
 Resume file: None
+
+Last activity: 2026-09-24 - Completed quick task 260924-12a: 现在我在引导下去拍摄第一张基准图的时候，点快门按钮，它显示出来的还是那个测试的图片。你帮我检查一下是什么原因。如果是 bug，把它修正。
