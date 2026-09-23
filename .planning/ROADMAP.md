@@ -129,7 +129,22 @@ Plans:
   5. Scan-line animation plays smoothly for 0.8s while diff runs in a Web Worker without UI jank
   6. User taps "Complete inspection" and returns to the current shelf's camera main screen
 
-**Plans**: TBD
+**Plans**: 3 plans in 3 waves
+
+Plans:
+
+**Wave 1**
+
+- [ ] 04-01-PLAN.md — Tracer: OpenCV Web Worker + golden fixture diff replacing mock (TECH-06, VIS-01, VIS-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 04-02-PLAN.md — First-baseline FSM, ROI calibration, continuous tolerance slider (ROI-01–05, RSLT-05, VIS-03)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 04-03-PLAN.md — Integration tests, PROCESSING gate, phase verification (VIS-04, RSLT-06, ROI-01)
+
 **UI hint**: yes
 
 ### Phase 5: PRD UI & Multi-Shelf Experience
@@ -146,7 +161,18 @@ Plans:
   4. Camera view shows PRD-spec top bar (baseline pill, level badge, torch + language toggle), 76px breathing shutter, 0.8s scan-line transition, and last-inspection thumbnail
   5. User switches 中文/English and all three-view copy updates; language preference persists across sessions
 
-**Plans**: TBD
+**Plans**: 7 plans
+
+Plans:
+
+- [ ] 05-01-PLAN.md — UI design contract (05-UI-SPEC) + Stitch UAT checklist before code
+- [ ] 05-02-PLAN.md — PRD design tokens + motion dependency foundation
+- [ ] 05-03-PLAN.md — Tracer: shelf swipe carousel end-to-end (SHLF-01)
+- [ ] 05-04-PLAN.md — INITIAL_GUIDE per-shelf onboarding (SHLF-05)
+- [ ] 05-05-PLAN.md — Camera PRD chrome: top bar, shutter, scan (CAM-04–06)
+- [ ] 05-06-PLAN.md — Light theme ROI/Result views + anomaly colors (DSGN-01–03)
+- [ ] 05-07-PLAN.md — I18N audit + phase verification gate (I18N-01–02)
+
 **UI hint**: yes
 
 ## Progress
@@ -159,7 +185,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Capture Foundation & Vercel Deploy | 6/6 | Complete    | 2026-09-22 |
 | 2. Multi-Shelf Data Layer | 3/3 | Complete    | 2026-09-21 |
 | 3. Guided Capture Quality | 3/3 | Complete    | 2026-09-23 |
-| 4. Real Inspection Pipeline | 0/TBD | Not started | - |
+| 4. Real Inspection Pipeline | 0/3 | Not started | - |
 | 5. PRD UI & Multi-Shelf Experience | 0/TBD | Not started | - |
 
 ---
