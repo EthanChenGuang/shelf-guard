@@ -24,7 +24,7 @@
 
 ### Multi-Shelf (SHLF)
 
-- [ ] **SHLF-01**: 用户可在 5 个柜架间左右滑动切换，当前柜架指示清晰可见
+- [x] **SHLF-01**: 用户可在 5 个柜架间左右滑动切换，当前柜架指示清晰可见
 - [x] **SHLF-02**: 每个柜架拥有独立基准图（baseline），切换柜架时加载对应基准
 - [x] **SHLF-03**: 每个柜架拥有独立巡检历史，互不污染
 - [x] **SHLF-04**: 当前选中柜架 ID 持久化，重启应用后恢复上次选中柜架
@@ -139,7 +139,7 @@
 | DSGN-02 | Phase 5 | Pending |
 | DSGN-03 | Phase 5 | Complete |
 | DSGN-04 | Phase 5 | Complete |
-| SHLF-01 | Phase 5 | Pending |
+| SHLF-01 | Phase 5 | Complete |
 | SHLF-02 | Phase 2 | Complete |
 | SHLF-03 | Phase 2 | Complete |
 | SHLF-04 | Phase 2 | Complete |
