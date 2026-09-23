@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: PRD UI & Multi-Shelf Experience
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-09-23T22:01:15.013Z"
+stopped_at: Completed 05-04-PLAN.md
+last_updated: "2026-09-23T22:04:37.391Z"
 last_activity: 2026-09-23
 last_activity_desc: Phase 05 execution started
-state_head: 0a0e33502dee1a4c53f20444df3da82c198950cd
+state_head: cfce92e1bb2040ba474c07d407dc7d757a31c7c6
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 22
-  completed_plans: 18
+  completed_plans: 19
   percent: 80
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-09-20)
 ## Current Position
 
 Phase: 05 (PRD UI & Multi-Shelf Experience) — EXECUTING
-Current Plan: 4
+Current Plan: 5
 Total Plans in Phase: 7
 Status: Ready to execute
 Last activity: 2026-09-23 — Phase 05 execution started
@@ -78,6 +78,7 @@ Progress: [████████░░] 80%
 | Phase 05-prd-ui-multi-shelf-experience P01 | 8min | 2 tasks | 3 files |
 | Phase 05-prd-ui-multi-shelf-experience P02 | 6min | 3 tasks | 4 files |
 | Phase 05-prd-ui-multi-shelf-experience P03 | 8min | 3 tasks | 10 files |
+| Phase 05-prd-ui-multi-shelf-experience P04 | 4min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -117,6 +118,8 @@ Recent decisions affecting current work:
 - [Phase 05]: Token foundation only — component hex migration deferred to 05-03+
 - [Phase 05]: Swipe negative dx increments shelf; shelfIndex clamp 0-4 before handleShelfChange
 - [Phase 05]: ShelfSelector removed; ShelfCarousel below top bar with motion cross-fade
+- [Phase 05]: Demo feed hidden for all !hasPersistedBaseline shelves — neutral placeholder per D-09
+- [Phase 05]: INITIAL_GUIDE and CAMERA_IDLE share CameraView shell via showInitialGuide prop
 
 ### Pending Todos
 
@@ -136,6 +139,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-09-23T22:01:14.986Z
-Stopped at: Completed 05-03-PLAN.md
+Last session: 2026-09-23T22:04:37.361Z
+Stopped at: Completed 05-04-PLAN.md
 Resume file: None

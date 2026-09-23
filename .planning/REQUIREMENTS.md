@@ -28,7 +28,7 @@
 - [x] **SHLF-02**: 每个柜架拥有独立基准图（baseline），切换柜架时加载对应基准
 - [x] **SHLF-03**: 每个柜架拥有独立巡检历史，互不污染
 - [x] **SHLF-04**: 当前选中柜架 ID 持久化，重启应用后恢复上次选中柜架
-- [ ] **SHLF-05**: 柜架无基准图时进入首次引导流程（INITIAL_GUIDE），而非静默使用 Demo 基准
+- [x] **SHLF-05**: 柜架无基准图时进入首次引导流程（INITIAL_GUIDE），而非静默使用 Demo 基准
 
 ### Camera Live View (CAM)
 
@@ -143,7 +143,7 @@
 | SHLF-02 | Phase 2 | Complete |
 | SHLF-03 | Phase 2 | Complete |
 | SHLF-04 | Phase 2 | Complete |
-| SHLF-05 | Phase 5 | Pending |
+| SHLF-05 | Phase 5 | Complete |
 | CAM-01 | Phase 3 | Complete |
 | CAM-02 | Phase 3 | Complete |
 | CAM-03 | Phase 3 | Complete |
