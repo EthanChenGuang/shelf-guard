@@ -10,44 +10,90 @@ const MAX_BITMAP_HEIGHT = 1920;
 
 let worker: Worker | null = null;
 let cvReadyPromise: Promise<void> | null = null;
+let workerRequestId = 0;
+let muxAttached = false;
+
+type PendingEntry = {
+  resolve: (value: unknown) => void;
+  reject: (error: Error) => void;
+};
+
+const pending = new Map<number, PendingEntry>();
 
 function getWorker(): Worker {
   if (!worker) worker = new VisionWorker();
   return worker;
 }
 
+function attachWorkerMux(w: Worker): void {
+  if (muxAttached) return;
+  muxAttached = true;
+
+  w.addEventListener('message', (event: MessageEvent) => {
+    const data = event.data as {
+      requestId?: number;
+      type?: string;
+      payload?: InspectionAnalysisResult;
+      message?: string;
+    };
+    const requestId = data?.requestId;
+    if (typeof requestId !== 'number') return;
+
+    const entry = pending.get(requestId);
+    if (!entry) return;
+    pending.delete(requestId);
+
+    if (data.type === 'error') {
+      entry.reject(new Error(data.message ?? 'Vision worker error'));
+      return;
+    }
+    if (data.type === 'ready') {
+      entry.resolve(undefined);
+      return;
+    }
+    if (data.type === 'result') {
+      entry.resolve(data.payload);
+      return;
+    }
+  });
+
+  w.addEventListener('error', (event: ErrorEvent) => {
+    for (const [id, entry] of pending) {
+      entry.reject(new Error(event.message || 'Vision worker error'));
+      pending.delete(id);
+    }
+    cvReadyPromise = null;
+    worker = null;
+    muxAttached = false;
+  });
+}
+
+function postWorker<T>(
+  w: Worker,
+  body: Record<string, unknown>,
+  transfer?: Transferable[],
+): Promise<T> {
+  attachWorkerMux(w);
+  const requestId = ++workerRequestId;
+  return new Promise((resolve, reject) => {
+    pending.set(requestId, {
+      resolve: resolve as (value: unknown) => void,
+      reject,
+    });
+    w.postMessage({ ...body, requestId }, transfer ?? []);
+  });
+}
+
 /** Spawn worker and load OpenCV WASM before first analyze (cold-start backstop). */
 export function prewarmVisionWorker(): Promise<void> {
+  if (typeof Worker === 'undefined') {
+    return Promise.resolve();
+  }
   if (!cvReadyPromise) {
-    cvReadyPromise = new Promise((resolve, reject) => {
-      const w = getWorker();
-
-      const cleanup = () => {
-        w.removeEventListener('message', onMessage);
-        w.removeEventListener('error', onError);
-      };
-
-      const onMessage = (event: MessageEvent) => {
-        const payload = event.data;
-        if (payload?.type === 'ready') {
-          cleanup();
-          resolve();
-        } else if (payload?.type === 'error') {
-          cleanup();
-          cvReadyPromise = null;
-          reject(new Error(payload.message ?? 'Vision worker init failed'));
-        }
-      };
-
-      const onError = (event: ErrorEvent) => {
-        cleanup();
-        cvReadyPromise = null;
-        reject(new Error(event.message || 'Vision worker error'));
-      };
-
-      w.addEventListener('message', onMessage);
-      w.addEventListener('error', onError);
-      w.postMessage({type: 'init'});
+    const w = getWorker();
+    cvReadyPromise = postWorker<void>(w, { type: 'init' }).catch((err) => {
+      cvReadyPromise = null;
+      throw err;
     });
   }
   return cvReadyPromise;
@@ -95,51 +141,25 @@ export async function analyzeShelfCapture(
     dataUrlToImageBitmap(baseline.imageDataUrl),
   ]);
 
-  return new Promise((resolve, reject) => {
-    const w = getWorker();
+  const w = getWorker();
 
-    const cleanup = () => {
-      w.removeEventListener('message', onMessage);
-      w.removeEventListener('error', onError);
-    };
-
-    const onMessage = (event: MessageEvent) => {
-      const payload = event.data;
-      if (payload?.type === 'error') {
-        cleanup();
-        captureBitmap.close();
-        baselineBitmap.close();
-        reject(new Error(payload.message ?? 'Vision worker analysis failed'));
-        return;
-      }
-      cleanup();
-      captureBitmap.close();
-      baselineBitmap.close();
-      resolve(payload as InspectionAnalysisResult);
-    };
-
-    const onError = (event: ErrorEvent) => {
-      cleanup();
-      captureBitmap.close();
-      baselineBitmap.close();
-      reject(new Error(event.message || 'Vision worker error'));
-    };
-
-    w.addEventListener('message', onMessage);
-    w.addEventListener('error', onError);
-
-    w.postMessage(
+  try {
+    return await postWorker<InspectionAnalysisResult>(
+      w,
       {
         type: 'analyze',
         captureBitmap,
         baselineBitmap,
         splitYPercentages: baseline.splitYPercentages,
-        imageDimensions: baseline.imageDimensions,
         toleranceValue,
       },
       [captureBitmap, baselineBitmap],
     );
-  });
+  } catch (err) {
+    captureBitmap.close();
+    baselineBitmap.close();
+    throw err;
+  }
 }
 
 /**

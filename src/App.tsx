@@ -93,6 +93,9 @@ export default function App() {
   const captureLockRef = useRef(false);
   const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toleranceDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toleranceRequestSeqRef = useRef(0);
+  const appModeRef = useRef(appMode);
+  appModeRef.current = appMode;
   const workerPrewarmedRef = useRef(false);
   const [isShutterLocked, setIsShutterLocked] = useState(false);
   const [showAnalysisError, setShowAnalysisError] = useState(false);
@@ -178,14 +181,24 @@ export default function App() {
       if (toleranceDebounceRef.current) {
         clearTimeout(toleranceDebounceRef.current);
       }
+      const seq = ++toleranceRequestSeqRef.current;
       toleranceDebounceRef.current = setTimeout(async () => {
-        const result = await analyzeShelfCapture(capturedFrame, baseline, newTol);
-        setAnomalies(result.anomalies);
-        setComplianceRate(result.complianceRate);
-        setStandardCount(result.standardCount);
-        setActualCount(result.actualCount);
-        setDisplacedCount(result.displacedCount);
-        setMissingCount(result.missingCount);
+        if (appModeRef.current !== 'RESULT_INSPECT') return;
+        try {
+          const result = await analyzeShelfCapture(capturedFrame, baseline, newTol);
+          if (seq !== toleranceRequestSeqRef.current) return;
+          if (appModeRef.current !== 'RESULT_INSPECT') return;
+          setAnomalies(result.anomalies);
+          setComplianceRate(result.complianceRate);
+          setStandardCount(result.standardCount);
+          setActualCount(result.actualCount);
+          setDisplacedCount(result.displacedCount);
+          setMissingCount(result.missingCount);
+        } catch {
+          if (seq !== toleranceRequestSeqRef.current) return;
+          setShowAnalysisError(true);
+          setAppMode('CAMERA_IDLE');
+        }
       }, 150);
     },
     [capturedFrame, baseline],

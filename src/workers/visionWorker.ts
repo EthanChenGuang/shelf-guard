@@ -4,7 +4,7 @@ import { pixelRectToNormalized, stableAnomalyId } from '../lib/vision/bboxUtils'
 import { classifyContourType } from '../lib/vision/classifyContour';
 import { computeComplianceStats } from '../lib/vision/complianceStats';
 import { toleranceToDiffParams } from '../lib/vision/toleranceParams';
-import { tierBoundsFromSplits } from '../lib/vision/tierGeometry';
+import { tierBoundsFromSplits, validateSplitYPercentages } from '../lib/vision/tierGeometry';
 import { rasterFromImageBitmap, type RasterFrame } from '../lib/vision/rasterFrame';
 import type { InspectionAnalysisResult } from '../lib/vision/resultTypes';
 
@@ -43,20 +43,15 @@ async function getCv(): Promise<CV> {
 }
 
 function validateAnalyzePayload(data: Record<string, unknown>): void {
-  const { splitYPercentages, imageDimensions, toleranceValue } = data;
-  if (!Array.isArray(splitYPercentages) || splitYPercentages.length !== 4) {
-    throw new Error('splitYPercentages must contain exactly 4 values');
+  const { splitYPercentages, toleranceValue } = data;
+  if (!validateSplitYPercentages(splitYPercentages)) {
+    throw new Error(
+      'splitYPercentages must be 4 monotonically increasing values in (0, 1]',
+    );
   }
   const tol = Number(toleranceValue);
   if (!Number.isFinite(tol) || tol < 0 || tol > 100) {
     throw new Error('toleranceValue must be between 0 and 100');
-  }
-  const dims = imageDimensions as { width?: number; height?: number } | undefined;
-  if (!dims || typeof dims.width !== 'number' || typeof dims.height !== 'number') {
-    throw new Error('imageDimensions must include width and height');
-  }
-  if (dims.width <= 0 || dims.height <= 0 || dims.width > MAX_BITMAP_WIDTH || dims.height > MAX_BITMAP_HEIGHT) {
-    throw new Error(`imageDimensions must be within 1..${MAX_BITMAP_WIDTH}x${MAX_BITMAP_HEIGHT}`);
   }
 }
 
@@ -298,7 +293,7 @@ function analyzeAllTiers(
   captureFrame: RasterFrame,
   baselineFrame: RasterFrame,
   splitYPercentages: [number, number, number, number],
-  imageDimensions: { width: number; height: number },
+  frameSize: { width: number; height: number },
   toleranceValue: number,
 ): InspectionAnalysisResult {
   const params = toleranceToDiffParams(toleranceValue);
@@ -312,7 +307,7 @@ function analyzeAllTiers(
     for (let tierIndex = 0; tierIndex < 4; tierIndex += 1) {
       const bounds = tierBoundsFromSplits(
         splitYPercentages,
-        imageDimensions,
+        frameSize,
         tierIndex as 0 | 1 | 2 | 3,
       );
       const baselineTier = cropMat(cv, baselineMat, bounds);
@@ -332,7 +327,7 @@ function analyzeAllTiers(
           captureTier,
           tierIndex as 0 | 1 | 2 | 3,
           { x: bounds.x, y: bounds.y },
-          imageDimensions,
+          frameSize,
           params,
         );
         anomalies.push(...tierAnomalies);
@@ -360,25 +355,27 @@ function analyzeAllTiers(
 }
 
 export type VisionWorkerRequest =
-  | { type: 'init' }
+  | { requestId?: number; type: 'init' }
   | {
+      requestId?: number;
       type: 'analyze';
       captureBitmap: ImageBitmap;
       baselineBitmap: ImageBitmap;
       splitYPercentages: [number, number, number, number];
-      imageDimensions: { width: number; height: number };
       toleranceValue: number;
     };
 
 if (typeof self !== 'undefined' && 'onmessage' in self) {
   self.onmessage = async (event: MessageEvent<VisionWorkerRequest>) => {
     const data = event.data;
+    const requestId = data?.requestId;
     if (data?.type === 'init') {
       try {
         await getCv();
-        self.postMessage({type: 'ready'});
+        self.postMessage({ requestId, type: 'ready' });
       } catch (err) {
         self.postMessage({
+          requestId,
           type: 'error',
           message: err instanceof Error ? err.message : String(err),
         });
@@ -393,10 +390,17 @@ if (typeof self !== 'undefined' && 'onmessage' in self) {
         throw new Error('captureBitmap and baselineBitmap must be ImageBitmap instances');
       }
       if (
+        data.captureBitmap.width !== data.baselineBitmap.width ||
+        data.captureBitmap.height !== data.baselineBitmap.height
+      ) {
+        throw new Error(
+          `Bitmap size mismatch: capture ${data.captureBitmap.width}x${data.captureBitmap.height}, ` +
+            `baseline ${data.baselineBitmap.width}x${data.baselineBitmap.height}`,
+        );
+      }
+      if (
         data.captureBitmap.width > MAX_BITMAP_WIDTH ||
-        data.captureBitmap.height > MAX_BITMAP_HEIGHT ||
-        data.baselineBitmap.width > MAX_BITMAP_WIDTH ||
-        data.baselineBitmap.height > MAX_BITMAP_HEIGHT
+        data.captureBitmap.height > MAX_BITMAP_HEIGHT
       ) {
         throw new Error('ImageBitmap dimensions exceed allowed maximum');
       }
@@ -407,18 +411,19 @@ if (typeof self !== 'undefined' && 'onmessage' in self) {
         rasterFromImageBitmap(data.baselineBitmap),
       ]);
 
+      const frameSize = { width: captureFrame.width, height: captureFrame.height };
       const result = analyzeAllTiers(
         cv,
         captureFrame,
         baselineFrame,
         data.splitYPercentages,
-        data.imageDimensions,
+        frameSize,
         data.toleranceValue,
       );
 
       data.captureBitmap.close();
       data.baselineBitmap.close();
-      self.postMessage(result);
+      self.postMessage({ requestId, type: 'result', payload: result });
     } catch (err) {
       try {
         data.captureBitmap?.close?.();
@@ -426,7 +431,11 @@ if (typeof self !== 'undefined' && 'onmessage' in self) {
       } catch {
         // ignore close errors
       }
-      self.postMessage({ type: 'error', message: err instanceof Error ? err.message : String(err) });
+      self.postMessage({
+        requestId,
+        type: 'error',
+        message: err instanceof Error ? err.message : String(err),
+      });
     }
   };
 }

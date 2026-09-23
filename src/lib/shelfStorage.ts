@@ -7,6 +7,7 @@ import type {
 } from '../types/persisted';
 import {compressToJpegBlob, dataUrlToBlob, isQuotaError} from './blobUtils';
 import {DEFAULT_CALIBRATION} from './constants';
+import {validateSplitYPercentages} from './vision/tierGeometry';
 
 const LEGACY_KEY_BASELINE = 'shelfguard_baseline';
 const LEGACY_KEY_HISTORY = 'shelfguard_audit_history';
@@ -61,11 +62,7 @@ export function toViewAuditRecord(
 function isValidSplitY(
   splits: unknown,
 ): splits is [number, number, number, number] {
-  return (
-    Array.isArray(splits) &&
-    splits.length === 4 &&
-    splits.every((n) => typeof n === 'number')
-  );
+  return validateSplitYPercentages(splits);
 }
 
 async function viewToPersistedBaseline(

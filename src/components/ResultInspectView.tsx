@@ -247,7 +247,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
                     <span>
                       {isMissing
                         ? `${t.missingCount.replace('处', '')} · ${(
-                            (item.confidence || 0.98) * 100
+                            ((item.score ?? item.confidence ?? 0) * 100)
                           ).toFixed(0)}%`
                         : `${item.displacementNote || t.displacedCount}`}
                     </span>
