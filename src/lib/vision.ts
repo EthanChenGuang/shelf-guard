@@ -1,77 +1,107 @@
-import { DetectedAnomaly, ShelfCalibration, ToleranceLevel } from '../types';
-import { INITIAL_MOCK_ANOMALIES } from './constants';
+import VisionWorker from '../workers/visionWorker?worker';
+import { ShelfCalibration, ToleranceLevel } from '../types';
+import { dataUrlToBlob } from './blobUtils';
+import { legacyToleranceToNumber } from './vision/toleranceParams';
+export type { InspectionAnalysisResult } from './vision/resultTypes';
+import type { InspectionAnalysisResult } from './vision/resultTypes';
 
-export interface InspectionAnalysisResult {
-  anomalies: DetectedAnomaly[];
-  complianceRate: number;
-  standardCount: number;
-  actualCount: number;
-  displacedCount: number;
-  missingCount: number;
+const MAX_BITMAP_WIDTH = 1080;
+const MAX_BITMAP_HEIGHT = 1920;
+
+let worker: Worker | null = null;
+
+function getWorker(): Worker {
+  if (!worker) worker = new VisionWorker();
+  return worker;
+}
+
+async function dataUrlToImageBitmap(dataUrl: string): Promise<ImageBitmap> {
+  const blob = await dataUrlToBlob(dataUrl);
+  return createImageBitmap(blob);
+}
+
+function normalizeTolerance(tolerance: ToleranceLevel | number): number {
+  if (typeof tolerance === 'number') return tolerance;
+  return legacyToleranceToNumber(tolerance);
+}
+
+function validateBeforeAnalyze(
+  baseline: ShelfCalibration,
+  toleranceValue: number,
+): void {
+  if (!Number.isFinite(toleranceValue) || toleranceValue < 0 || toleranceValue > 100) {
+    throw new Error('toleranceValue must be between 0 and 100');
+  }
+  if (!baseline.splitYPercentages || baseline.splitYPercentages.length !== 4) {
+    throw new Error('baseline.splitYPercentages must contain exactly 4 values');
+  }
+  const { width, height } = baseline.imageDimensions;
+  if (width <= 0 || height <= 0 || width > MAX_BITMAP_WIDTH || height > MAX_BITMAP_HEIGHT) {
+    throw new Error(`imageDimensions must be within 1..${MAX_BITMAP_WIDTH}x${MAX_BITMAP_HEIGHT}`);
+  }
 }
 
 /**
- * Perform multi-band differential image analysis across the 4 shelf tiers.
- * Incorporates canvas pixel diffing, connected-component contour bounding,
- * and sensitivity tolerance scaling.
+ * Perform multi-band differential image analysis across the 4 shelf tiers via Web Worker (D-19–D-22).
  */
 export async function analyzeShelfCapture(
   capturedDataUrl: string,
   baseline: ShelfCalibration,
-  tolerance: ToleranceLevel
+  tolerance: ToleranceLevel | number,
 ): Promise<InspectionAnalysisResult> {
-  // If baseline matches or we need high-precision realistic retail telemetry:
-  // We compute based on realistic anomalies modulated by tolerance level
-  const baseAnomalies = JSON.parse(JSON.stringify(INITIAL_MOCK_ANOMALIES)) as DetectedAnomaly[];
+  const toleranceValue = normalizeTolerance(tolerance);
+  validateBeforeAnalyze(baseline, toleranceValue);
 
-  // Tolerance filtering logic:
-  // 'strict' (±2mm): flags even minor alignment variations (e.g. additional minor tilt)
-  // 'normal' (±5mm): standard planogram threshold (1 missing, 2 moved)
-  // 'loose' (±12mm): high tolerance, only flags critical missing voids
-  let filteredAnomalies: DetectedAnomaly[];
+  const [captureBitmap, baselineBitmap] = await Promise.all([
+    dataUrlToImageBitmap(capturedDataUrl),
+    dataUrlToImageBitmap(baseline.imageDataUrl),
+  ]);
 
-  if (tolerance === 'strict') {
-    // Add extra slight shift in tier 1
-    const extraMinorShift: DetectedAnomaly = {
-      id: 'box-displaced-3',
-      rowIndex: 0,
-      type: 'MOVED',
-      title: 'Byredo Box',
-      displacementNote: '+3mm 微偏',
-      score: 0.68,
-      boundingBox: {
-        x: 0.16,
-        y: 0.22,
-        width: 0.14,
-        height: 0.065,
-      },
-      dismissed: false,
+  return new Promise((resolve, reject) => {
+    const w = getWorker();
+
+    const cleanup = () => {
+      w.removeEventListener('message', onMessage);
+      w.removeEventListener('error', onError);
     };
-    filteredAnomalies = [...baseAnomalies, extraMinorShift];
-  } else if (tolerance === 'loose') {
-    // Only flag critical missing item, ignore subtle moves
-    filteredAnomalies = baseAnomalies.filter((a) => a.type === 'MISSING');
-  } else {
-    filteredAnomalies = baseAnomalies;
-  }
 
-  // Calculate statistics
-  const standardCount = 24;
-  const missingCount = filteredAnomalies.filter((a) => a.type === 'MISSING' && !a.dismissed).length;
-  const displacedCount = filteredAnomalies.filter((a) => a.type === 'MOVED' && !a.dismissed).length;
-  const actualCount = standardCount - missingCount;
+    const onMessage = (event: MessageEvent) => {
+      const payload = event.data;
+      if (payload?.type === 'error') {
+        cleanup();
+        captureBitmap.close();
+        baselineBitmap.close();
+        reject(new Error(payload.message ?? 'Vision worker analysis failed'));
+        return;
+      }
+      cleanup();
+      captureBitmap.close();
+      baselineBitmap.close();
+      resolve(payload as InspectionAnalysisResult);
+    };
 
-  // Compliance: penalizes missing items by 4% and displaced by 2%
-  const complianceRate = Math.max(70, Math.min(100, 100 - missingCount * 4 - displacedCount * 2));
+    const onError = (event: ErrorEvent) => {
+      cleanup();
+      captureBitmap.close();
+      baselineBitmap.close();
+      reject(new Error(event.message || 'Vision worker error'));
+    };
 
-  return {
-    anomalies: filteredAnomalies,
-    complianceRate,
-    standardCount,
-    actualCount,
-    displacedCount,
-    missingCount,
-  };
+    w.addEventListener('message', onMessage);
+    w.addEventListener('error', onError);
+
+    w.postMessage(
+      {
+        type: 'analyze',
+        captureBitmap,
+        baselineBitmap,
+        splitYPercentages: baseline.splitYPercentages,
+        imageDimensions: baseline.imageDimensions,
+        toleranceValue,
+      },
+      [captureBitmap, baselineBitmap],
+    );
+  });
 }
 
 /**
@@ -80,7 +110,7 @@ export async function analyzeShelfCapture(
 export function captureElementToDataUrl(
   element: HTMLVideoElement | HTMLImageElement,
   targetWidth = 1080,
-  targetHeight = 1920
+  targetHeight = 1920,
 ): string {
   const canvas = document.createElement('canvas');
   canvas.width = targetWidth;
@@ -88,11 +118,6 @@ export function captureElementToDataUrl(
   const ctx = canvas.getContext('2d');
   if (!ctx) return '';
 
-  if (element instanceof HTMLVideoElement) {
-    ctx.drawImage(element, 0, 0, targetWidth, targetHeight);
-  } else {
-    ctx.drawImage(element, 0, 0, targetWidth, targetHeight);
-  }
-
+  ctx.drawImage(element, 0, 0, targetWidth, targetHeight);
   return canvas.toDataURL('image/jpeg', 0.92);
 }

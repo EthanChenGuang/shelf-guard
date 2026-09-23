@@ -12,6 +12,11 @@ export default defineConfig(() => {
       VitePWA({
         registerType: 'autoUpdate',
         manifest: false,
+        workbox: {
+          // OpenCV worker chunk (~16 MB) loads on demand — exclude from precache (Pitfall 1)
+          globIgnores: ['**/visionWorker*.js'],
+          maximumFileSizeToCacheInBytes: 20 * 1024 * 1024,
+        },
         devOptions: {
           enabled: true,
           type: 'module',
