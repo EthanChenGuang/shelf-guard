@@ -89,8 +89,8 @@
 
 ### Internationalization (I18N)
 
-- [ ] **I18N-01**: 中/英双语切换，所有三视图文案覆盖
-- [ ] **I18N-02**: 语言偏好持久化至 IndexedDB
+- [x] **I18N-01**: 中/英双语切换，所有三视图文案覆盖
+- [x] **I18N-02**: 语言偏好持久化至 IndexedDB
 
 ## v2 Requirements
 
@@ -180,8 +180,8 @@
 | STAB-02 | Phase 1 | Complete |
 | STAB-03 | Phase 1 | Complete |
 | STAB-04 | Phase 1 | Complete |
-| I18N-01 | Phase 5 | Pending |
-| I18N-02 | Phase 5 | Pending |
+| I18N-01 | Phase 5 | Complete |
+| I18N-02 | Phase 5 | Complete |
 
 **Coverage:**
 
