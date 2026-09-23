@@ -109,7 +109,9 @@ export const CameraView: React.FC<CameraViewProps> = ({
   const [showRoiGuides, setShowRoiGuides] = useState(true);
   const showGhost =
     !showInitialGuide && !isUsingDemoFeed && hasPersistedBaseline && !!baseline;
-  const showDemoFeedImage = isUsingDemoFeed && !showInitialGuide;
+  const showGuidePlaceholder =
+    isUsingDemoFeed && (showInitialGuide || !hasPersistedBaseline);
+  const showDemoFeedImage = isUsingDemoFeed && hasPersistedBaseline && !showInitialGuide;
   const displayTilt = orientationDenied ? 0 : tilt;
   const displayIsLevel = orientationDenied ? false : isLevel;
   const showSimulateToggle =
@@ -160,7 +162,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
             exit={{ opacity: 0 }}
             transition={feedTransition}
           >
-            {showInitialGuide && isUsingDemoFeed ? (
+            {showGuidePlaceholder ? (
               <div
                 data-testid="guide-feed-placeholder"
                 className="flex h-full w-full items-center justify-center bg-sg-camera"
