@@ -150,6 +150,16 @@ export const I18N = {
     orientationErrorIosGuide:
       '请在 Safari 中打开本页 → 设置 → Safari → 运动与方向访问，允许后返回重试。',
     retryOrientation: '重试方向权限',
+    welcomeStep: '欢迎使用 ShelfGuard',
+    alignmentStep: '对齐拍摄技巧',
+    guideWelcome: (shelfName: string) =>
+      `您正在为 ${shelfName} 建立基准图。完成引导后，轻按快门即可拍摄第一张基准照。`,
+    guideAlignment:
+      '将手机保持水平，对准展架中心。基准图建立后，幽灵覆层与水平仪将帮助您复现相同视角。',
+    guideCaptureHint: '准备好后，点击下方按钮开始拍摄基准图。',
+    captureBaseline: '拍摄基准图',
+    skipGuide: '跳过',
+    guideNext: '下一步',
   },
   en: {
     appTitle: 'ShelfGuard Planogram Audit',
@@ -227,5 +237,15 @@ export const I18N = {
     orientationErrorIosGuide:
       'Open in Safari → Settings → Safari → Motion & Orientation Access, then return and retry.',
     retryOrientation: 'Retry orientation',
+    welcomeStep: 'Welcome to ShelfGuard',
+    alignmentStep: 'Alignment tips',
+    guideWelcome: (shelfName: string) =>
+      `You are setting up a baseline for ${shelfName}. After this guide, tap the shutter to capture your first baseline photo.`,
+    guideAlignment:
+      'Hold the phone level and center the shelf in frame. After the baseline is saved, the ghost overlay and level guide help you match the same viewpoint.',
+    guideCaptureHint: 'When ready, tap below to start capturing your baseline.',
+    captureBaseline: 'Capture baseline',
+    skipGuide: 'Skip',
+    guideNext: 'Next',
   },
 };

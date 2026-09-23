@@ -20,6 +20,7 @@ import { I18N } from '../lib/constants';
 import { attachShelfSwipe } from '../lib/shelfSwipe';
 import { nextShelfIndex, prevShelfIndex, clampShelfIndex } from '../lib/shelfIndex';
 import { ShelfCarousel } from './ShelfCarousel';
+import { InitialGuideOverlay } from './InitialGuideOverlay';
 
 interface CameraViewProps {
   baseline: ShelfCalibration;
@@ -59,6 +60,8 @@ interface CameraViewProps {
   onRetryOrientation?: () => void;
   onDismissOrientationError?: () => void;
   hasSensor?: boolean;
+  showInitialGuide?: boolean;
+  onDismissInitialGuide?: () => void;
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -99,10 +102,14 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onRetryOrientation,
   onDismissOrientationError,
   hasSensor = false,
+  showInitialGuide = false,
+  onDismissInitialGuide,
 }) => {
   const t = I18N[lang];
   const [showRoiGuides, setShowRoiGuides] = useState(true);
-  const showGhost = !isUsingDemoFeed && hasPersistedBaseline && !!baseline;
+  const showGhost =
+    !showInitialGuide && !isUsingDemoFeed && hasPersistedBaseline && !!baseline;
+  const showDemoFeedImage = isUsingDemoFeed && !showInitialGuide;
   const displayTilt = orientationDenied ? 0 : tilt;
   const displayIsLevel = orientationDenied ? false : isLevel;
   const showSimulateToggle =
@@ -153,7 +160,14 @@ export const CameraView: React.FC<CameraViewProps> = ({
             exit={{ opacity: 0 }}
             transition={feedTransition}
           >
-            {isUsingDemoFeed ? (
+            {showInitialGuide && isUsingDemoFeed ? (
+              <div
+                data-testid="guide-feed-placeholder"
+                className="flex h-full w-full items-center justify-center bg-sg-camera"
+              >
+                <Camera className="h-16 w-16 text-white/25" aria-hidden="true" />
+              </div>
+            ) : showDemoFeedImage ? (
               <img
                 src={baseline.imageDataUrl}
                 alt="Retail Shelf Demo Stream"
@@ -617,6 +631,15 @@ export const CameraView: React.FC<CameraViewProps> = ({
           </div>
         </div>
       </div>
+
+      {showInitialGuide && onDismissInitialGuide && (
+        <InitialGuideOverlay
+          lang={lang}
+          shelfIndex={activeShelfId}
+          onComplete={onDismissInitialGuide}
+          onSkip={onDismissInitialGuide}
+        />
+      )}
     </div>
   );
 };
