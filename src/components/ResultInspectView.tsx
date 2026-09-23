@@ -17,7 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { DetectedAnomaly, Language, ShelfCalibration, ToleranceLevel } from '../types';
+import { DetectedAnomaly, Language, ShelfCalibration, ToleranceValue } from '../types';
 import { I18N } from '../lib/constants';
 
 interface ResultInspectViewProps {
@@ -29,8 +29,8 @@ interface ResultInspectViewProps {
   actualCount: number;
   displacedCount: number;
   missingCount: number;
-  tolerance: ToleranceLevel;
-  onToleranceChange: (tol: ToleranceLevel) => void;
+  tolerance: ToleranceValue;
+  onToleranceChange: (tol: ToleranceValue) => void;
   onDismissAnomaly: (id: string) => void;
   onCompleteAudit: () => void;
   onBackToCamera: () => void;
@@ -307,51 +307,26 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
               <span>{t.toleranceSensitivity}</span>
             </div>
             <span className="font-mono-numbers text-xs font-bold text-[#006C49] bg-emerald-100/80 px-2 py-0.5 rounded-full">
-              {tolerance === 'strict'
-                ? t.strictTolerance
-                : tolerance === 'loose'
-                ? t.looseTolerance
-                : t.normalTolerance}
+              {t.toleranceValue.replace('{n}', String(tolerance))}
             </span>
           </div>
 
-          {/* Stepper Buttons for Strict / Normal / Loose */}
-          <div className="grid grid-cols-3 gap-1.5 pt-1">
-            <button
-              onClick={() => onToleranceChange('strict')}
-              className={`flex flex-col items-center py-2 rounded-lg text-xs transition-all ${
-                tolerance === 'strict'
-                  ? 'bg-[#006C49] text-white font-semibold shadow-sm'
-                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-              }`}
-            >
-              <span>{t.strict}</span>
-              <span className="font-mono-numbers text-[10px] opacity-80">±2mm</span>
-            </button>
-
-            <button
-              onClick={() => onToleranceChange('normal')}
-              className={`flex flex-col items-center py-2 rounded-lg text-xs transition-all ${
-                tolerance === 'normal'
-                  ? 'bg-[#006C49] text-white font-semibold shadow-sm'
-                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-              }`}
-            >
-              <span>{t.normal}</span>
-              <span className="font-mono-numbers text-[10px] opacity-80">±5mm</span>
-            </button>
-
-            <button
-              onClick={() => onToleranceChange('loose')}
-              className={`flex flex-col items-center py-2 rounded-lg text-xs transition-all ${
-                tolerance === 'loose'
-                  ? 'bg-[#006C49] text-white font-semibold shadow-sm'
-                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-              }`}
-            >
-              <span>{t.loose}</span>
-              <span className="font-mono-numbers text-[10px] opacity-80">±12mm</span>
-            </button>
+          <div className="flex flex-col gap-1.5 pt-1">
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={tolerance}
+              aria-label={t.toleranceSensitivity}
+              onChange={(e) => onToleranceChange(Number(e.target.value))}
+              className="w-full h-2 rounded-full appearance-none cursor-pointer bg-slate-200 accent-[#006C49] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#006C49] [&::-webkit-slider-thumb]:shadow-md"
+            />
+            <div className="grid grid-cols-3 text-[10px] text-slate-500 font-medium">
+              <span className="text-left">{t.tolerancePresetStrict}</span>
+              <span className="text-center">{t.tolerancePresetNormal}</span>
+              <span className="text-right">{t.tolerancePresetLoose}</span>
+            </div>
           </div>
         </div>
 

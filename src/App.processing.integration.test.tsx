@@ -54,20 +54,36 @@ vi.mock('./hooks/usePWAInstall', () => ({
 vi.mock('./lib/storage', () => ({
   loadSavedLanguage: vi.fn(async () => 'cn'),
   saveLanguage: vi.fn(),
-  loadSavedTolerance: vi.fn(async () => 'normal'),
+  loadSavedTolerance: vi.fn(async () => 50),
   saveTolerance: vi.fn(),
 }));
+
+const persistedBaseline = {
+  id: 'baseline-shelf-0',
+  createdAt: Date.now(),
+  imageBlob: new Blob(['baseline'], {type: 'image/jpeg'}),
+  imageDimensions: {width: 1080, height: 1920},
+  splitYPercentages: [0.25, 0.45, 0.65, 0.85] as [number, number, number, number],
+  tierLabels: ['T1', 'T2', 'T3', 'T4'] as [string, string, string, string],
+};
 
 vi.mock('./lib/shelfStorage', () => ({
   runSchemaMigrationIfNeeded: vi.fn(async () => ({ok: true})),
   loadActiveShelfId: vi.fn(async () => 0),
-  loadBaselineRaw: vi.fn(async () => null),
+  loadBaselineRaw: vi.fn(async () => persistedBaseline),
   loadAuditHistory: vi.fn(async () => []),
   saveActiveShelfId: vi.fn(async () => ({ok: true})),
   saveBaseline: vi.fn(async () => ({ok: true})),
   clearBaseline: vi.fn(async () => ({ok: true})),
   appendAuditRecord: vi.fn(async () => ({ok: true})),
-  toViewBaseline: vi.fn((p, url) => ({...p, imageDataUrl: url})),
+  toViewBaseline: vi.fn((p, url) => ({
+    id: p.id,
+    createdAt: p.createdAt,
+    imageDataUrl: url,
+    imageDimensions: p.imageDimensions,
+    splitYPercentages: p.splitYPercentages,
+    tierLabels: p.tierLabels,
+  })),
 }));
 
 describe('App PROCESSING integration (STAB-03)', () => {

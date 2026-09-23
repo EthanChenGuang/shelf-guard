@@ -5,7 +5,7 @@ import {
   DetectedAnomaly,
   Language,
   ShelfCalibration,
-  ToleranceLevel,
+  ToleranceValue,
 } from './types';
 import { DEFAULT_CALIBRATION, DEFAULT_SHELF_IMAGE_URL, I18N } from './lib/constants';
 import {
@@ -30,6 +30,7 @@ import {
 } from './lib/shelfStorage';
 import { createDisplayUrlRegistry } from './lib/objectUrlRegistry';
 import { analyzeShelfCapture } from './lib/vision';
+import { computeComplianceStats } from './lib/vision/complianceStats';
 import { isCaptureLocked } from './lib/captureLock';
 import { loadImageDimensions } from './lib/imageDimensions';
 import { useCameraStream } from './hooks/useCameraStream';
@@ -60,8 +61,8 @@ export default function App() {
   const [lang, setLang] = useState<Language>('cn');
   // Ghost opacity (0 - 100)
   const [ghostOpacity, setGhostOpacity] = useState<number>(45);
-  // Tolerance level
-  const [tolerance, setTolerance] = useState<ToleranceLevel>('normal');
+  // Tolerance slider 0–100 (D-11)
+  const [tolerance, setTolerance] = useState<ToleranceValue>(50);
 
   // Last captured frame
   const [capturedFrame, setCapturedFrame] = useState<string>(DEFAULT_SHELF_IMAGE_URL);
@@ -91,6 +92,7 @@ export default function App() {
   const [orientationDismissed, setOrientationDismissed] = useState(false);
   const captureLockRef = useRef(false);
   const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toleranceDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isShutterLocked, setIsShutterLocked] = useState(false);
 
   const {
@@ -165,19 +167,35 @@ export default function App() {
     await saveLanguage(nextLang);
   };
 
-  // Tolerance change handler
-  const handleToleranceChange = async (newTol: ToleranceLevel) => {
-    setTolerance(newTol);
-    await saveTolerance(newTol);
-    // Recompute anomalies with new tolerance
-    const result = await analyzeShelfCapture(capturedFrame, baseline, newTol);
-    setAnomalies(result.anomalies);
-    setComplianceRate(result.complianceRate);
-    setStandardCount(result.standardCount);
-    setActualCount(result.actualCount);
-    setDisplacedCount(result.displacedCount);
-    setMissingCount(result.missingCount);
-  };
+  // Tolerance change handler — debounced 150ms full worker re-diff (D-13, VIS-03)
+  const handleToleranceChange = useCallback(
+    (newTol: ToleranceValue) => {
+      setTolerance(newTol);
+      void saveTolerance(newTol);
+
+      if (toleranceDebounceRef.current) {
+        clearTimeout(toleranceDebounceRef.current);
+      }
+      toleranceDebounceRef.current = setTimeout(async () => {
+        const result = await analyzeShelfCapture(capturedFrame, baseline, newTol);
+        setAnomalies(result.anomalies);
+        setComplianceRate(result.complianceRate);
+        setStandardCount(result.standardCount);
+        setActualCount(result.actualCount);
+        setDisplacedCount(result.displacedCount);
+        setMissingCount(result.missingCount);
+      }, 150);
+    },
+    [capturedFrame, baseline],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (toleranceDebounceRef.current) {
+        clearTimeout(toleranceDebounceRef.current);
+      }
+    };
+  }, []);
 
   const handleShelfChange = async (newShelfId: number) => {
     urlRegistryRef.current.revokeAll();
@@ -258,14 +276,11 @@ export default function App() {
   const handleDismissAnomaly = (id: string) => {
     setAnomalies((prev) => {
       const next = prev.map((a) => (a.id === id ? { ...a, dismissed: true } : a));
-      const activeMissing = next.filter((a) => a.type === 'MISSING' && !a.dismissed).length;
-      const activeDisplaced = next.filter((a) => a.type === 'MOVED' && !a.dismissed).length;
-      setMissingCount(activeMissing);
-      setDisplacedCount(activeDisplaced);
-      setActualCount(standardCount - activeMissing);
-      setComplianceRate(
-        Math.max(70, Math.min(100, 100 - activeMissing * 4 - activeDisplaced * 2))
-      );
+      const stats = computeComplianceStats(next, standardCount);
+      setMissingCount(stats.missingCount);
+      setDisplacedCount(stats.displacedCount);
+      setActualCount(stats.actualCount);
+      setComplianceRate(stats.complianceRate);
       return next;
     });
   };
