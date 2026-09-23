@@ -1,0 +1,1 @@
+{"content":"React pattern: create object URL in useEffect when Blob changes, revoke exact URL in cleanup. On shelf switch unmount/revoke previous URL before creating new one. MDN revokeObjectURL is idempotent on already-revoked URLs.","source":"web","provider":"websearch","confidence":"LOW","fetched_at":"2026-09-21T10:29:28.141Z","ttl":86400000,"kind":"web"}

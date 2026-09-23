@@ -16,7 +16,7 @@ affects: [verify-work, ship, phase-04]
 actuals:
   tokens: 12000
   tasks: 2
-  commits: 2
+  commits: 3
 plan_head_before: 2f9894acf76aa6f948213f72490deeec4340c879
 
 tech-stack:

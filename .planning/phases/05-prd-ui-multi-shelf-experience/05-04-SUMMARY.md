@@ -100,7 +100,7 @@ Each task was committed atomically:
 2. **Task 2: InitialGuideOverlay component tests** - `cac7a3e` (test)
 3. **Task 3: INITIAL_GUIDE integration test** - `cfce92e` (test)
 
-**Plan metadata:** pending final docs commit
+**Plan metadata:** `ecf7418` (docs: complete plan)
 
 ## Files Created/Modified
 

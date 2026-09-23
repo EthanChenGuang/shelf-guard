@@ -1,0 +1,34 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - img "Retail Shelf Demo Stream"
+    - generic:
+      - img "Baseline Ghost Overlay"
+    - generic: "ROI: 展架 4 排标定"
+    - button "0.0° 水平" [ref=e6] [cursor=pointer]
+  - generic [ref=e11]:
+    - button "基准图 (已建立) /BASELINE" [ref=e12]:
+      - generic [ref=e16]: 基准图 (已建立)
+      - generic [ref=e17]: /BASELINE
+    - generic [ref=e18]:
+      - button "Demo" [ref=e19]
+      - button "CN" [ref=e24]
+  - generic [ref=e25]:
+    - generic [ref=e31]:
+      - generic [ref=e32]: "100"
+      - slider "幽灵图透光率" [ref=e35] [cursor=pointer]: "45"
+      - generic [ref=e36]: "0"
+    - generic [ref=e37]:
+      - generic [ref=e38]: 45%
+      - generic [ref=e39]: Ghost
+  - generic [ref=e40]:
+    - paragraph [ref=e42]:
+      - generic [ref=e48]: 轻按快门扫描展架陈列
+    - generic [ref=e49]:
+      - generic [ref=e50]:
+        - button "Toggle ROI Grid" [ref=e51]
+        - button "基准横梁标定" [ref=e54]
+      - button "Capture & Scan Planogram" [ref=e57] [cursor=pointer]
+      - generic [ref=e63]:
+        - button "View Previous Shelf Audit" [ref=e64]:
+          - img "Audit Thumbnail" [ref=e65]
+        - generic [ref=e66]: 14:20

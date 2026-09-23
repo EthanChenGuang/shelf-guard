@@ -1,0 +1,6 @@
+{
+  "name": "ShelfGuard PWA",
+  "description": "跨平台展架陈列变动即时巡检应用 - Instant Retail Shelf & Planogram Inspection PWA",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

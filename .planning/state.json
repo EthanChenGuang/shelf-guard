@@ -1,0 +1,38 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": null,
+  "phases": [
+    {
+      "number": "1",
+      "name": "Capture Foundation & Vercel Deploy",
+      "status": "complete"
+    },
+    {
+      "number": "2",
+      "name": "Multi-Shelf Data Layer",
+      "status": "complete"
+    },
+    {
+      "number": "3",
+      "name": "Guided Capture Quality",
+      "status": "complete"
+    },
+    {
+      "number": "4",
+      "name": "Real Inspection Pipeline",
+      "status": "complete"
+    },
+    {
+      "number": "5",
+      "name": "PRD UI & Multi-Shelf Experience",
+      "status": "in_progress"
+    }
+  ],
+  "next": {
+    "command": "/gsd-progress --next",
+    "label": "Advance to the next step (verify)",
+    "reason": "Phase 05 of 5 · 80% · ready to verify"
+  },
+  "updated_at": "2026-09-23T22:12:55.929Z"
+}

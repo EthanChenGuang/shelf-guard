@@ -1,0 +1,30 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - img "Retail Shelf Demo Stream"
+    - generic: "ROI: 展架 4 排标定"
+    - button "0.0° 水平" [ref=e6] [cursor=pointer]
+  - generic [ref=e11]:
+    - button "基准图 (已建立) /BASELINE" [ref=e12]:
+      - generic [ref=e16]: 基准图 (已建立)
+      - generic [ref=e17]: /BASELINE
+    - generic [ref=e18]:
+      - group "Shelf selector" [ref=e19]:
+        - button "Shelf 1" [pressed] [ref=e20]: "1"
+        - button "Shelf 2" [ref=e21]: "2"
+        - button "Shelf 3" [ref=e22]: "3"
+        - button "Shelf 4" [ref=e23]: "4"
+        - button "Shelf 5" [ref=e24]: "5"
+      - button "Demo" [ref=e25]
+      - button "CN" [ref=e30]
+  - generic [ref=e31]:
+    - paragraph [ref=e33]:
+      - generic [ref=e39]: 轻按快门扫描展架陈列
+    - generic [ref=e40]:
+      - generic [ref=e41]:
+        - button "Toggle ROI Grid" [ref=e42]
+        - button "基准横梁标定" [ref=e45]
+      - button "Capture & Scan Planogram" [ref=e48] [cursor=pointer]
+      - generic [ref=e54]:
+        - button "View Previous Shelf Audit" [ref=e55]:
+          - img "Audit Thumbnail" [ref=e56]
+        - generic [ref=e57]: 14:20
