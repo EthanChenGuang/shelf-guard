@@ -188,7 +188,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
             ) : showDemoFeedImage ? (
               <img
                 src={baseline.imageDataUrl}
-                alt="Retail Shelf Demo Stream"
+                alt={t.demoFeedAlt}
                 className="w-full h-full object-cover object-center pointer-events-none transition-transform duration-300 scale-105"
               />
             ) : (
@@ -209,7 +209,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
               >
                 <img
                   src={baseline.imageDataUrl}
-                  alt="Baseline Ghost Overlay"
+                  alt={t.baselineGhostAlt}
                   className="w-full h-full object-cover object-center filter contrast-125 brightness-110"
                 />
                 <div className="absolute inset-0 bg-emerald-500/10 mix-blend-overlay" />
@@ -630,7 +630,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
                   ? 'bg-white text-[#0F172A] border-slate-200'
                   : 'bg-white/50 text-slate-500 border-white/20'
               }`}
-              title="Toggle ROI Grid"
+              title={t.toggleRoiGrid}
             >
               <Grid3X3 className="w-5 h-5" />
             </button>
@@ -656,7 +656,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
               id="shutter-trigger"
               type="button"
               onClick={handleShutterClick}
-              aria-label={isShutterLocked ? t.shutterLocked : 'Capture & Scan Planogram'}
+              aria-label={isShutterLocked ? t.shutterLocked : t.captureScan}
               aria-disabled={isShutterLocked}
               disabled={isShutterLocked}
               className={`relative flex h-[76px] w-[76px] items-center justify-center rounded-full border-[3px] border-white bg-white p-1 shadow-[0_4px_24px_rgba(0,0,0,0.35)] transition-transform duration-150 group ${
@@ -679,13 +679,13 @@ export const CameraView: React.FC<CameraViewProps> = ({
             <button
               type="button"
               onClick={onOpenHistory}
-              aria-label="View Previous Shelf Audit"
+              aria-label={t.viewPreviousAudit}
               data-testid="last-inspection-thumbnail"
               className="h-12 w-12 overflow-hidden rounded-xl border border-sg-border bg-white/85 p-0.5 shadow-md backdrop-blur-xl transition-transform active:scale-95 hover:border-sg-success"
             >
               <img
                 src={lastAudit ? lastAudit.thumbnailUrl : baseline.imageDataUrl}
-                alt="Audit Thumbnail"
+                alt={t.auditThumbnailAlt}
                 className="w-full h-full object-cover rounded-[10px]"
               />
             </button>

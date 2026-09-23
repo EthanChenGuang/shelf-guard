@@ -1,6 +1,6 @@
 import React from 'react';
 import { Language } from '../types';
-import { getShelfLabel } from '../lib/constants';
+import { getShelfLabel, I18N } from '../lib/constants';
 
 const SHELF_INDICES = [0, 1, 2, 3, 4] as const;
 
@@ -17,6 +17,8 @@ export const ShelfCarousel: React.FC<ShelfCarouselProps> = ({
   lang,
   enabled = true,
 }) => {
+  const t = I18N[lang];
+
   return (
     <div
       className="flex flex-col items-center gap-1.5"
@@ -24,7 +26,7 @@ export const ShelfCarousel: React.FC<ShelfCarouselProps> = ({
     >
       <div
         role="tablist"
-        aria-label={lang === 'cn' ? '展架选择' : 'Shelf selection'}
+        aria-label={t.shelfCarouselLabel}
         className="flex items-center justify-center gap-2"
       >
         {SHELF_INDICES.map((index) => {

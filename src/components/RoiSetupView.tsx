@@ -41,12 +41,7 @@ export const RoiSetupView: React.FC<RoiSetupViewProps> = ({
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isSavedAnimation, setIsSavedAnimation] = useState<boolean>(false);
 
-  const tierTitles = [
-    lang === 'cn' ? '香氛/面霜' : 'Fragrance',
-    lang === 'cn' ? '护肤精华' : 'Skincare',
-    lang === 'cn' ? '彩妆盘' : 'Cosmetics',
-    lang === 'cn' ? '香氛蜡烛' : 'Candles',
-  ];
+  const tierTitles = t.defaultTierLabels;
 
   const handlePointerDown = (index: number, e: React.PointerEvent) => {
     setActiveTierIndex(index);
@@ -93,22 +88,22 @@ export const RoiSetupView: React.FC<RoiSetupViewProps> = ({
   };
 
   return (
-    <div className="relative w-full min-h-[100dvh] bg-[#F8FAFC] flex flex-col justify-between overflow-x-hidden select-none">
+    <div className="relative w-full min-h-[100dvh] bg-sg-surface flex flex-col justify-between overflow-x-hidden select-none">
       {/* Top Header Bar */}
-      <header className="sticky top-0 w-full z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/80 px-4 py-3 flex items-center justify-between shadow-sm">
+      <header className="sticky top-0 w-full z-40 bg-sg-white border-b border-sg-border/80 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2.5">
           <button
             onClick={onCancel}
             aria-label="Back"
-            className="w-10 h-10 -ml-1 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-95 transition-all"
+            className="w-10 h-10 -ml-1 rounded-full flex items-center justify-center text-sg-secondary hover:bg-sg-surface active:scale-95 transition-all"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-base font-bold text-[#0F172A] leading-tight">
+            <h1 className="text-base font-bold text-sg-primary leading-tight">
               {t.tierCalibration}
             </h1>
-            <p className="text-xs text-slate-500 font-medium">
+            <p className="text-xs text-sg-secondary font-medium">
               {isFirstBaseline ? t.firstBaselineHint : t.tierSubtitle}
             </p>
           </div>
@@ -256,29 +251,29 @@ export const RoiSetupView: React.FC<RoiSetupViewProps> = ({
           <div className="absolute bottom-3 left-3 right-3 pointer-events-none z-20 flex items-center justify-between bg-[#0F172A]/85 backdrop-blur-md px-3 py-1.5 rounded-xl text-white border border-white/10">
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-300">
-                {lang === 'cn' ? '当前调整：' : 'Selected: '}
+                {t.selectedTier}
                 <strong className="text-white font-semibold">
-                  第 {activeTierIndex + 1} 层 (Tier {activeTierIndex + 1})
+                  {t.tierLayer(activeTierIndex + 1)}
                 </strong>
               </span>
             </div>
             <span className="font-mono-numbers text-[10px] text-[#4EDEA3] uppercase tracking-wider font-semibold">
-              {lang === 'cn' ? '微调模式激活' : 'Fine-Tune Active'}
+              {t.fineTuneActive}
             </span>
           </div>
         </div>
       </div>
 
       {/* Bottom Floating Control Drawer */}
-      <div className="w-full bg-white border-t border-slate-200/80 px-4 pt-3 pb-8 flex flex-col gap-3 shadow-lg">
+      <div className="w-full bg-sg-white border-t border-sg-border/80 px-4 pt-3 pb-8 flex flex-col gap-3 shadow-lg">
         {/* Microcopy Pill */}
-        <div className="w-full flex items-center justify-center gap-1.5 text-slate-600 text-center">
-          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+        <div className="w-full flex items-center justify-center gap-1.5 text-sg-secondary text-center">
+          <Sparkles className="w-3.5 h-3.5 text-sg-warning" />
           <span className="text-xs">{t.dragHint}</span>
         </div>
 
         {/* 4 Tiers Quick Summary Cards */}
-        <div className="grid grid-cols-4 gap-2 w-full bg-slate-100 p-1.5 rounded-xl">
+        <div className="glass-panel grid grid-cols-4 gap-2 w-full p-1.5">
           {splits.map((p, i) => {
             const isSelected = activeTierIndex === i;
             return (
@@ -288,12 +283,12 @@ export const RoiSetupView: React.FC<RoiSetupViewProps> = ({
                 className={`py-1.5 px-1 rounded-lg text-center transition-all ${
                   isSelected
                     ? 'bg-[#006C49] text-white shadow-sm'
-                    : 'bg-white text-slate-700 hover:bg-slate-50'
+                    : 'bg-sg-white text-sg-primary hover:bg-sg-surface'
                 }`}
               >
                 <span
                   className={`block text-[10px] font-medium truncate ${
-                    isSelected ? 'text-emerald-100' : 'text-slate-500'
+                    isSelected ? 'text-emerald-100' : 'text-sg-secondary'
                   }`}
                 >
                   T{i + 1} {tierTitles[i]}
@@ -311,11 +306,11 @@ export const RoiSetupView: React.FC<RoiSetupViewProps> = ({
         </div>
 
         {/* Action Buttons Row */}
-        <div className="w-full flex items-center gap-3 pt-1">
+        <div className="glass-panel w-full flex items-center gap-3 p-2">
           {/* Reset Button */}
           <button
             onClick={handleReset}
-            className="h-12 px-4 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all flex items-center justify-center gap-1.5 flex-shrink-0 font-semibold text-sm border border-slate-200"
+            className="h-12 px-4 rounded-full bg-sg-surface text-sg-primary hover:bg-sg-border/40 active:scale-95 transition-all flex items-center justify-center gap-1.5 flex-shrink-0 font-semibold text-sm border border-sg-border"
           >
             <RotateCcw className="w-4 h-4" />
             <span>{t.resetSplits}</span>
@@ -324,7 +319,7 @@ export const RoiSetupView: React.FC<RoiSetupViewProps> = ({
           {isFirstBaseline && onRetake && (
             <button
               onClick={onRetake}
-              className="h-12 px-4 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all flex items-center justify-center gap-1.5 flex-shrink-0 font-semibold text-sm border border-slate-200"
+              className="h-12 px-4 rounded-full bg-sg-surface text-sg-primary hover:bg-sg-border/40 active:scale-95 transition-all flex items-center justify-center gap-1.5 flex-shrink-0 font-semibold text-sm border border-sg-border"
             >
               <span>{t.retake}</span>
             </button>
@@ -341,11 +336,7 @@ export const RoiSetupView: React.FC<RoiSetupViewProps> = ({
           >
             <Verified className="w-5 h-5 text-emerald-400" />
             <span>
-              {isSavedAnimation
-                ? lang === 'cn'
-                  ? '标定已保存 (4 Tiers Locked)'
-                  : 'Calibration Saved!'
-                : t.saveCalibration}
+              {isSavedAnimation ? t.calibrationSaved : t.saveCalibration}
             </span>
           </button>
         </div>

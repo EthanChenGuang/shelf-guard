@@ -101,23 +101,23 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   };
 
   return (
-    <div className="relative w-full min-h-[100dvh] bg-[#F8FAFC] flex flex-col justify-between overflow-x-hidden select-none">
+    <div className="relative w-full min-h-[100dvh] bg-sg-surface flex flex-col justify-between overflow-x-hidden select-none">
       {/* Top Header Bar */}
-      <header className="sticky top-0 w-full z-40 bg-white/85 backdrop-blur-xl border-b border-slate-200/80 px-4 py-3 flex items-center justify-between shadow-sm">
+      <header className="sticky top-0 w-full z-40 bg-sg-white border-b border-sg-border/80 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
           <button
             onClick={onBackToCamera}
-            aria-label="Back to Camera"
-            className="w-10 h-10 -ml-1 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-95 transition-all"
+            aria-label={t.backToCamera}
+            className="w-10 h-10 -ml-1 rounded-full flex items-center justify-center text-sg-secondary hover:bg-sg-surface active:scale-95 transition-all"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="min-w-0">
-            <h1 className="text-base font-bold text-[#0F172A] truncate">
+            <h1 className="text-base font-bold text-sg-primary truncate">
               {t.auditResult}
             </h1>
-            <p className="text-xs text-slate-500 truncate">
-              {baseline.tierLabels ? baseline.tierLabels.join(' · ') : '4-Tier Planogram'}
+            <p className="text-xs text-sg-secondary truncate">
+              {baseline.tierLabels ? baseline.tierLabels.join(' · ') : t.defaultPlanogram}
             </p>
           </div>
         </div>
@@ -132,20 +132,20 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
       </header>
 
       {/* Top Floating Filter HUD Bar */}
-      <div className="sticky top-[61px] z-30 px-4 py-2 bg-white/75 backdrop-blur-md border-b border-slate-100 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+      <div className="glass-panel sticky top-[61px] z-30 mx-4 my-2 px-4 py-2 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-2 flex-shrink-0">
           {/* Filter: Missing */}
           <button
             onClick={() => setFilterType(filterType === 'MISSING' ? 'ALL' : 'MISSING')}
             className={`flex items-center gap-1.5 px-3 py-1 rounded-full shadow-sm text-xs font-mono-numbers font-semibold active:scale-95 transition-all ${
               missingCount === 0
-                ? 'bg-slate-100 text-slate-500'
+                ? 'bg-sg-surface text-sg-secondary'
                 : filterType === 'MISSING'
-                ? 'bg-[#EF4444] text-white ring-2 ring-red-400'
-                : 'bg-red-50 text-[#EF4444] border border-red-200'
+                ? 'bg-sg-danger text-white ring-2 ring-sg-danger/40'
+                : 'bg-sg-danger/10 text-sg-danger border border-sg-danger/30'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-[#EF4444]" />
+            <span className="w-2 h-2 rounded-full bg-sg-danger" />
             <span>
               {missingCount > 0 ? `${missingCount} ${t.missingCount}` : t.noMissing}
             </span>
@@ -156,13 +156,13 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
             onClick={() => setFilterType(filterType === 'MOVED' ? 'ALL' : 'MOVED')}
             className={`flex items-center gap-1.5 px-3 py-1 rounded-full shadow-sm text-xs font-mono-numbers font-semibold active:scale-95 transition-all ${
               displacedCount === 0
-                ? 'bg-slate-100 text-slate-500'
+                ? 'bg-sg-surface text-sg-secondary'
                 : filterType === 'MOVED'
-                ? 'bg-[#F59E0B] text-white ring-2 ring-amber-400'
-                : 'bg-amber-50 text-[#D97706] border border-amber-200'
+                ? 'bg-sg-warning text-white ring-2 ring-sg-warning/40'
+                : 'bg-sg-warning/10 text-sg-warning border border-sg-warning/30'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-[#F59E0B]" />
+            <span className="w-2 h-2 rounded-full bg-sg-warning" />
             <span>
               {displacedCount > 0 ? `${displacedCount} ${t.displacedCount}` : t.noDisplaced}
             </span>
@@ -227,8 +227,8 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
                   key={item.id}
                   className={`ar-box absolute rounded-xl transition-all duration-200 ${
                     isMissing
-                      ? 'border-2 border-[#EF4444] bg-[#EF4444]/15'
-                      : 'border-2 border-[#F59E0B] bg-[#F59E0B]/15'
+                      ? 'border-2 border-sg-danger bg-sg-danger/15'
+                      : 'border-2 border-sg-warning bg-sg-warning/15'
                   }`}
                   style={{
                     top: `${top}%`,
@@ -241,12 +241,12 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
                   {/* Floating Badge above bounding box */}
                   <div
                     className={`absolute -top-7 left-0 flex items-center gap-1 text-white px-2 py-0.5 rounded-full shadow-md font-mono-numbers text-[11px] font-bold ${
-                      isMissing ? 'bg-[#EF4444]' : 'bg-[#F59E0B]'
+                      isMissing ? 'bg-sg-danger' : 'bg-sg-warning'
                     }`}
                   >
                     <span>
                       {isMissing
-                        ? `${t.missingCount.replace('处', '')} · ${(
+                        ? `${t.missingBadgeShort} · ${(
                             ((item.score ?? item.confidence ?? 0) * 100)
                           ).toFixed(0)}%`
                         : `${item.displacementNote || t.displacedCount}`}
@@ -263,20 +263,20 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
                   <div className="w-full h-full flex flex-col items-center justify-center p-1 pointer-events-none">
                     {isMissing ? (
                       <div className="flex flex-col items-center justify-center gap-0.5">
-                        <span className="w-5 h-5 rounded-full border border-dashed border-[#EF4444] flex items-center justify-center text-[#EF4444] animate-pulse">
+                        <span className="w-5 h-5 rounded-full border border-dashed border-sg-danger flex items-center justify-center text-sg-danger animate-pulse">
                           +
                         </span>
-                        <span className="font-mono-numbers text-[9px] font-bold text-[#EF4444] bg-white/90 px-1.5 py-0.2 rounded shadow-xs">
+                        <span className="font-mono-numbers text-[9px] font-bold text-sg-danger bg-sg-white/90 px-1.5 py-0.2 rounded shadow-xs">
                           {item.title}
                         </span>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between w-full px-1">
-                        <span className="text-[#D97706] font-bold text-xs">«</span>
-                        <span className="font-mono-numbers text-[9px] font-semibold text-slate-800 bg-white/90 px-1 py-0.2 rounded shadow-xs">
+                        <span className="text-sg-warning font-bold text-xs">«</span>
+                        <span className="font-mono-numbers text-[9px] font-semibold text-sg-primary bg-sg-white/90 px-1 py-0.2 rounded shadow-xs">
                           {item.title}
                         </span>
-                        <span className="text-[#D97706] font-bold text-xs">»</span>
+                        <span className="text-sg-warning font-bold text-xs">»</span>
                       </div>
                     )}
                   </div>
@@ -298,11 +298,11 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
       </div>
 
       {/* Bottom Floating Control Drawer */}
-      <div className="w-full bg-white border-t border-slate-200/80 px-4 pt-3 pb-8 flex flex-col gap-3 shadow-lg z-20">
+      <div className="w-full bg-sg-white border-t border-sg-border/80 px-4 pt-3 pb-8 flex flex-col gap-3 shadow-lg z-20">
         {/* Tolerance Sensitivity Control */}
-        <div className="flex flex-col gap-1.5 bg-slate-50 p-3 rounded-xl border border-slate-200/60">
+        <div className="glass-panel flex flex-col gap-1.5 p-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-sg-primary">
               <Sliders className="w-4 h-4 text-[#006C49]" />
               <span>{t.toleranceSensitivity}</span>
             </div>
@@ -322,7 +322,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
               onChange={(e) => onToleranceChange(Number(e.target.value))}
               className="w-full h-2 rounded-full appearance-none cursor-pointer bg-slate-200 accent-[#006C49] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#006C49] [&::-webkit-slider-thumb]:shadow-md"
             />
-            <div className="grid grid-cols-3 text-[10px] text-slate-500 font-medium">
+            <div className="grid grid-cols-3 text-[10px] text-sg-secondary font-medium">
               <span className="text-left">{t.tolerancePresetStrict}</span>
               <span className="text-center">{t.tolerancePresetNormal}</span>
               <span className="text-right">{t.tolerancePresetLoose}</span>
@@ -332,23 +332,23 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
 
         {/* 3 Quick Shelf Telemetry Cards */}
         <div className="grid grid-cols-3 gap-2">
-          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-100 text-center">
-            <span className="text-[11px] text-slate-500 font-medium">{t.standardCapacity}</span>
-            <span className="font-mono-numbers text-base font-bold text-slate-900">
+          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-sg-surface text-center">
+            <span className="text-[11px] text-sg-secondary font-medium">{t.standardCapacity}</span>
+            <span className="font-mono-numbers text-base font-bold text-sg-primary">
               {standardCount} {t.itemsUnit}
             </span>
           </div>
 
-          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-100 text-center">
-            <span className="text-[11px] text-slate-500 font-medium">{t.actualOnShelf}</span>
+          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-sg-surface text-center">
+            <span className="text-[11px] text-sg-secondary font-medium">{t.actualOnShelf}</span>
             <span className="font-mono-numbers text-base font-bold text-emerald-700">
               {actualCount} {t.itemsUnit}
             </span>
           </div>
 
-          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-100 text-center">
-            <span className="text-[11px] text-slate-500 font-medium">{t.displacementError}</span>
-            <span className="font-mono-numbers text-base font-bold text-[#D97706]">
+          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-sg-surface text-center">
+            <span className="text-[11px] text-sg-secondary font-medium">{t.displacementError}</span>
+            <span className="font-mono-numbers text-base font-bold text-sg-warning">
               {displacedCount} {t.spotsUnit}
             </span>
           </div>
@@ -380,11 +380,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
       {showExportToast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-[#0F172A] text-white text-xs px-4 py-2 rounded-full shadow-xl z-50 flex items-center gap-2 border border-white/10 animate-bounce">
           <Check className="w-4 h-4 text-emerald-400" />
-          <span>
-            {lang === 'cn'
-              ? `巡检报告已生成：合规度 ${complianceRate}%，已归档。`
-              : `Report exported: Compliance ${complianceRate}%, saved.`}
-          </span>
+          <span>{t.exportReportToast(complianceRate)}</span>
         </div>
       )}
     </div>
