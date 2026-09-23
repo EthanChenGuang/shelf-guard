@@ -2,19 +2,19 @@
 gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Real Inspection Pipeline
-current_plan: 04-01-PLAN.md
-status: ready_to_execute
-stopped_at: Phase 5 context gathered
-last_updated: "2026-09-23T20:39:11.548Z"
+current_plan: 2
+status: executing
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-09-23T21:33:11.513Z"
 last_activity: 2026-09-23
-last_activity_desc: Phase 03 complete, transitioned to Phase 4
-state_head: 5ba788fdaea8b45d08b0f8b8119f98e927c4d239
+last_activity_desc: Phase 04 execution started
+state_head: 97322ceb98dd96034bb468583438522daec0a1f9
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 22
-  completed_plans: 12
-  percent: 55
+  completed_plans: 13
+  percent: 59
 ---
 
 # Project State
@@ -24,17 +24,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-20)
 
 **Core value:** 用户能在 30 秒内完成一次展架巡检，并清晰看到「哪里缺了、哪里动了」
-**Current focus:** Phase 03 — Guided Capture Quality
+**Current focus:** Phase 04 — Real Inspection Pipeline
 
 ## Current Position
 
-Phase: 04 (Real Inspection Pipeline) — READY TO EXECUTE
-Current Plan: 04-01-PLAN.md
+Phase: 04 (Real Inspection Pipeline) — EXECUTING
+Current Plan: 2
 Total Plans in Phase: 3
 Status: Ready to execute
-Last activity: 2026-09-23 — Phase 03 complete, transitioned to Phase 4
+Last activity: 2026-09-23 — Phase 04 execution started
 
-Progress: [██████░░░░] 55%
+Progress: [██████░░░░] 59%
 
 ## Performance Metrics
 
@@ -71,6 +71,7 @@ Progress: [██████░░░░] 55%
 | Phase 03-guided-capture-quality P01 | 4min | 3 tasks | 3 files |
 | Phase 03-guided-capture-quality P02 | 2min | 3 tasks | 8 files |
 | Phase 03-guided-capture-quality P03 | 8 | 2 tasks | 2 files |
+| Phase 04-real-inspection-pipeline P01 | 28 | 3 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,9 @@ Recent decisions affecting current work:
 - [Phase 3]: orientationDismissed local App state for banner dismiss independent of browser permission
 - [Phase 3]: Switch-back ghost test asserts no stale shelf-1 URL not URL string identity (revokeAll)
 - [Phase 3]: iOS CAM-07 device verification pending manual checkpoint
+- [Phase 04]: D-19 locked: @techstark/opencv-js v5 in Vite ?worker only
+- [Phase 04]: Exclude visionWorker from PWA precache (Pitfall 1)
+- [Phase 04]: Tier-level MOVED fallback for translated product shifts
 
 ### Pending Todos
 
@@ -115,6 +119,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-09-23T20:30:09.215Z
-Stopped at: Phase 5 context gathered
-Resume file: /home/guang/Projects/Experiments/image-comparation/.planning/phases/05-prd-ui-multi-shelf-experience/05-CONTEXT.md
+Last session: 2026-09-23T21:33:11.485Z
+Stopped at: Completed 04-01-PLAN.md
+Resume file: None

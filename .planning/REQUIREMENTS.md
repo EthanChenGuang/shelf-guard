@@ -12,7 +12,7 @@
 - [x] **TECH-03**: 运行时无后端依赖 — 不部署 Express/API Route/Server Action 业务逻辑；移除 `@google/genai`、`express`、`dotenv` 等未用服务端依赖
 - [x] **TECH-04**: 使用 `idb-keyval` 持久化大分辨率基准图片、ROI 坐标、巡检历史与设置
 - [x] **TECH-05**: 使用 `lucide-react` 作为全局图标库
-- [ ] **TECH-06**: 视觉差分使用 `@techstark/opencv-js` 在 Web Worker 中执行（v1 锁定 OpenCV，不含 pixelmatch）
+- [x] **TECH-06**: 视觉差分使用 `@techstark/opencv-js` 在 Web Worker 中执行（v1 锁定 OpenCV，不含 pixelmatch）
 - [x] **TECH-07**: PWA 离线能力通过 `vite-plugin-pwa` 实现（registerType autoUpdate），Service Worker 仅缓存应用壳
 
 ### Design System (DSGN)
@@ -52,7 +52,7 @@
 
 ### Result & Inspection (RSLT)
 
-- [ ] **RSLT-01**: 当前照片全景展示，变动区域叠加红框（缺失）与黄框（位移）
+- [x] **RSLT-01**: 当前照片全景展示，变动区域叠加红框（缺失）与黄框（位移）
 - [ ] **RSLT-02**: 长按 Blink Compare — 隐藏框体并切换为基准原图，松手恢复
 - [ ] **RSLT-03**: Tap-to-Dismiss — 轻点误报框体微缩淡出，计数相应减 1
 - [ ] **RSLT-04**: 顶部统计胶囊 — 🔴 N 处缺失 🟡 N 处变动；点击颜色标签单独高亮该类异常
@@ -61,10 +61,10 @@
 
 ### Vision Analysis (VIS)
 
-- [ ] **VIS-01**: 客户端 Canvas 像素差分按 4 排 ROI 分区执行，替换 Mock 硬编码异常
-- [ ] **VIS-02**: 差分结果分类为 MISSING（缺失）与 DISPLACED（位移），输出带 bounding box 的异常列表
+- [x] **VIS-01**: 客户端 Canvas 像素差分按 4 排 ROI 分区执行，替换 Mock 硬编码异常
+- [x] **VIS-02**: 差分结果分类为 MISSING（缺失）与 DISPLACED（位移），输出带 bounding box 的异常列表
 - [ ] **VIS-03**: 容差滑块变更时重新执行差分管线（非仅过滤预设 Mock）
-- [ ] **VIS-04**: 差分在 Web Worker 中执行，不阻塞 0.8s 扫描动效 UI
+- [x] **VIS-04**: 差分在 Web Worker 中执行，不阻塞 0.8s 扫描动效 UI
 
 ### Storage & Data (DATA)
 
@@ -133,7 +133,7 @@
 | TECH-03 | Phase 1 | Complete |
 | TECH-04 | Phase 2 | Complete |
 | TECH-05 | Phase 1 | Complete |
-| TECH-06 | Phase 4 | Pending |
+| TECH-06 | Phase 4 | Complete |
 | TECH-07 | Phase 1 | Complete |
 | DSGN-01 | Phase 5 | Pending |
 | DSGN-02 | Phase 5 | Pending |
@@ -158,16 +158,16 @@
 | ROI-03 | Phase 4 | Pending |
 | ROI-04 | Phase 4 | Pending |
 | ROI-05 | Phase 4 | Pending |
-| RSLT-01 | Phase 4 | Pending |
+| RSLT-01 | Phase 4 | Complete |
 | RSLT-02 | Phase 4 | Pending |
 | RSLT-03 | Phase 4 | Pending |
 | RSLT-04 | Phase 4 | Pending |
 | RSLT-05 | Phase 4 | Pending |
 | RSLT-06 | Phase 4 | Pending |
-| VIS-01 | Phase 4 | Pending |
-| VIS-02 | Phase 4 | Pending |
+| VIS-01 | Phase 4 | Complete |
+| VIS-02 | Phase 4 | Complete |
 | VIS-03 | Phase 4 | Pending |
-| VIS-04 | Phase 4 | Pending |
+| VIS-04 | Phase 4 | Complete |
 | DATA-01 | Phase 2 | Complete |
 | DATA-02 | Phase 2 | Complete |
 | DATA-03 | Phase 2 | Complete |
