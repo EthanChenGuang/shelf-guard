@@ -33,8 +33,9 @@ covered_files:
   - src/App.completeAudit.integration.test.tsx
   - src/App.processing.integration.test.tsx
   - src/components/ResultInspectView.tolerance.test.tsx
+  - src/lib/shelfStorage.ts
 
-covered_digest: "v1:sha256:e39f0a6b9ec3d7ddccd2b990b5efd0e6d6f994a13e2e6b336484c545f9694d49"
+covered_digest: "v1:sha256:076c37c867a40b4203db154ebb4a2c08aacb455a611ef02370b6556b6bb41a3d"
 behavior_unverified: 0
 overrides_applied: 0
 decision_coverage:
