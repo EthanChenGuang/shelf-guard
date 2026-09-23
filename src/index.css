@@ -1,5 +1,31 @@
 @import "tailwindcss";
 
+@theme {
+  --color-sg-white: #ffffff;
+  --color-sg-surface: #f8fafc;
+  --color-sg-primary: #0f172a;
+  --color-sg-secondary: #64748b;
+  --color-sg-border: #e2e8f0;
+  --color-sg-success: #10b981;
+  --color-sg-danger: #ef4444;
+  --color-sg-warning: #f59e0b;
+  --color-sg-camera: #0f172a;
+  --color-sg-scan: #38bdf8;
+}
+
+@utility glass-panel {
+  @apply rounded-2xl backdrop-blur-md bg-white/75 shadow-md border border-sg-border/60;
+}
+
+@keyframes shutter-breathe {
+  0%, 100% {
+    transform: scale(0.98);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
 @layer utilities {
   /* Hide scrollbar for Chrome, Safari and Opera */
   .no-scrollbar::-webkit-scrollbar {
