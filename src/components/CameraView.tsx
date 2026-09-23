@@ -10,7 +10,6 @@ import {
   ScanLine,
   SlidersVertical,
   Sparkles,
-  Smartphone,
   AlertCircle,
   X,
 } from 'lucide-react';
@@ -86,8 +85,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
   videoRef,
   ghostOpacity,
   onGhostOpacityChange,
-  onInstallPwa,
-  isInstallable,
   cameraError,
   onRetryCamera,
   onDismissCameraError,
@@ -323,77 +320,107 @@ export const CameraView: React.FC<CameraViewProps> = ({
         </div>
       </div>
 
-      {/* TOP FLOATING BAR */}
-      <div className="relative z-20 px-4 pt-3 pb-1 flex items-center justify-between gap-2">
-        <button
-          onClick={onResetBaselinePrompt}
-          className="flex items-center gap-1.5 bg-white/85 hover:bg-white backdrop-blur-xl px-3 py-1.5 rounded-full shadow-md text-[#0F172A] border border-slate-200/60 active:scale-95 transition-all"
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10B981] opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#10B981]" />
-          </span>
-          <span className="text-xs font-semibold tracking-tight">{t.baselineEstablished}</span>
-          <span className="font-mono-numbers text-[10px] text-slate-500 font-medium">/{t.baselineTag}</span>
-        </button>
-
-        <div className="flex items-center gap-1.5 bg-white/85 backdrop-blur-xl p-1 rounded-full shadow-md border border-slate-200/60">
+      {/* PRD 3-zone top bar (D-21, CAM-04) */}
+      <div className="relative z-20 px-4 pt-3 pb-1 grid grid-cols-3 items-center gap-2">
+        <div className="justify-self-start min-w-0 max-w-[11rem]">
           <button
-            onClick={onToggleDemoMode}
-            className={`px-2 h-7 rounded-full flex items-center gap-1 text-[11px] font-medium transition-colors ${
-              isUsingDemoFeed
-                ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                : 'bg-emerald-50 text-emerald-700 font-semibold'
-            }`}
-            title={isUsingDemoFeed ? t.useSampleFeed : t.useRealCamera}
+            type="button"
+            data-testid="baseline-status-pill"
+            onClick={onResetBaselinePrompt}
+            className="glass-panel flex max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-sg-primary active:scale-95 transition-all hover:bg-white/90"
           >
-            <Camera className="w-3.5 h-3.5" />
-            <span>{isUsingDemoFeed ? 'Demo' : 'Cam'}</span>
+            {hasPersistedBaseline && (
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sg-success opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-sg-success" />
+              </span>
+            )}
+            <span className="truncate text-[11px] font-semibold tracking-tight">
+              {hasPersistedBaseline ? t.baselineEstablished : t.baselineNotSet}
+            </span>
           </button>
+        </div>
 
+        <div className="justify-self-center">
+          <div
+            data-testid="level-micro-badge"
+            className={`glass-panel flex items-center gap-1 rounded-full px-2.5 py-1 ${
+              displayIsLevel ? 'bg-sg-success/10' : 'bg-sg-warning/10'
+            }`}
+          >
+            {displayIsLevel ? (
+              <>
+                <CheckCircle2 className="h-3 w-3 text-sg-success" />
+                <span className="font-mono-numbers text-[10px] font-bold tracking-wide text-sg-success">
+                  0.0° {t.level}
+                </span>
+              </>
+            ) : (
+              <>
+                <RotateCcw className="h-3 w-3 text-sg-warning" />
+                <span className="font-mono-numbers text-[10px] font-semibold tracking-wide text-sg-warning">
+                  {displayTilt > 0 ? `+${displayTilt}°` : `${displayTilt}°`} {t.plumb}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="justify-self-end flex items-center gap-1 glass-panel rounded-full p-1">
           {hasTorch && !isUsingDemoFeed && (
             <button
+              type="button"
               onClick={onToggleTorch}
-              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+              className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
                 isTorchOn
-                  ? 'bg-[#10B981] text-white shadow-sm'
-                  : 'text-[#0F172A] hover:bg-slate-100'
+                  ? 'bg-sg-success text-white shadow-sm'
+                  : 'text-sg-primary hover:bg-sg-surface'
               }`}
               title={isTorchOn ? t.torchOff : t.torchOn}
             >
-              {isTorchOn ? <Flashlight className="w-3.5 h-3.5" /> : <FlashlightOff className="w-3.5 h-3.5 text-slate-600" />}
+              {isTorchOn ? (
+                <Flashlight className="h-3.5 w-3.5" />
+              ) : (
+                <FlashlightOff className="h-3.5 w-3.5 text-sg-secondary" />
+              )}
             </button>
           )}
 
           <button
+            type="button"
+            data-testid="language-toggle"
             onClick={onLanguageToggle}
-            className="px-2 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-mono-numbers text-[11px] text-[#006C49] font-bold transition-colors"
+            className="flex h-7 items-center justify-center rounded-full bg-sg-surface px-2.5 font-mono-numbers text-[11px] font-bold text-sg-success transition-colors hover:bg-sg-border/40"
           >
-            {lang.toUpperCase()}
+            {lang === 'cn' ? '中' : 'EN'}
           </button>
-
-          {isInstallable && onInstallPwa && (
-            <button
-              onClick={onInstallPwa}
-              className="px-2.5 h-7 rounded-full bg-[#10B981] text-white flex items-center gap-1 text-[11px] font-semibold hover:bg-emerald-600 transition-colors shadow-sm"
-              title={t.installPwa}
-            >
-              <Smartphone className="w-3 h-3" />
-              <span>PWA</span>
-            </button>
-          )}
         </div>
       </div>
 
       {/* SHELF CAROUSEL — 5-dot indicator below top bar (D-03) */}
       {onShelfChange && (
-        <div className="relative z-20 flex justify-center pb-2">
-          <ShelfCarousel
-            activeShelfId={activeShelfId}
-            onShelfChange={handleShelfSelect}
-            lang={lang}
-            enabled={carouselEnabled}
-          />
+        <div className="relative z-20 flex flex-col items-stretch gap-2 pb-2">
+          <div className="flex justify-center">
+            <ShelfCarousel
+              activeShelfId={activeShelfId}
+              onShelfChange={handleShelfSelect}
+              lang={lang}
+              enabled={carouselEnabled}
+            />
+          </div>
+
+          <div className="px-4">
+            <button
+              type="button"
+              data-testid="demo-utility-pill"
+              onClick={onToggleDemoMode}
+              className="glass-panel inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium text-sg-primary transition-colors hover:bg-white/90 active:scale-95"
+              title={isUsingDemoFeed ? t.useSampleFeed : t.useRealCamera}
+            >
+              <Camera className="h-3.5 w-3.5 text-sg-secondary" />
+              <span>{isUsingDemoFeed ? t.useSampleFeed : t.useRealCamera}</span>
+            </button>
+          </div>
         </div>
       )}
 
