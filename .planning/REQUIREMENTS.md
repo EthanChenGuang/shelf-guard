@@ -20,7 +20,7 @@
 - [ ] **DSGN-01**: 应用全局使用 Minimalist Light 设计 Token（#FFFFFF/#F8FAFC 底色、#0F172A 主字色、#64748B 次字色、#E2E8F0 边框）
 - [ ] **DSGN-02**: 状态色正确应用 — 就绪/成功 #10B981、缺失 #EF4444（加粗边框 + 15% 半透明红填充）、位移 #F59E0B（加粗边框 + 15% 半透明黄填充）
 - [ ] **DSGN-03**: 控件形态统一 — rounded-2xl/rounded-full 大圆角、backdrop-blur-md bg-white/75 毛玻璃容器、shadow-sm 至 shadow-md 投影
-- [ ] **DSGN-04**: Google Stitch 设计稿生成并与 React 实现视觉对齐（三视图截图对比验收）
+- [x] **DSGN-04**: Google Stitch 设计稿生成并与 React 实现视觉对齐（三视图截图对比验收）
 
 ### Multi-Shelf (SHLF)
 
@@ -138,7 +138,7 @@
 | DSGN-01 | Phase 5 | Pending |
 | DSGN-02 | Phase 5 | Pending |
 | DSGN-03 | Phase 5 | Pending |
-| DSGN-04 | Phase 5 | Pending |
+| DSGN-04 | Phase 5 | Complete |
 | SHLF-01 | Phase 5 | Pending |
 | SHLF-02 | Phase 2 | Complete |
 | SHLF-03 | Phase 2 | Complete |

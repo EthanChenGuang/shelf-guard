@@ -161,11 +161,11 @@ Plans:
   4. Camera view shows PRD-spec top bar (baseline pill, level badge, torch + language toggle), 76px breathing shutter, 0.8s scan-line transition, and last-inspection thumbnail
   5. User switches 中文/English and all three-view copy updates; language preference persists across sessions
 
-**Plans**: 7 plans
+**Plans**: 1/7 plans executed
 
 Plans:
 
-- [ ] 05-01-PLAN.md — UI design contract (05-UI-SPEC) + Stitch UAT checklist before code
+- [x] 05-01-PLAN.md — UI design contract (05-UI-SPEC) + Stitch UAT checklist before code
 - [ ] 05-02-PLAN.md — PRD design tokens + motion dependency foundation
 - [ ] 05-03-PLAN.md — Tracer: shelf swipe carousel end-to-end (SHLF-01)
 - [ ] 05-04-PLAN.md — INITIAL_GUIDE per-shelf onboarding (SHLF-05)
@@ -186,7 +186,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Multi-Shelf Data Layer | 3/3 | Complete    | 2026-09-21 |
 | 3. Guided Capture Quality | 3/3 | Complete    | 2026-09-23 |
 | 4. Real Inspection Pipeline | 3/3 | Complete    | 2026-09-23 |
-| 5. PRD UI & Multi-Shelf Experience | 0/TBD | Not started | - |
+| 5. PRD UI & Multi-Shelf Experience | 1/7 | In Progress|  |
 
 ---
 *Roadmap created: 2026-09-20*
