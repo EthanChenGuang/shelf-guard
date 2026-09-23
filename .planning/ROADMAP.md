@@ -129,7 +129,7 @@ Plans:
   5. Scan-line animation plays smoothly for 0.8s while diff runs in a Web Worker without UI jank
   6. User taps "Complete inspection" and returns to the current shelf's camera main screen
 
-**Plans**: 1/3 plans executed in 3 waves
+**Plans**: 2/3 plans executed in 3 waves
 
 Plans:
 
@@ -139,7 +139,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 04-02-PLAN.md — First-baseline FSM, ROI calibration, continuous tolerance slider (ROI-01–05, RSLT-05, VIS-03)
+- [x] 04-02-PLAN.md — First-baseline FSM, ROI calibration, continuous tolerance slider (ROI-01–05, RSLT-05, VIS-03)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -185,7 +185,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Capture Foundation & Vercel Deploy | 6/6 | Complete    | 2026-09-22 |
 | 2. Multi-Shelf Data Layer | 3/3 | Complete    | 2026-09-21 |
 | 3. Guided Capture Quality | 3/3 | Complete    | 2026-09-23 |
-| 4. Real Inspection Pipeline | 1/3 | In Progress|  |
+| 4. Real Inspection Pipeline | 2/3 | In Progress|  |
 | 5. PRD UI & Multi-Shelf Experience | 0/TBD | Not started | - |
 
 ---

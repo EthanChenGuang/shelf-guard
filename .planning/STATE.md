@@ -2,19 +2,19 @@
 gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Real Inspection Pipeline
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-09-23T21:33:11.513Z"
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-09-23T21:37:43.187Z"
 last_activity: 2026-09-23
 last_activity_desc: Phase 04 execution started
-state_head: 97322ceb98dd96034bb468583438522daec0a1f9
+state_head: 86282dd26d3cacbec9bbb77941e392e9e21c3a68
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 22
-  completed_plans: 13
-  percent: 59
+  completed_plans: 14
+  percent: 60
 ---
 
 # Project State
@@ -29,12 +29,12 @@ See: .planning/PROJECT.md (updated 2026-09-20)
 ## Current Position
 
 Phase: 04 (Real Inspection Pipeline) — EXECUTING
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 3
 Status: Ready to execute
 Last activity: 2026-09-23 — Phase 04 execution started
 
-Progress: [██████░░░░] 59%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
@@ -72,6 +72,7 @@ Progress: [██████░░░░] 59%
 | Phase 03-guided-capture-quality P02 | 2min | 3 tasks | 8 files |
 | Phase 03-guided-capture-quality P03 | 8 | 2 tasks | 2 files |
 | Phase 04-real-inspection-pipeline P01 | 28 | 3 tasks | 21 files |
+| Phase 04-real-inspection-pipeline P02 | 18 | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,9 @@ Recent decisions affecting current work:
 - [Phase 04]: D-19 locked: @techstark/opencv-js v5 in Vite ?worker only
 - [Phase 04]: Exclude visionWorker from PWA precache (Pitfall 1)
 - [Phase 04]: Tier-level MOVED fallback for translated product shifts
+- [Phase 04]: D-11 approved (Option A): numeric tolerance 0–100 in IndexedDB with legacy enum migration on load
+- [Phase 04]: First-baseline shutter intercept routes to ROI_CONFIG before scan animation (D-01)
+- [Phase 04]: 150ms debounced tolerance slider triggers full worker re-diff (D-13, VIS-03)
 
 ### Pending Todos
 
@@ -119,6 +123,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-09-23T21:33:11.485Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-09-23T21:37:43.162Z
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None

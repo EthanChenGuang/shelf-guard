@@ -44,26 +44,26 @@
 
 ### ROI Setup (ROI)
 
-- [ ] **ROI-01**: 首次抓拍后展示高清基准大图作为标定背景
-- [ ] **ROI-02**: 4 条可拖动水平分割线覆盖画面，切分 4 排展架横梁
-- [ ] **ROI-03**: 分割线两端外突圆形拖动手柄，拖拽流畅
-- [ ] **ROI-04**: 拖拽时手指上方 2.5cm 处悬浮 80px 直径 2x 圆形放大镜
-- [ ] **ROI-05**: 底部操作栏 — 「重拍」「重置分段」「确认并保存基准」主按钮
+- [x] **ROI-01**: 首次抓拍后展示高清基准大图作为标定背景
+- [x] **ROI-02**: 4 条可拖动水平分割线覆盖画面，切分 4 排展架横梁
+- [x] **ROI-03**: 分割线两端外突圆形拖动手柄，拖拽流畅
+- [x] **ROI-04**: 拖拽时手指上方 2.5cm 处悬浮 80px 直径 2x 圆形放大镜
+- [x] **ROI-05**: 底部操作栏 — 「重拍」「重置分段」「确认并保存基准」主按钮
 
 ### Result & Inspection (RSLT)
 
 - [x] **RSLT-01**: 当前照片全景展示，变动区域叠加红框（缺失）与黄框（位移）
-- [ ] **RSLT-02**: 长按 Blink Compare — 隐藏框体并切换为基准原图，松手恢复
-- [ ] **RSLT-03**: Tap-to-Dismiss — 轻点误报框体微缩淡出，计数相应减 1
-- [ ] **RSLT-04**: 顶部统计胶囊 — 🔴 N 处缺失 🟡 N 处变动；点击颜色标签单独高亮该类异常
-- [ ] **RSLT-05**: 底部浮动抽屉 — 横向容差滑块实时增减细小变动框
+- [x] **RSLT-02**: 长按 Blink Compare — 隐藏框体并切换为基准原图，松手恢复
+- [x] **RSLT-03**: Tap-to-Dismiss — 轻点误报框体微缩淡出，计数相应减 1
+- [x] **RSLT-04**: 顶部统计胶囊 — 🔴 N 处缺失 🟡 N 处变动；点击颜色标签单独高亮该类异常
+- [x] **RSLT-05**: 底部浮动抽屉 — 横向容差滑块实时增减细小变动框
 - [ ] **RSLT-06**: 「完成巡检（返回相机）」按钮返回当前柜架相机主屏
 
 ### Vision Analysis (VIS)
 
 - [x] **VIS-01**: 客户端 Canvas 像素差分按 4 排 ROI 分区执行，替换 Mock 硬编码异常
 - [x] **VIS-02**: 差分结果分类为 MISSING（缺失）与 DISPLACED（位移），输出带 bounding box 的异常列表
-- [ ] **VIS-03**: 容差滑块变更时重新执行差分管线（非仅过滤预设 Mock）
+- [x] **VIS-03**: 容差滑块变更时重新执行差分管线（非仅过滤预设 Mock）
 - [x] **VIS-04**: 差分在 Web Worker 中执行，不阻塞 0.8s 扫描动效 UI
 
 ### Storage & Data (DATA)
@@ -153,20 +153,20 @@
 | CAM-07 | Phase 3 | Complete |
 | CAM-08 | Phase 1 | Complete |
 | CAM-09 | Phase 1 | Complete |
-| ROI-01 | Phase 4 | Pending |
-| ROI-02 | Phase 4 | Pending |
-| ROI-03 | Phase 4 | Pending |
-| ROI-04 | Phase 4 | Pending |
-| ROI-05 | Phase 4 | Pending |
+| ROI-01 | Phase 4 | Complete |
+| ROI-02 | Phase 4 | Complete |
+| ROI-03 | Phase 4 | Complete |
+| ROI-04 | Phase 4 | Complete |
+| ROI-05 | Phase 4 | Complete |
 | RSLT-01 | Phase 4 | Complete |
-| RSLT-02 | Phase 4 | Pending |
-| RSLT-03 | Phase 4 | Pending |
-| RSLT-04 | Phase 4 | Pending |
-| RSLT-05 | Phase 4 | Pending |
+| RSLT-02 | Phase 4 | Complete |
+| RSLT-03 | Phase 4 | Complete |
+| RSLT-04 | Phase 4 | Complete |
+| RSLT-05 | Phase 4 | Complete |
 | RSLT-06 | Phase 4 | Pending |
 | VIS-01 | Phase 4 | Complete |
 | VIS-02 | Phase 4 | Complete |
-| VIS-03 | Phase 4 | Pending |
+| VIS-03 | Phase 4 | Complete |
 | VIS-04 | Phase 4 | Complete |
 | DATA-01 | Phase 2 | Complete |
 | DATA-02 | Phase 2 | Complete |
