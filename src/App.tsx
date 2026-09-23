@@ -43,6 +43,7 @@ import { ScanningAnimationOverlay } from './components/ScanningAnimationOverlay'
 import { AuditHistoryModal } from './components/AuditHistoryModal';
 import { ResetBaselineModal } from './components/ResetBaselineModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { isCarouselEnabled } from './lib/carouselEnabled';
 
 export default function App() {
   // State machine
@@ -501,6 +502,7 @@ export default function App() {
           lang={lang}
           activeShelfId={activeShelfId}
           onShelfChange={handleShelfChange}
+          carouselEnabled={isCarouselEnabled(appMode)}
           quotaError={quotaError}
           onDismissQuotaError={() => setQuotaError(false)}
           onLanguageToggle={handleLanguageToggle}

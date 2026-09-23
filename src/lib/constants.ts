@@ -1,5 +1,11 @@
 import { DetectedAnomaly, Language, ShelfCalibration } from '../types';
 
+/** Shelf carousel label chip — full I18N audit in 05-07. */
+export function getShelfLabel(lang: Language, shelfIndex: number): string {
+  const n = shelfIndex + 1;
+  return lang === 'cn' ? `柜架 ${n}` : `Shelf ${n}`;
+}
+
 /** Same-origin demo shelf image — avoids canvas CORS taint on capture (G-01-7). */
 export const DEFAULT_SHELF_IMAGE_URL = '/demo-shelf.jpg';
 

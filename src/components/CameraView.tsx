@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Camera,
   CheckCircle2,
@@ -14,9 +14,12 @@ import {
   AlertCircle,
   X,
 } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Language, ShelfCalibration, AuditRecord } from '../types';
 import { I18N } from '../lib/constants';
-import { ShelfSelector } from './ShelfSelector';
+import { attachShelfSwipe } from '../lib/shelfSwipe';
+import { nextShelfIndex, prevShelfIndex, clampShelfIndex } from '../lib/shelfIndex';
+import { ShelfCarousel } from './ShelfCarousel';
 
 interface CameraViewProps {
   baseline: ShelfCalibration;
@@ -47,6 +50,7 @@ interface CameraViewProps {
   onDismissCameraError?: () => void;
   activeShelfId?: number;
   onShelfChange?: (shelfId: number) => void;
+  carouselEnabled?: boolean;
   quotaError?: boolean;
   onDismissQuotaError?: () => void;
   analysisError?: boolean;
@@ -86,6 +90,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onDismissCameraError,
   activeShelfId = 0,
   onShelfChange,
+  carouselEnabled = true,
   quotaError,
   onDismissQuotaError,
   analysisError = false,
@@ -102,6 +107,27 @@ export const CameraView: React.FC<CameraViewProps> = ({
   const displayIsLevel = orientationDenied ? false : isLevel;
   const showSimulateToggle =
     !!onSimulateTiltToggle && !orientationDenied && !hasSensor;
+  const reduceMotion = useReducedMotion();
+  const swipeLayerRef = useRef<HTMLDivElement>(null);
+
+  const handleShelfSelect = (shelfId: number) => {
+    onShelfChange?.(clampShelfIndex(shelfId));
+  };
+
+  useEffect(() => {
+    const el = swipeLayerRef.current;
+    if (!el || !onShelfChange) return;
+
+    return attachShelfSwipe(el, {
+      enabled: carouselEnabled,
+      onSwipeLeft: () => handleShelfSelect(nextShelfIndex(activeShelfId)),
+      onSwipeRight: () => handleShelfSelect(prevShelfIndex(activeShelfId)),
+    });
+  }, [carouselEnabled, activeShelfId, onShelfChange]);
+
+  const feedTransition = reduceMotion
+    ? { duration: 0 }
+    : { type: 'spring' as const, duration: 0.3 };
 
   return (
     <div
@@ -109,90 +135,101 @@ export const CameraView: React.FC<CameraViewProps> = ({
       data-baseline-id={baseline.id}
       data-testid="camera-view"
     >
-      {/* 1. Camera Video Stream or Demo Shelf Feed */}
+      {/* Camera feed with shelf cross-fade */}
       <div className="absolute inset-0 w-full h-full overflow-hidden">
-        {isUsingDemoFeed ? (
-          <img
-            src={baseline.imageDataUrl}
-            alt="Retail Shelf Demo Stream"
-            className="w-full h-full object-cover object-center pointer-events-none transition-transform duration-300 scale-105"
-          />
-        ) : (
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full h-full object-cover object-center pointer-events-none"
-          />
-        )}
+        <div
+          ref={swipeLayerRef}
+          className="absolute inset-0 z-[5] touch-none"
+          data-testid="shelf-swipe-layer"
+          aria-hidden="true"
+        />
 
-        {/* 2. Ghost Overlay (Golden Baseline) — live camera + persisted baseline only */}
-        {showGhost && (
-          <div
-            data-testid="ghost-overlay"
-            className="absolute inset-0 w-full h-full pointer-events-none mix-blend-screen transition-opacity duration-150"
-            style={{ opacity: ghostOpacity / 100 }}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeShelfId}
+            className="absolute inset-0 w-full h-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={feedTransition}
           >
-            <img
-              src={baseline.imageDataUrl}
-              alt="Baseline Ghost Overlay"
-              className="w-full h-full object-cover object-center filter contrast-125 brightness-110"
-            />
-            <div className="absolute inset-0 bg-emerald-500/10 mix-blend-overlay" />
-          </div>
-        )}
+            {isUsingDemoFeed ? (
+              <img
+                src={baseline.imageDataUrl}
+                alt="Retail Shelf Demo Stream"
+                className="w-full h-full object-cover object-center pointer-events-none transition-transform duration-300 scale-105"
+              />
+            ) : (
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover object-center pointer-events-none"
+              />
+            )}
 
-        {/* Ambient Dark Gradient Framing */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0F172A]/70 via-transparent to-[#0F172A]/85 pointer-events-none" />
-
-        {/* 3. AR ROI 4-Tier Shelf Guides */}
-        {showRoiGuides && (
-          <div className="absolute inset-x-5 inset-y-16 pointer-events-none transition-all duration-300">
-            <svg
-              className="w-full h-full text-white/75 drop-shadow-sm"
-              fill="none"
-              preserveAspectRatio="none"
-              viewBox="0 0 100 100"
-            >
-              {/* Corner Brackets */}
-              <path d="M 0 10 L 0 0 L 10 0" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              <path d="M 90 0 L 100 0 L 100 10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              <path d="M 100 90 L 100 100 L 90 100" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              <path d="M 10 100 L 0 100 L 0 90" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-
-              {/* 4 Tier Partition Lines from baseline */}
-              {baseline.splitYPercentages.map((percent, index) => (
-                <line
-                  key={index}
-                  x1="2"
-                  x2="98"
-                  y1={percent * 100}
-                  y2={percent * 100}
-                  stroke="rgba(255,255,255,0.35)"
-                  strokeWidth="0.8"
-                  strokeDasharray="2 3"
+            {showGhost && (
+              <div
+                data-testid="ghost-overlay"
+                className="absolute inset-0 w-full h-full pointer-events-none mix-blend-screen transition-opacity duration-150"
+                style={{ opacity: ghostOpacity / 100 }}
+              >
+                <img
+                  src={baseline.imageDataUrl}
+                  alt="Baseline Ghost Overlay"
+                  className="w-full h-full object-cover object-center filter contrast-125 brightness-110"
                 />
-              ))}
-            </svg>
+                <div className="absolute inset-0 bg-emerald-500/10 mix-blend-overlay" />
+              </div>
+            )}
 
-            {/* ROI Zone Badge */}
-            <div className="absolute -top-3 left-4 bg-[#0F172A]/80 backdrop-blur-md px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-sm border border-white/10">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-              <span className="font-mono-numbers text-[10px] text-white uppercase tracking-wider font-medium">
-                {t.roiZone}
-              </span>
-            </div>
-          </div>
-        )}
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0F172A]/70 via-transparent to-[#0F172A]/85 pointer-events-none" />
 
-        {/* 4. Center Leveling Crosshair */}
+            {showRoiGuides && (
+              <div className="absolute inset-x-5 inset-y-16 pointer-events-none transition-all duration-300">
+                <svg
+                  className="w-full h-full text-white/75 drop-shadow-sm"
+                  fill="none"
+                  preserveAspectRatio="none"
+                  viewBox="0 0 100 100"
+                >
+                  <path d="M 0 10 L 0 0 L 10 0" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                  <path d="M 90 0 L 100 0 L 100 10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                  <path d="M 100 90 L 100 100 L 90 100" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                  <path d="M 10 100 L 0 100 L 0 90" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+
+                  {baseline.splitYPercentages.map((percent, index) => (
+                    <line
+                      key={index}
+                      x1="2"
+                      x2="98"
+                      y1={percent * 100}
+                      y2={percent * 100}
+                      stroke="rgba(255,255,255,0.35)"
+                      strokeWidth="0.8"
+                      strokeDasharray="2 3"
+                    />
+                  ))}
+                </svg>
+
+                <div className="absolute -top-3 left-4 bg-[#0F172A]/80 backdrop-blur-md px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-sm border border-white/10">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                  <span className="font-mono-numbers text-[10px] text-white uppercase tracking-wider font-medium">
+                    {t.roiZone}
+                  </span>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Center Leveling Crosshair */}
         <div
           className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
           id="level-crosshair"
         >
           <div className="relative w-44 h-44 flex items-center justify-center">
-            {/* Horizon Rotating Line */}
             <div
               className={`absolute w-36 h-[1.5px] transition-all duration-150 ${
                 orientationDenied
@@ -204,7 +241,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
               style={{ transform: `rotate(${displayTilt}deg)` }}
             />
 
-            {/* Vertical Center Axis Line */}
             <div
               className={`absolute h-36 w-[1.5px] ${
                 orientationDenied
@@ -215,7 +251,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
               }`}
             />
 
-            {/* Central Circular Bullseye */}
             <div
               className={`w-12 h-12 rounded-full border flex items-center justify-center backdrop-blur-[2px] transition-colors duration-200 ${
                 orientationDenied
@@ -236,13 +271,11 @@ export const CameraView: React.FC<CameraViewProps> = ({
               />
             </div>
 
-            {/* Corner Precision Markers */}
             <div className={`absolute top-1 left-1 w-2 h-2 border-t border-l ${orientationDenied ? 'border-slate-400/50' : displayIsLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
             <div className={`absolute top-1 right-1 w-2 h-2 border-t border-r ${orientationDenied ? 'border-slate-400/50' : displayIsLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
             <div className={`absolute bottom-1 left-1 border-b border-l ${orientationDenied ? 'border-slate-400/50' : displayIsLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
             <div className={`absolute bottom-1 right-1 border-b border-r ${orientationDenied ? 'border-slate-400/50' : displayIsLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
 
-            {/* Level status indicator pill with click-to-simulate for desktop testing */}
             {showSimulateToggle && (
               <button
                 onClick={onSimulateTiltToggle}
@@ -275,8 +308,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
       </div>
 
       {/* TOP FLOATING BAR */}
-      <div className="relative z-20 px-4 pt-3 pb-2 flex items-center justify-between gap-2">
-        {/* Left: Baseline Status Button */}
+      <div className="relative z-20 px-4 pt-3 pb-1 flex items-center justify-between gap-2">
         <button
           onClick={onResetBaselinePrompt}
           className="flex items-center gap-1.5 bg-white/85 hover:bg-white backdrop-blur-xl px-3 py-1.5 rounded-full shadow-md text-[#0F172A] border border-slate-200/60 active:scale-95 transition-all"
@@ -289,16 +321,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
           <span className="font-mono-numbers text-[10px] text-slate-500 font-medium">/{t.baselineTag}</span>
         </button>
 
-        {/* Right Tools: Shelf selector, Camera/Demo toggle, Flashlight, Language, PWA */}
         <div className="flex items-center gap-1.5 bg-white/85 backdrop-blur-xl p-1 rounded-full shadow-md border border-slate-200/60">
-          {onShelfChange && (
-            <ShelfSelector
-              activeShelfId={activeShelfId}
-              onShelfChange={onShelfChange}
-              lang={lang}
-            />
-          )}
-          {/* Feed Source Toggle */}
           <button
             onClick={onToggleDemoMode}
             className={`px-2 h-7 rounded-full flex items-center gap-1 text-[11px] font-medium transition-colors ${
@@ -306,13 +329,12 @@ export const CameraView: React.FC<CameraViewProps> = ({
                 ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 : 'bg-emerald-50 text-emerald-700 font-semibold'
             }`}
-            title={isUsingDemoFeed ? t.useRealCamera : t.useSampleFeed}
+            title={isUsingDemoFeed ? t.useSampleFeed : t.useRealCamera}
           >
             <Camera className="w-3.5 h-3.5" />
             <span>{isUsingDemoFeed ? 'Demo' : 'Cam'}</span>
           </button>
 
-          {/* Torch Toggle — hidden when unsupported or demo feed */}
           {hasTorch && !isUsingDemoFeed && (
             <button
               onClick={onToggleTorch}
@@ -327,7 +349,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
             </button>
           )}
 
-          {/* Language Toggle */}
           <button
             onClick={onLanguageToggle}
             className="px-2 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-mono-numbers text-[11px] text-[#006C49] font-bold transition-colors"
@@ -335,7 +356,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
             {lang.toUpperCase()}
           </button>
 
-          {/* PWA Install Button if available */}
           {isInstallable && onInstallPwa && (
             <button
               onClick={onInstallPwa}
@@ -349,6 +369,18 @@ export const CameraView: React.FC<CameraViewProps> = ({
         </div>
       </div>
 
+      {/* SHELF CAROUSEL — 5-dot indicator below top bar (D-03) */}
+      {onShelfChange && (
+        <div className="relative z-20 flex justify-center pb-2">
+          <ShelfCarousel
+            activeShelfId={activeShelfId}
+            onShelfChange={handleShelfSelect}
+            lang={lang}
+            enabled={carouselEnabled}
+          />
+        </div>
+      )}
+
       {/* RIGHT EDGE VERTICAL SLIDER (GHOST TRANSPARENCY) */}
       {showGhost && (
       <div className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center bg-white/85 backdrop-blur-xl px-2 py-3.5 rounded-full shadow-lg border border-slate-200/70">
@@ -359,7 +391,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
         <div className="relative w-6 h-40 flex flex-col items-center justify-between py-1">
           <span className="font-mono-numbers text-[9px] text-slate-400 uppercase font-semibold">100</span>
 
-          {/* Slider track */}
           <div className="relative w-2 h-28 bg-slate-200 rounded-full overflow-hidden flex flex-col justify-end">
             <div
               className="w-full bg-[#10B981] rounded-full transition-all duration-75"
@@ -514,7 +545,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
           </div>
         )}
 
-        {/* Shutter Prompt Pill */}
         <div className="mb-4 px-3 py-1 rounded-full bg-[#0F172A]/75 backdrop-blur-md shadow-sm border border-white/10">
           <p className="text-xs text-white/95 flex items-center gap-1.5 font-medium">
             <ScanLine className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
@@ -522,9 +552,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
           </p>
         </div>
 
-        {/* Bottom Actions Row */}
         <div className="w-full flex items-center justify-between max-w-sm px-2">
-          {/* Left: Grid & Calibration Button */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowRoiGuides(!showRoiGuides)}
@@ -547,7 +575,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
             </button>
           </div>
 
-          {/* Center: 76px Circular Shutter Trigger with breathing glow */}
           <div className="relative flex items-center justify-center">
             <div className="absolute w-24 h-24 rounded-full bg-[#10B981]/25 animate-ping opacity-60 pointer-events-none" />
             <div className="absolute w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm pointer-events-none" />
@@ -572,7 +599,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
             </button>
           </div>
 
-          {/* Right: Last Audit History Thumbnail Preview */}
           <div className="relative flex flex-col items-center">
             <button
               onClick={onOpenHistory}
