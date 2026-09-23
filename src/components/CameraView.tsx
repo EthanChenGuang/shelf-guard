@@ -104,6 +104,8 @@ export const CameraView: React.FC<CameraViewProps> = ({
 }) => {
   const t = I18N[lang];
   const [showRoiGuides, setShowRoiGuides] = useState(true);
+  const [flashVisible, setFlashVisible] = useState(false);
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showGhost =
     !showInitialGuide && !isUsingDemoFeed && hasPersistedBaseline && !!baseline;
   const showGuidePlaceholder =
@@ -115,6 +117,23 @@ export const CameraView: React.FC<CameraViewProps> = ({
     !!onSimulateTiltToggle && !orientationDenied && !hasSensor;
   const reduceMotion = useReducedMotion();
   const swipeLayerRef = useRef<HTMLDivElement>(null);
+  const cameraAvailable = !isUsingDemoFeed && !cameraError;
+  const shutterBreathing =
+    !showInitialGuide && !isShutterLocked && cameraAvailable && !reduceMotion;
+
+  const handleShutterClick = () => {
+    if (isShutterLocked) return;
+    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    setFlashVisible(true);
+    flashTimeoutRef.current = setTimeout(() => setFlashVisible(false), 150);
+    onShutterClick();
+  };
+
+  useEffect(() => {
+    return () => {
+      if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    };
+  }, []);
 
   const handleShelfSelect = (shelfId: number) => {
     onShelfChange?.(clampShelfIndex(shelfId));
@@ -236,6 +255,13 @@ export const CameraView: React.FC<CameraViewProps> = ({
             )}
           </motion.div>
         </AnimatePresence>
+
+        {flashVisible && (
+          <div
+            data-testid="shutter-flash-overlay"
+            className="pointer-events-none absolute inset-0 z-[15] bg-white/90 transition-opacity duration-150"
+          />
+        )}
 
         {/* Center Leveling Crosshair */}
         <div
@@ -618,25 +644,32 @@ export const CameraView: React.FC<CameraViewProps> = ({
             </button>
           </div>
 
-          <div className="relative flex items-center justify-center">
-            <div className="absolute w-24 h-24 rounded-full bg-[#10B981]/25 animate-ping opacity-60 pointer-events-none" />
-            <div className="absolute w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm pointer-events-none" />
-            
+          <div className="relative flex h-[76px] w-[76px] items-center justify-center">
+            {shutterBreathing && (
+              <div
+                data-testid="shutter-breathe-ring"
+                className="pointer-events-none absolute h-[88px] w-[88px] rounded-full border-2 border-sg-success/35 animate-pulse"
+              />
+            )}
+
             <button
               id="shutter-trigger"
-              onClick={onShutterClick}
+              type="button"
+              onClick={handleShutterClick}
               aria-label={isShutterLocked ? t.shutterLocked : 'Capture & Scan Planogram'}
               aria-disabled={isShutterLocked}
               disabled={isShutterLocked}
-              className={`relative w-[76px] h-[76px] rounded-full bg-white p-1.5 shadow-[0_4px_24px_rgba(0,0,0,0.35)] flex items-center justify-center transition-transform duration-150 group ${
+              className={`relative flex h-[76px] w-[76px] items-center justify-center rounded-full border-[3px] border-white bg-white p-1 shadow-[0_4px_24px_rgba(0,0,0,0.35)] transition-transform duration-150 group ${
+                shutterBreathing ? 'animate-shutter-breathe' : ''
+              } ${
                 isShutterLocked
-                  ? 'opacity-50 cursor-not-allowed pointer-events-none'
-                  : 'active:scale-90 cursor-pointer'
+                  ? 'cursor-not-allowed opacity-50 pointer-events-none'
+                  : 'cursor-pointer active:scale-90'
               }`}
             >
-              <div className="w-full h-full rounded-full bg-gradient-to-tr from-[#0F172A] to-[#283044] flex items-center justify-center shadow-inner">
-                <div className="w-6 h-6 rounded-full bg-[#10B981] flex items-center justify-center transition-transform group-hover:scale-110 shadow-[0_0_8px_rgba(16,185,129,0.8)]">
-                  <Sparkles className="w-3.5 h-3.5 text-white" />
+              <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-tr from-sg-camera to-sg-primary shadow-inner ring-2 ring-sg-border/30">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-sg-success shadow-[0_0_8px_rgba(16,185,129,0.8)] transition-transform group-hover:scale-110">
+                  <Sparkles className="h-3.5 w-3.5 text-white" />
                 </div>
               </div>
             </button>
@@ -644,9 +677,11 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
           <div className="relative flex flex-col items-center">
             <button
+              type="button"
               onClick={onOpenHistory}
               aria-label="View Previous Shelf Audit"
-              className="w-12 h-12 rounded-xl bg-white/85 backdrop-blur-xl shadow-md p-0.5 overflow-hidden active:scale-95 transition-transform border border-slate-200 hover:border-emerald-400"
+              data-testid="last-inspection-thumbnail"
+              className="h-12 w-12 overflow-hidden rounded-xl border border-sg-border bg-white/85 p-0.5 shadow-md backdrop-blur-xl transition-transform active:scale-95 hover:border-sg-success"
             >
               <img
                 src={lastAudit ? lastAudit.thumbnailUrl : baseline.imageDataUrl}

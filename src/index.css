@@ -26,6 +26,10 @@
   }
 }
 
+.animate-shutter-breathe {
+  animation: shutter-breathe 2s ease-in-out infinite;
+}
+
 @layer utilities {
   /* Hide scrollbar for Chrome, Safari and Opera */
   .no-scrollbar::-webkit-scrollbar {
