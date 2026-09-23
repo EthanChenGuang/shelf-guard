@@ -57,7 +57,7 @@
 - [x] **RSLT-03**: Tap-to-Dismiss — 轻点误报框体微缩淡出，计数相应减 1
 - [x] **RSLT-04**: 顶部统计胶囊 — 🔴 N 处缺失 🟡 N 处变动；点击颜色标签单独高亮该类异常
 - [x] **RSLT-05**: 底部浮动抽屉 — 横向容差滑块实时增减细小变动框
-- [ ] **RSLT-06**: 「完成巡检（返回相机）」按钮返回当前柜架相机主屏
+- [x] **RSLT-06**: 「完成巡检（返回相机）」按钮返回当前柜架相机主屏
 
 ### Vision Analysis (VIS)
 
@@ -163,7 +163,7 @@
 | RSLT-03 | Phase 4 | Complete |
 | RSLT-04 | Phase 4 | Complete |
 | RSLT-05 | Phase 4 | Complete |
-| RSLT-06 | Phase 4 | Pending |
+| RSLT-06 | Phase 4 | Complete |
 | VIS-01 | Phase 4 | Complete |
 | VIS-02 | Phase 4 | Complete |
 | VIS-03 | Phase 4 | Complete |
