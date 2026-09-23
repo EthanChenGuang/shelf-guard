@@ -2,7 +2,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
-import type {DetectedAnomaly} from './types';
+import type {AuditRecord, DetectedAnomaly} from './types';
 
 vi.mock('canvas-confetti', () => ({
   default: vi.fn(),
@@ -42,7 +42,9 @@ const {analyzeShelfCapture, appendAuditRecord} = vi.hoisted(() => ({
       missingCount: 1,
     }),
   ),
-  appendAuditRecord: vi.fn(async () => ({ok: true})),
+  appendAuditRecord: vi.fn(
+    async (_shelfId: number, _record: AuditRecord) => ({ok: true}),
+  ),
 }));
 
 vi.mock('./lib/vision', async (importOriginal) => {
@@ -171,7 +173,7 @@ describe('App complete audit integration (RSLT-06, D-26)', () => {
     });
 
     expect(appendAuditRecord).toHaveBeenCalledTimes(1);
-    const [shelfId, record] = appendAuditRecord.mock.calls[0];
+    const [shelfId, record] = appendAuditRecord.mock.calls[0]!;
     expect(shelfId).toBe(2);
     expect(record.tolerance).toBe(50);
     expect(record.anomalies).toEqual(
