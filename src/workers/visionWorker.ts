@@ -359,18 +359,32 @@ function analyzeAllTiers(
   }
 }
 
-export type VisionWorkerRequest = {
-  type: 'analyze';
-  captureBitmap: ImageBitmap;
-  baselineBitmap: ImageBitmap;
-  splitYPercentages: [number, number, number, number];
-  imageDimensions: { width: number; height: number };
-  toleranceValue: number;
-};
+export type VisionWorkerRequest =
+  | { type: 'init' }
+  | {
+      type: 'analyze';
+      captureBitmap: ImageBitmap;
+      baselineBitmap: ImageBitmap;
+      splitYPercentages: [number, number, number, number];
+      imageDimensions: { width: number; height: number };
+      toleranceValue: number;
+    };
 
 if (typeof self !== 'undefined' && 'onmessage' in self) {
   self.onmessage = async (event: MessageEvent<VisionWorkerRequest>) => {
     const data = event.data;
+    if (data?.type === 'init') {
+      try {
+        await getCv();
+        self.postMessage({type: 'ready'});
+      } catch (err) {
+        self.postMessage({
+          type: 'error',
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
     if (data?.type !== 'analyze') return;
 
     try {

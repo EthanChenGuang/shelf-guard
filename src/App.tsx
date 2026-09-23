@@ -29,7 +29,7 @@ import {
   toViewBaseline,
 } from './lib/shelfStorage';
 import { createDisplayUrlRegistry } from './lib/objectUrlRegistry';
-import { analyzeShelfCapture } from './lib/vision';
+import { analyzeShelfCapture, prewarmVisionWorker } from './lib/vision';
 import { computeComplianceStats } from './lib/vision/complianceStats';
 import { isCaptureLocked } from './lib/captureLock';
 import { loadImageDimensions } from './lib/imageDimensions';
@@ -93,7 +93,9 @@ export default function App() {
   const captureLockRef = useRef(false);
   const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toleranceDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const workerPrewarmedRef = useRef(false);
   const [isShutterLocked, setIsShutterLocked] = useState(false);
+  const [showAnalysisError, setShowAnalysisError] = useState(false);
 
   const {
     videoRef,
@@ -197,6 +199,16 @@ export default function App() {
     };
   }, []);
 
+  // Pre-warm OpenCV worker on first CAMERA_IDLE with persisted baseline (RESEARCH Q1)
+  useEffect(() => {
+    if (appMode === 'CAMERA_IDLE' && hasPersistedBaseline && !workerPrewarmedRef.current) {
+      workerPrewarmedRef.current = true;
+      void prewarmVisionWorker().catch(() => {
+        // Cold start covered by PROCESSING overlay if pre-warm fails
+      });
+    }
+  }, [appMode, hasPersistedBaseline]);
+
   const handleShelfChange = async (newShelfId: number) => {
     urlRegistryRef.current.revokeAll();
     setActiveShelfId(newShelfId);
@@ -214,6 +226,7 @@ export default function App() {
 
     captureLockRef.current = true;
     setIsShutterLocked(true);
+    setShowAnalysisError(false);
 
     try {
       const frame = await captureFrame(baseline.imageDataUrl);
@@ -253,19 +266,28 @@ export default function App() {
         }
       }, 800);
 
-      const result = await analysisPromise;
-      setAnomalies(result.anomalies);
-      setComplianceRate(result.complianceRate);
-      setStandardCount(result.standardCount);
-      setActualCount(result.actualCount);
-      setDisplacedCount(result.displacedCount);
-      setMissingCount(result.missingCount);
+      try {
+        const result = await analysisPromise;
+        setAnomalies(result.anomalies);
+        setComplianceRate(result.complianceRate);
+        setStandardCount(result.standardCount);
+        setActualCount(result.actualCount);
+        setDisplacedCount(result.displacedCount);
+        setMissingCount(result.missingCount);
 
-      if (scanTimerRef.current) {
-        clearTimeout(scanTimerRef.current);
-        scanTimerRef.current = null;
+        if (scanTimerRef.current) {
+          clearTimeout(scanTimerRef.current);
+          scanTimerRef.current = null;
+        }
+        setAppMode('RESULT_INSPECT');
+      } catch {
+        if (scanTimerRef.current) {
+          clearTimeout(scanTimerRef.current);
+          scanTimerRef.current = null;
+        }
+        setShowAnalysisError(true);
+        setAppMode('CAMERA_IDLE');
       }
-      setAppMode('RESULT_INSPECT');
     } finally {
       captureLockRef.current = false;
       setIsShutterLocked(false);
@@ -487,6 +509,8 @@ export default function App() {
           cameraError={cameraError}
           onRetryCamera={startCamera}
           onDismissCameraError={clearCameraError}
+          analysisError={showAnalysisError}
+          onDismissAnalysisError={() => setShowAnalysisError(false)}
           orientationDenied={orientationPermission === 'denied' && !orientationDismissed}
           onRetryOrientation={handleRetryOrientation}
           onDismissOrientationError={() => setOrientationDismissed(true)}

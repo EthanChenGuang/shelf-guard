@@ -136,6 +136,7 @@ export const I18N = {
     torchOn: '开启补光灯',
     torchOff: '关闭补光灯',
     processing: '正在分析展架差异，请稍候...',
+    analysisFailed: '分析失败，请重试拍摄',
     shutterLocked: '扫描进行中，请稍候',
     quotaExceededTitle: '本地存储空间已满',
     quotaExceededGuide: '请先在其它货架完成巡检，或清除部分历史记录后再试。',
@@ -211,6 +212,7 @@ export const I18N = {
     torchOn: 'Flashlight On',
     torchOff: 'Flashlight Off',
     processing: 'Analyzing shelf differences, please wait...',
+    analysisFailed: 'Analysis failed — tap shutter to retry',
     shutterLocked: 'Scan in progress, please wait',
     quotaExceededTitle: 'Local storage is full',
     quotaExceededGuide:

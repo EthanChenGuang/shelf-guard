@@ -9,10 +9,48 @@ const MAX_BITMAP_WIDTH = 1080;
 const MAX_BITMAP_HEIGHT = 1920;
 
 let worker: Worker | null = null;
+let cvReadyPromise: Promise<void> | null = null;
 
 function getWorker(): Worker {
   if (!worker) worker = new VisionWorker();
   return worker;
+}
+
+/** Spawn worker and load OpenCV WASM before first analyze (cold-start backstop). */
+export function prewarmVisionWorker(): Promise<void> {
+  if (!cvReadyPromise) {
+    cvReadyPromise = new Promise((resolve, reject) => {
+      const w = getWorker();
+
+      const cleanup = () => {
+        w.removeEventListener('message', onMessage);
+        w.removeEventListener('error', onError);
+      };
+
+      const onMessage = (event: MessageEvent) => {
+        const payload = event.data;
+        if (payload?.type === 'ready') {
+          cleanup();
+          resolve();
+        } else if (payload?.type === 'error') {
+          cleanup();
+          cvReadyPromise = null;
+          reject(new Error(payload.message ?? 'Vision worker init failed'));
+        }
+      };
+
+      const onError = (event: ErrorEvent) => {
+        cleanup();
+        cvReadyPromise = null;
+        reject(new Error(event.message || 'Vision worker error'));
+      };
+
+      w.addEventListener('message', onMessage);
+      w.addEventListener('error', onError);
+      w.postMessage({type: 'init'});
+    });
+  }
+  return cvReadyPromise;
 }
 
 async function dataUrlToImageBitmap(dataUrl: string): Promise<ImageBitmap> {

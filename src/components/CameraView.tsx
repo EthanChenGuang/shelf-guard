@@ -49,6 +49,8 @@ interface CameraViewProps {
   onShelfChange?: (shelfId: number) => void;
   quotaError?: boolean;
   onDismissQuotaError?: () => void;
+  analysisError?: boolean;
+  onDismissAnalysisError?: () => void;
   orientationDenied?: boolean;
   onRetryOrientation?: () => void;
   onDismissOrientationError?: () => void;
@@ -86,6 +88,8 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onShelfChange,
   quotaError,
   onDismissQuotaError,
+  analysisError = false,
+  onDismissAnalysisError,
   orientationDenied = false,
   onRetryOrientation,
   onDismissOrientationError,
@@ -403,6 +407,30 @@ export const CameraView: React.FC<CameraViewProps> = ({
                 <button
                   type="button"
                   onClick={onDismissQuotaError}
+                  aria-label={t.close}
+                  className="shrink-0 text-slate-400 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {analysisError && (
+          <div
+            role="alert"
+            className="mb-4 w-full max-w-sm rounded-2xl border border-amber-400/40 bg-slate-900/90 backdrop-blur-md px-4 py-3 text-white shadow-lg"
+          >
+            <div className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold">{t.analysisFailed}</p>
+              </div>
+              {onDismissAnalysisError && (
+                <button
+                  type="button"
+                  onClick={onDismissAnalysisError}
                   aria-label={t.close}
                   className="shrink-0 text-slate-400 hover:text-white"
                 >
