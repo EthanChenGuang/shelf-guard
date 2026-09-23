@@ -13,7 +13,7 @@ ShelfGuard v1 delivers a 30-second shelf inspection loop for retail field reps: 
 
 - [x] **Phase 1: Capture Foundation & Vercel Deploy** - Retain Vite 8 pure-client PWA on Vercel, fix FSM/camera bugs, remove backend deps (completed 2026-09-22)
 - [x] **Phase 2: Multi-Shelf Data Layer** - Namespaced IndexedDB schema with Blob storage and legacy migration before carousel UI (completed 2026-09-21)
-- [ ] **Phase 3: Guided Capture Quality** - Ghost overlay, level gauge, and iOS orientation permission for aligned re-shoots
+- [x] **Phase 3: Guided Capture Quality** - Ghost overlay, level gauge, and iOS orientation permission for aligned re-shoots (completed 2026-09-23)
 - [ ] **Phase 4: Real Inspection Pipeline** - Replace mock vision with ROI-scoped pixel diff, Web Worker analysis, and result interactions
 - [ ] **Phase 5: PRD UI & Multi-Shelf Experience** - Minimalist Light design system, shelf carousel swipe, PRD animations, and i18n polish
 
@@ -158,7 +158,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Capture Foundation & Vercel Deploy | 6/6 | Complete    | 2026-09-22 |
 | 2. Multi-Shelf Data Layer | 3/3 | Complete    | 2026-09-21 |
-| 3. Guided Capture Quality | 3/3 | In Progress|  |
+| 3. Guided Capture Quality | 3/3 | Complete    | 2026-09-23 |
 | 4. Real Inspection Pipeline | 0/TBD | Not started | - |
 | 5. PRD UI & Multi-Shelf Experience | 0/TBD | Not started | - |
 
