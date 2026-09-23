@@ -8,6 +8,9 @@ export type AppMode =
 
 export type ToleranceLevel = 'strict' | 'normal' | 'loose';
 
+/** Continuous tolerance slider value 0–100 (D-11). */
+export type ToleranceValue = number;
+
 export interface ShelfCalibration {
   id: string;
   createdAt: number;
@@ -47,7 +50,7 @@ export interface AuditRecord {
   displacedCount: number;
   thumbnailUrl: string;
   anomalies: DetectedAnomaly[];
-  tolerance: ToleranceLevel;
+  tolerance: ToleranceValue | ToleranceLevel;
 }
 
 export type Language = 'cn' | 'en';

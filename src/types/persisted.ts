@@ -1,4 +1,4 @@
-import type {DetectedAnomaly, ToleranceLevel} from '../types';
+import type {DetectedAnomaly, ToleranceLevel, ToleranceValue} from '../types';
 
 /** IndexedDB baseline record — image stored as Blob, not data URL (D-05). */
 export interface PersistedBaseline {
@@ -23,7 +23,7 @@ export interface PersistedAuditRecord {
   displacedCount: number;
   thumbnailBlob: Blob;
   anomalies: DetectedAnomaly[];
-  tolerance: ToleranceLevel;
+  tolerance: ToleranceValue | ToleranceLevel;
 }
 
 export type StorageWriteResult =
