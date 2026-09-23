@@ -148,6 +148,29 @@ function getGhostImgSrc(img: HTMLImageElement): string {
   return img.getAttribute('src') ?? img.src;
 }
 
+function getShelfDot(shelfIndex: number): HTMLElement {
+  const carousel = screen.getByTestId('shelf-carousel');
+  const dot = carousel.querySelector(`[data-shelf-index="${shelfIndex}"]`);
+  if (!dot) {
+    throw new Error(`Missing carousel dot for shelf index ${shelfIndex}`);
+  }
+  return dot as HTMLElement;
+}
+
+function makePointerEvent(type: string, clientX: number, clientY: number) {
+  const event = new Event(type, { bubbles: true }) as PointerEvent;
+  Object.defineProperties(event, {
+    clientX: { value: clientX },
+    clientY: { value: clientY },
+  });
+  return event;
+}
+
+function swipeHorizontal(el: HTMLElement, dx: number) {
+  el.dispatchEvent(makePointerEvent('pointerdown', 100, 200));
+  el.dispatchEvent(makePointerEvent('pointerup', 100 + dx, 200));
+}
+
 describe('App shelf isolation integration (D-16, SHLF-02, SHLF-04)', () => {
   beforeEach(async () => {
     mockIsUsingDemoFeed = true;
@@ -157,13 +180,22 @@ describe('App shelf isolation integration (D-16, SHLF-02, SHLF-04)', () => {
     await saveBaseline(1, makeCalibration('shelf1-test'));
   });
 
-  it('loads shelf 0 baseline on init and switches to shelf 1 without leaking shelf 0 id', async () => {
+  it('renders shelf carousel with 5 dots', async () => {
+    render(<App />);
+    await waitForBaselineId('shelf0-test');
+
+    const carousel = screen.getByTestId('shelf-carousel');
+    expect(carousel).toBeInTheDocument();
+    expect(carousel.querySelectorAll('[data-shelf-index]')).toHaveLength(5);
+  });
+
+  it('loads shelf 0 baseline on init and switches to shelf 1 via carousel dot', async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await waitForBaselineId('shelf0-test');
 
-    await user.click(screen.getByRole('button', {name: 'Shelf 2'}));
+    await user.click(getShelfDot(1));
 
     await waitForBaselineId('shelf1-test');
     expect(screen.getByTestId('camera-view')).not.toHaveAttribute(
@@ -186,7 +218,7 @@ describe('App shelf isolation integration (D-16, SHLF-02, SHLF-04)', () => {
     const shelf0Src = getGhostImgSrc(getGhostOverlayImg());
     expect(shelf0Src).toMatch(/^blob:/);
 
-    await user.click(screen.getByRole('button', {name: 'Shelf 2'}));
+    await user.click(getShelfDot(1));
     await waitForBaselineId('shelf1-test');
 
     await waitFor(() => {
@@ -197,7 +229,7 @@ describe('App shelf isolation integration (D-16, SHLF-02, SHLF-04)', () => {
 
     const shelf1Src = getGhostImgSrc(getGhostOverlayImg());
 
-    await user.click(screen.getByRole('button', {name: 'Shelf 1'}));
+    await user.click(getShelfDot(0));
     await waitForBaselineId('shelf0-test');
 
     await waitFor(() => {
@@ -207,6 +239,18 @@ describe('App shelf isolation integration (D-16, SHLF-02, SHLF-04)', () => {
     });
   });
 
+  it('switches shelf via swipe gesture on viewport layer', async () => {
+    render(<App />);
+    await waitForBaselineId('shelf0-test');
+
+    const swipeLayer = screen.getByTestId('shelf-swipe-layer');
+    await act(async () => {
+      swipeHorizontal(swipeLayer, -60);
+    });
+
+    await waitForBaselineId('shelf1-test');
+  });
+
   it('does not show shelf 0 history when switched to shelf 1', async () => {
     const user = userEvent.setup();
     await appendAuditRecord(0, makeAuditRecord('shelf0-audit', 'shelf0-only'));
@@ -214,7 +258,7 @@ describe('App shelf isolation integration (D-16, SHLF-02, SHLF-04)', () => {
     render(<App />);
     await waitForBaselineId('shelf0-test');
 
-    await user.click(screen.getByRole('button', {name: 'Shelf 2'}));
+    await user.click(getShelfDot(1));
     await waitForBaselineId('shelf1-test');
 
     await user.click(screen.getByLabelText('View Previous Shelf Audit'));
@@ -228,20 +272,14 @@ describe('App shelf isolation integration (D-16, SHLF-02, SHLF-04)', () => {
 
     const {unmount} = render(<App />);
     await waitFor(() => {
-      expect(screen.getByRole('button', {name: 'Shelf 3'})).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      );
+      expect(getShelfDot(2)).toHaveAttribute('aria-current', 'true');
     });
 
     unmount();
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', {name: 'Shelf 3'})).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      );
+      expect(getShelfDot(2)).toHaveAttribute('aria-current', 'true');
     });
   });
 
@@ -255,15 +293,15 @@ describe('App shelf isolation integration (D-16, SHLF-02, SHLF-04)', () => {
 
     await waitForBaselineId('legacy-migrated');
 
-    await user.click(screen.getByRole('button', {name: 'Shelf 2'}));
+    await user.click(getShelfDot(1));
     await waitForBaselineId(DEFAULT_CALIBRATION.id);
 
     await saveBaseline(1, makeCalibration('shelf1-saved'));
 
-    await user.click(screen.getByRole('button', {name: 'Shelf 1'}));
+    await user.click(getShelfDot(0));
     await waitForBaselineId('legacy-migrated');
 
-    await user.click(screen.getByRole('button', {name: 'Shelf 2'}));
+    await user.click(getShelfDot(1));
     await waitForBaselineId('shelf1-saved');
   });
 });
