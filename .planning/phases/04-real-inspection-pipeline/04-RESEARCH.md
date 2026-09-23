@@ -519,18 +519,17 @@ const debouncedReanalyze = useMemo(
 
 ## Open Questions
 
-1. **First WASM load may exceed 800ms on cold start**
+1. **First WASM load may exceed 800ms on cold start (RESOLVED)**
    - What we know: UI-SPEC flags opencv-worker-init as unresolved; PROCESSING overlay covers runtime [from 04-UI-SPEC.md].
-   - What's unclear: Whether to pre-warm worker on app mount vs lazy on first shutter.
-   - Recommendation: Pre-spawn worker + init on first `CAMERA_IDLE` with persisted baseline; no separate init UI.
+   - **Resolution:** Pre-spawn worker and run `cvReadyPromise` init on first `CAMERA_IDLE` entry when `hasPersistedBaseline === true`. No separate init UI — cold start beyond 800ms is covered by existing PROCESSING overlay (STAB-03). Lazy init only when shelf has no persisted baseline (first-baseline path skips diff entirely per D-01).
 
-2. **`standardCount` derivation**
+2. **`standardCount` derivation (RESOLVED)**
    - What we know: Mock uses fixed 24 [VERIFIED: src/lib/vision.ts:59]; discretion allows baseline blob count per tier.
-   - Recommendation: Count baseline contours above min area per tier in worker init path; cache in analysis result; fallback 24 if zero.
+   - **Resolution:** Worker counts baseline foreground blobs (contours above `minContourArea` per tier) during each analyze pass and sums across tiers for `standardCount`. If sum is zero (empty baseline band or init failure), fallback to fixed 24 to preserve stat capsule UX.
 
-3. **Demo mode capture vs custom baseline**
+3. **Demo mode capture vs custom baseline (RESOLVED)**
    - What we know: CONCERNS.md notes demo capture may ignore displayed frame.
-   - Recommendation: Phase 4 should use `captureFrame(baseline.imageDataUrl)` consistently; verify demo path returns displayed baseline for golden tests.
+   - **Resolution:** All capture paths — including demo mode — call `captureFrame(baseline.imageDataUrl)` so the returned frame matches the displayed baseline image. Golden tests and first-baseline flow both depend on this consistency; verify in `App.firstBaseline.integration.test.tsx` and device smoke.
 
 ## Environment Availability
 
@@ -570,11 +569,13 @@ const debouncedReanalyze = useMemo(
 | TECH-06 | Worker loads OpenCV, returns result | integration | `npm test -- src/workers/visionWorker.integration.test.ts -x` | ❌ Wave 0 |
 | VIS-01 | Per-tier diff on aligned pair | integration | `npm test -- src/workers/visionWorker.integration.test.ts -x` | ❌ Wave 0 |
 | VIS-02 | Classifies MISSING vs MOVED | unit + integration | `npm test -- src/lib/vision/classifyContour.test.ts -x` | ❌ Wave 0 |
-| VIS-03 | Tolerance params + re-diff trigger | unit | `npm test -- src/lib/vision/toleranceParams.test.ts -x` | ❌ Wave 0 |
+| VIS-03 | Tolerance params lerp mapping | unit | `bun run test -- src/lib/vision/toleranceParams.test.ts -x` | ❌ Wave 0 |
+| VIS-03 | Slider change re-invokes worker diff | integration | `bun run test -- src/App.toleranceReDiff.integration.test.tsx -x` | ❌ Wave 0 |
 | VIS-04 | PROCESSING when >800ms | integration | `npm test -- src/App.processing.integration.test.tsx -x` | ✅ |
 | ROI-01 | First baseline → ROI_CONFIG, no scan | integration | `npm test -- src/App.firstBaseline.integration.test.tsx -x` | ❌ Wave 0 |
 | RSLT-05 | Slider replaces 3-button UI | component | `npm test -- src/components/ResultInspectView.tolerance.test.tsx -x` | ❌ Wave 0 |
-| STAB-03 | Shutter lock during scan/process | unit | `npm test -- src/App.capture.test.ts -x` | ✅ |
+| RSLT-06 | Complete inspection saves audit, returns to shelf camera | integration | `bun run test -- src/App.completeAudit.integration.test.tsx -x` | ❌ Wave 0 |
+| STAB-03 | Shutter lock during scan/process | unit | `bun run test -- src/App.capture.test.ts -x` | ✅ |
 
 ### Sampling Rate
 
@@ -590,6 +591,8 @@ const debouncedReanalyze = useMemo(
 - [ ] `src/workers/visionWorker.ts` + integration test with golden fixtures — covers TECH-06, VIS-01
 - [ ] `public/test-fixtures/` — baseline + capture JPEG pairs (D-28)
 - [ ] `src/App.firstBaseline.integration.test.tsx` — covers ROI-01, D-01
+- [ ] `src/App.toleranceReDiff.integration.test.tsx` — covers VIS-03 re-diff trigger, D-13
+- [ ] `src/App.completeAudit.integration.test.tsx` — covers RSLT-06, D-26
 - [ ] Framework install: `npm install @techstark/opencv-js`
 
 ## Security Domain
