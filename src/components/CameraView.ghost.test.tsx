@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { CameraView } from './CameraView';
-import { DEFAULT_CALIBRATION } from '../lib/constants';
+import { DEFAULT_CALIBRATION, I18N } from '../lib/constants';
 
 const persistedBaseline = {
   ...DEFAULT_CALIBRATION,
@@ -68,7 +68,7 @@ describe('CameraView ghost visibility (CAM-02)', () => {
 
     expect(screen.getByTestId('ghost-overlay')).toBeInTheDocument();
     expect(screen.getByLabelText('幽灵图透光率')).toBeInTheDocument();
-    const ghostImg = screen.getByAltText('Baseline Ghost Overlay');
+    const ghostImg = screen.getByAltText(I18N.cn.baselineGhostAlt);
     expect(ghostImg).toHaveAttribute('src', persistedBaseline.imageDataUrl);
   });
 
@@ -81,6 +81,6 @@ describe('CameraView ghost visibility (CAM-02)', () => {
       />,
     );
 
-    expect(screen.queryByAltText('Baseline Ghost Overlay')).not.toBeInTheDocument();
+    expect(screen.queryByAltText(I18N.cn.baselineGhostAlt)).not.toBeInTheDocument();
   });
 });

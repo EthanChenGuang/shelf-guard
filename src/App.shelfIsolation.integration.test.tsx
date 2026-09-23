@@ -3,7 +3,7 @@ import {act, render, screen, waitFor} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {clear, set} from 'idb-keyval';
 import App from './App';
-import {DEFAULT_CALIBRATION} from './lib/constants';
+import {DEFAULT_CALIBRATION, I18N} from './lib/constants';
 import type {AuditRecord, ShelfCalibration} from './types';
 import {
   appendAuditRecord,
@@ -141,7 +141,7 @@ function stubCompressionGlobals() {
 }
 
 function getGhostOverlayImg(): HTMLImageElement {
-  return screen.getByAltText('Baseline Ghost Overlay') as HTMLImageElement;
+  return screen.getByAltText(I18N.cn.baselineGhostAlt) as HTMLImageElement;
 }
 
 function getGhostImgSrc(img: HTMLImageElement): string {
@@ -261,7 +261,7 @@ describe('App shelf isolation integration (D-16, SHLF-02, SHLF-04)', () => {
     await user.click(getShelfDot(1));
     await waitForBaselineId('shelf1-test');
 
-    await user.click(screen.getByLabelText('View Previous Shelf Audit'));
+    await user.click(screen.getByLabelText(I18N.cn.viewPreviousAudit));
 
     expect(screen.getByText('暂无历史巡检记录')).toBeInTheDocument();
     expect(screen.queryByText('shelf0-only')).not.toBeInTheDocument();

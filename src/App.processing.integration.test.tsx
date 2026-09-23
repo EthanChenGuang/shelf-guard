@@ -2,6 +2,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {act, render, screen} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
+import {I18N} from './lib/constants';
 
 vi.mock('./lib/vision', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./lib/vision')>();
@@ -99,7 +100,7 @@ describe('App PROCESSING integration (STAB-03)', () => {
       await Promise.resolve();
     });
 
-    await user.click(screen.getByLabelText('Capture & Scan Planogram'));
+    await user.click(screen.getByLabelText(I18N.cn.captureScan));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(800);

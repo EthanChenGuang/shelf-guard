@@ -2,6 +2,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
+import {getShelfLabel, I18N} from './lib/constants';
 import type {AuditRecord, DetectedAnomaly} from './types';
 
 vi.mock('canvas-confetti', () => ({
@@ -143,12 +144,12 @@ describe('App complete audit integration (RSLT-06, D-26)', () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByRole('button', {name: 'Shelf 3'})).toHaveAttribute(
-      'aria-pressed',
+    expect(screen.getByRole('tab', {name: getShelfLabel('cn', 2)})).toHaveAttribute(
+      'aria-current',
       'true',
     );
 
-    await user.click(screen.getByLabelText('Capture & Scan Planogram'));
+    await user.click(screen.getByLabelText(I18N.cn.captureScan));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1200);
@@ -186,8 +187,8 @@ describe('App complete audit integration (RSLT-06, D-26)', () => {
     await waitFor(() => {
       expect(screen.getByTestId('camera-view')).toBeInTheDocument();
     });
-    expect(screen.getByRole('button', {name: 'Shelf 3'})).toHaveAttribute(
-      'aria-pressed',
+    expect(screen.getByRole('tab', {name: getShelfLabel('cn', 2)})).toHaveAttribute(
+      'aria-current',
       'true',
     );
   });
@@ -202,7 +203,7 @@ describe('App complete audit integration (RSLT-06, D-26)', () => {
       await Promise.resolve();
     });
 
-    await user.click(screen.getByLabelText('Capture & Scan Planogram'));
+    await user.click(screen.getByLabelText(I18N.cn.captureScan));
 
     await act(async () => {
       await Promise.resolve();

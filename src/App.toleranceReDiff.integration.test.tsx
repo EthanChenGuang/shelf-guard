@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
+import { I18N } from './lib/constants';
 
 const { analyzeShelfCapture } = vi.hoisted(() => ({
   analyzeShelfCapture: vi.fn(
@@ -106,7 +107,7 @@ describe('App tolerance re-diff integration (VIS-03, D-13)', () => {
       await Promise.resolve();
     });
 
-    await user.click(screen.getByLabelText('Capture & Scan Planogram'));
+    await user.click(screen.getByLabelText(I18N.en.captureScan));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(800);

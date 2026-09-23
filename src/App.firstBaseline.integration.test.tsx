@@ -2,6 +2,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {act, render, screen} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
+import {I18N} from './lib/constants';
 
 const {analyzeShelfCapture} = vi.hoisted(() => ({
   analyzeShelfCapture: vi.fn(),
@@ -96,7 +97,7 @@ describe('App first-baseline integration (D-01, ROI-01)', () => {
       await Promise.resolve();
     });
 
-    await user.click(screen.getByLabelText('Capture & Scan Planogram'));
+    await user.click(screen.getByLabelText(I18N.cn.captureScan));
 
     expect(screen.getByText('基准横梁标定')).toBeInTheDocument();
     expect(screen.getByAltText('Calibration Still Shelf Frame')).toHaveAttribute(

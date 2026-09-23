@@ -52,9 +52,7 @@ export function resolveAppModeAfterShelfLoad(
 ): AppMode {
   if (!hasBaseline) return 'INITIAL_GUIDE';
   if (currentMode === 'INITIAL_GUIDE') return 'CAMERA_IDLE';
-  return currentMode === 'CAMERA_IDLE' || currentMode === 'INITIAL_GUIDE'
-    ? 'CAMERA_IDLE'
-    : currentMode;
+  return currentMode === 'CAMERA_IDLE' ? 'CAMERA_IDLE' : currentMode;
 }
 
 export default function App() {
@@ -379,8 +377,11 @@ export default function App() {
 
     // Return to camera — re-resolve guide vs idle for empty shelves (D-07)
     setTimeout(() => {
-      setAppMode((prev) =>
-        resolveAppModeAfterShelfLoad(hasPersistedBaselineRef.current, prev),
+      setAppMode(
+        resolveAppModeAfterShelfLoad(
+          hasPersistedBaselineRef.current,
+          'CAMERA_IDLE',
+        ),
       );
     }, 400);
   };
