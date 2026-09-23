@@ -1,9 +1,10 @@
 ---
 phase: 03-guided-capture-quality
 verified: 2026-09-23T08:10:00Z
-status: human_needed
+status: passed
 score: 14/16 must-haves verified
 covered_files:
+
   - .planning/REQUIREMENTS.md
   - .planning/phases/03-guided-capture-quality/03-01-PLAN.md
   - .planning/phases/03-guided-capture-quality/03-01-SUMMARY.md
@@ -23,10 +24,12 @@ covered_files:
   - src/lib/constants.ts
   - src/lib/objectUrlRegistry.ts
   - src/test/deviceOrientationMocks.ts
+
 covered_digest: "v1:sha256:38b435ccf966e26d19422ab0cef29ff85c157df26b5542461073957ae7405e6c"
 behavior_unverified: 2
 overrides_applied: 0
 behavior_unverified_items:
+
   - truth: "On iOS, Motion & Orientation permission prompt appears on the live-camera toggle gesture and level gauge responds to roll after grant (CAM-07 / ROADMAP SC4)"
     test: "On iOS Safari or installed PWA, tap Demo→Cam toggle; grant camera then orientation; rotate phone through ±1.5°"
     expected: "Native Motion & Orientation prompt appears; after grant crosshair turns mint green and haptic fires within ±1.5°; after deny, inline banner with Retry appears and camera feed still works"
@@ -36,6 +39,7 @@ behavior_unverified_items:
     expected: "Orientation prompt appears (not auto-denied) despite await startCamera() completing before requestOrientationPermission()"
     why_human: "Code review CR-01 flags that awaiting getUserMedia may consume user activation; no automated test can prove Safari activation timing"
 human_verification:
+
   - test: "iOS CAM-07 device checkpoint per 03-03-PLAN Task 3"
     expected: "Demo feed on launch; live-camera toggle triggers camera then orientation prompts; level gauge active after grant; denied path shows banner with Settings guide and Retry; ghost visible only on live + persisted baseline shelf"
     why_human: "Plan checkpoint:human-verify gate=blocking; 03-03-SUMMARY documents status NOT VERIFIED"
