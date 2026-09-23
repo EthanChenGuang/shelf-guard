@@ -64,6 +64,25 @@
 
 - motion spring parameters, INITIAL_GUIDE progress styling, ShelfCarousel extraction vs inline, demo toggle visibility rules, ±4px spacing tolerance.
 
+## Phase 4 Drift Review (2026-09-23)
+
+**Trigger:** User requested verification against shipped Phase 4 implementation.
+
+| Finding | Action |
+|---------|--------|
+| D-04 claimed motion in package.json | **Corrected** — motion must be installed in Wave 0 |
+| DSGN-02 anomaly colors already in ResultInspectView | **Scoped D-16** to tokenization, not reimplementation |
+| First-baseline FSM + pendingBaselineImageUrl shipped | **Added D-35, D-36** preservation contracts |
+| analysisError banner added to CameraView | **Added D-37** — preserve through top bar refactor |
+| prewarmVisionWorker on CAMERA_IDLE + baseline | **Added D-38** — INITIAL_GUIDE must not prewarm |
+| Tolerance slider 0–100 shipped | **Added D-39** — polish only |
+| 83-test regression gate | **Added D-40** |
+| loadShelfData always lands CAMERA_IDLE | **Added D-41** resolveAppModeAfterShelfLoad |
+| Empty shelf still shows DEFAULT_CALIBRATION in demo | **Clarified D-09** — override feed in Phase 5 |
+| Baseline pill always shows "established" | **Noted under D-21** — wire hasPersistedBaseline |
+
+**Plans impact:** Existing 7 plans remain valid; `05-02` already covers motion install; `05-06` scope reduced to tokenize existing DSGN-02. Optional: add D-35–D-41 preservation notes to `05-04`/`05-05` task actions during execute.
+
 ## Deferred Ideas
 
 - Homography (v2), per-shelf settings, delete-audit UI, automated Stitch CI pixel diff, Next.js migration.

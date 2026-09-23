@@ -1,7 +1,8 @@
 # Phase 5: PRD UI & Multi-Shelf Experience - Context
 
 **Gathered:** 2026-09-23
-**Status:** Ready for planning
+**Updated:** 2026-09-23 (Phase 4 verification drift review)
+**Status:** Ready for planning — context aligned with shipped Phase 4
 
 <domain>
 ## Phase Boundary
@@ -20,14 +21,14 @@ Deliver **100% PRD-fidelity UI/UX** across all three views — Minimalist Light 
 - **D-01:** Replace top-bar segmented `ShelfSelector` buttons with a **horizontal swipe carousel** on the camera viewport — touch pan left/right (or pointer drag on desktop) switches shelves. Minimum horizontal delta **50px** with dominant horizontal axis; ignore vertical-dominant gestures to avoid conflict with ghost slider. — **Reversibility:** costly — `CameraView` layout and gesture layer become PRD contract.
 - **D-02:** Swipe calls existing **`handleShelfChange(newShelfId)`** in `App.tsx` — same `saveActiveShelfId`, `loadShelfData`, and `objectUrlRegistry.revokeAll` path from Phase 2; no new storage API.
 - **D-03:** **Active-shelf indicator:** centered **5-dot strip** below the PRD top bar (filled emerald `#10B981` active dot, outline inactive, `aria-current` on active). Optional shelf label chip: `柜架 N` / `Shelf N` from I18N. Remove `ShelfSelector` from top bar entirely.
-- **D-04:** Use **`motion`** (already in `package.json`, currently unused) for shelf cross-fade / slide snap on change — spring with ~300ms duration. CSS scroll-snap acceptable as fallback for reduced-motion preference.
+- **D-04:** Install **`motion@^13.4.2`** in Wave 0 (`05-02-PLAN`) — **not currently in `package.json`** (verified post–Phase 4). Use for shelf cross-fade / slide snap on change — spring with ~300ms duration. CSS scroll-snap / opacity-only fallback via `useReducedMotion` when user prefers reduced motion.
 - **D-05:** Carousel works in **`CAMERA_IDLE` and `INITIAL_GUIDE`** only — disable swipe during `SCANNING_ANIM`, `PROCESSING`, `ROI_CONFIG`, `RESULT_INSPECT` to prevent mid-capture shelf bleed.
 - **D-06:** Each shelf switch reloads ghost overlay and baseline state per Phase 3 rules (`hasPersistedBaseline`, live-only ghost) — extend Phase 3 integration tests for swipe path.
 
 ### INITIAL_GUIDE Onboarding (SHLF-05)
 - **D-07:** Wire **`INITIAL_GUIDE` AppMode** when active shelf has **`!hasPersistedBaseline`** on: app init landing, shelf switch to empty shelf, or return from audit on empty shelf. Per-shelf, not global first-run only. — **Reversibility:** costly — FSM entry conditions become UX contract with Phase 4 first-capture path.
 - **D-08:** **Full-screen overlay** on camera shell (same `CameraView` container, not a new route) with **3 steps:** (1) welcome + shelf name, (2) alignment tips (ghost/level will apply after baseline exists), (3) primary CTA **「拍摄基准图」/ "Capture baseline"** → dismisses guide to `CAMERA_IDLE`.
-- **D-09:** **No silent demo baseline** in INITIAL_GUIDE — do not render `DEFAULT_CALIBRATION` CDN image as the shelf feed. Show neutral dark placeholder with iconography + copy, or live camera if already enabled. Empty shelf demo feed must not masquerade as established baseline.
+- **D-09:** **No silent demo baseline** in INITIAL_GUIDE or empty-shelf camera — Phase 4 still loads `DEFAULT_CALIBRATION` via `loadShelfData` when `!hasPersistedBaseline`; Phase 5 **must override feed rendering** when `appMode === 'INITIAL_GUIDE'` or (`!hasPersistedBaseline` && demo feed would show CDN shelf). Show neutral dark placeholder with iconography + copy, or live camera if already enabled. Empty shelf demo feed must not masquerade as established baseline (SHLF-05).
 - **D-10:** Shutter on empty shelf after guide dismiss follows **Phase 4 first-baseline contract** — intercept to `ROI_CONFIG` with pending capture (no scan animation until baseline saved). INITIAL_GUIDE is pre-shutter education only; it does not replace ROI calibration.
 - **D-11:** User can **skip guide** via secondary text button (`跳过` / `Skip`) — lands on `CAMERA_IDLE` with same empty-shelf rules. Skip preference **not persisted** (show guide again on next visit to that empty shelf until baseline exists).
 - **D-12:** When shelf gains persisted baseline, **never show INITIAL_GUIDE** for that shelf again unless baseline cleared via reset flow.
@@ -36,7 +37,7 @@ Deliver **100% PRD-fidelity UI/UX** across all three views — Minimalist Light 
 - **D-13:** Centralize PRD tokens in **`src/index.css` `@theme` block** (Tailwind v4) and/or **`src/lib/designTokens.ts`** exporting named constants — single source for `#FFFFFF`, `#F8FAFC`, `#0F172A`, `#64748B`, `#E2E8F0`, `#10B981`, `#EF4444`, `#F59E0B`. Replace scattered arbitrary hex in touched components. — **Reversibility:** costly — token names become cross-view contract.
 - **D-14:** **Glassmorphism control pattern** (DSGN-03) applied uniformly on floating UI: `rounded-2xl` or `rounded-full`, `backdrop-blur-md bg-white/75`, `shadow-sm`–`shadow-md`, `border border-[#E2E8F0]/60`. Audit all three views during implementation waves.
 - **D-15:** **View background split:** Camera shell stays **dark** `#0F172A`; ROI setup and Result inspect use **light** `#F8FAFC` / `#FFFFFF` backgrounds per Minimalist Light PRD (align `RoiSetupView`, `ResultInspectView` wrappers).
-- **D-16:** **Anomaly overlays (DSGN-02):** Missing = `#EF4444` **2px bold border** + **15% opacity red fill**; Displaced = `#F59E0B` **2px bold border** + **15% yellow fill**. Update `ResultInspectView` box styles; stat capsule dots match same hues.
+- **D-16:** **Anomaly overlays (DSGN-02):** Missing = `#EF4444` **2px bold border** + **15% opacity red fill**; Displaced = `#F59E0B` **2px bold border** + **15% yellow fill**. **Phase 4 already ships this pattern** in `ResultInspectView` (`border-2 border-[#EF4444] bg-[#EF4444]/15`, etc.) — Phase 5 **tokenizes to `@theme` utilities** and verifies stat capsule hues; do not regress colors or reimplement slider/interaction logic.
 - **D-17:** Typography: primary `#0F172A`, secondary `#64748B`; borders `#E2E8F0`. Success/ready accents `#10B981` (baseline pill, level snap, active shelf dot).
 
 ### Stitch Visual Verification (DSGN-04)
@@ -65,6 +66,13 @@ Deliver **100% PRD-fidelity UI/UX** across all three views — Minimalist Light 
 - **D-32:** Component tests: carousel dot active state, INITIAL_GUIDE visibility when `!hasPersistedBaseline`, hidden when baseline exists, swipe disabled during non-idle modes.
 - **D-33:** Integration test: swipe shelf B → shelf A isolation (extend Phase 2 pattern); switch to empty shelf → INITIAL_GUIDE shown.
 - **D-34:** Manual UAT checklist: three-view Stitch screenshot comparison per DSGN-04.
+- **D-35:** **Preserve Phase 4 first-baseline FSM** — `handleShutterClick` when `!hasPersistedBaseline` sets `pendingBaselineImageUrl`, updates baseline dimensions, routes to `ROI_CONFIG` with **no** `SCANNING_ANIM` or worker diff. Phase 5 INITIAL_GUIDE sits **before** this path; do not reintroduce scan animation on empty shelf.
+- **D-36:** **Preserve `pendingBaselineImageUrl` lifecycle** — clear/revoke on shelf switch (`handleShelfChange`), after successful ROI save, and on guide dismiss if a stale pending capture exists. Carousel swipe must not leave cross-shelf pending baseline state.
+- **D-37:** **Preserve `analysisError` banner** — Phase 4 added `showAnalysisError` + `analysisError` prop on `CameraView` with `t.analysisFailed` copy after worker rejection. Top bar refactor (D-21/D-22) must keep this banner functional and visible.
+- **D-38:** **Preserve `prewarmVisionWorker`** — runs in `useEffect` when `appMode === 'CAMERA_IDLE' && hasPersistedBaseline`. INITIAL_GUIDE and empty-shelf `CAMERA_IDLE` must **not** prewarm; transition to persisted-baseline shelf re-enables prewarm per existing effect deps.
+- **D-39:** **Continuous tolerance slider 0–100 shipped in Phase 4** — `ResultInspectView` range input, `handleToleranceChange` 150ms debounce → full worker re-diff, `ToleranceValue` type in `types.ts`. Phase 5 polishes labels/visuals only (`t.toleranceValue`); no enum slider restoration.
+- **D-40:** **Regression gate:** Phase 4 leaves **83 tests** green (`lint` + `build` + `test`). Phase 5 changes must extend — not break — `App.firstBaseline.integration.test.tsx`, `App.toleranceReDiff.integration.test.tsx`, `App.completeAudit.integration.test.tsx`, shelf isolation tests.
+- **D-41:** **`resolveAppModeAfterShelfLoad(hasPersistedBaseline)`** — new helper called after every `loadShelfData` completion (init, shelf switch, reset): returns `INITIAL_GUIDE` when `!hasPersistedBaseline`, else `CAMERA_IDLE`. Replaces implicit always-`CAMERA_IDLE` landing; integrates with D-07 without altering Phase 4 ROI save → `hasPersistedBaseline = true` contract.
 
 ### Claude's Discretion
 - Exact `motion` spring parameters and reduced-motion fallbacks.
@@ -88,7 +96,10 @@ Deliver **100% PRD-fidelity UI/UX** across all three views — Minimalist Light 
 ### Prior Phase Context
 - `.planning/phases/02-multi-shelf-data-layer/02-CONTEXT.md` — Per-shelf storage API, temporary ShelfSelector is QA-only (D-15), carousel replaces it
 - `.planning/phases/03-guided-capture-quality/03-CONTEXT.md` — Ghost visibility rules (live + persisted baseline), level gauge behavior, demo-first default
-- `.planning/phases/04-real-inspection-pipeline/04-CONTEXT.md` — First-baseline shutter → ROI_CONFIG path; Phase 5 adds INITIAL_GUIDE before that; CAM/DSGN polish deferred here
+- `.planning/phases/04-real-inspection-pipeline/04-CONTEXT.md` — First-baseline shutter → ROI_CONFIG path; tolerance migration; worker architecture
+- `.planning/phases/04-real-inspection-pipeline/04-VERIFICATION.md` — Phase 4 passed (21/21 truths, 28/28 decisions); 83-test gate
+- `.planning/phases/04-real-inspection-pipeline/04-PATTERNS.md` — Vision worker, tolerance helpers, integration test analogs
+- `.planning/phases/04-real-inspection-pipeline/04-UI-SPEC.md` — Phase 5 owns full DSGN; Phase 4 interaction contracts for slider/blink/dismiss
 
 ### Research & Architecture
 - `.planning/research/SUMMARY.md` — motion library for swipe/scan; INITIAL_GUIDE per shelf; design-before-swipe sequencing
@@ -105,16 +116,18 @@ Deliver **100% PRD-fidelity UI/UX** across all three views — Minimalist Light 
 - `.planning/phases/04-real-inspection-pipeline/04-UI-SPEC.md` — Notes Phase 5 owns full Minimalist Light; reuse interaction contracts
 
 ### Implementation Targets
-- `src/components/CameraView.tsx` — Top bar refactor, carousel gestures, shutter/thumbnail polish
+- `src/components/CameraView.tsx` — Top bar refactor, carousel gestures, shutter/thumbnail polish; preserve `analysisError` banner (D-37)
 - `src/components/ShelfSelector.tsx` — Deprecate or repurpose as carousel dots only
 - `src/components/ShelfCarousel.tsx` — New (recommended): swipe + dot indicator
 - `src/components/InitialGuideOverlay.tsx` — New: SHLF-05 three-step overlay
-- `src/components/ScanningAnimationOverlay.tsx` — CAM-06 scan line polish
-- `src/components/RoiSetupView.tsx` — Light theme + DSGN-03 controls
-- `src/components/ResultInspectView.tsx` — DSGN-02 anomaly colors, light theme chrome
-- `src/App.tsx` — INITIAL_GUIDE mode transitions, swipe guard by appMode
-- `src/types.ts` — AppMode INITIAL_GUIDE wiring
-- `src/lib/constants.ts` — I18N extensions
+- `src/components/ScanningAnimationOverlay.tsx` — CAM-06 scan line polish (800ms locked)
+- `src/components/RoiSetupView.tsx` — Light theme + DSGN-03 controls; preserve `isFirstBaseline` prop from Phase 4
+- `src/components/ResultInspectView.tsx` — Tokenize existing DSGN-02 colors; light theme chrome; do not rebuild tolerance slider
+- `src/App.tsx` — `resolveAppModeAfterShelfLoad`, INITIAL_GUIDE transitions, swipe guard, `pendingBaselineImageUrl` clear on shelf switch (D-35–D-41)
+- `src/lib/vision.ts` — Preserve worker wrapper + `prewarmVisionWorker` (read-only in Phase 5)
+- `src/workers/visionWorker.ts` — No Phase 5 changes expected
+- `src/types.ts` — AppMode INITIAL_GUIDE wiring; `ToleranceValue` already numeric
+- `src/lib/constants.ts` — I18N extensions (`baselineNotSet`, INITIAL_GUIDE copy)
 - `src/index.css` — @theme design tokens
 
 </canonical_refs>
@@ -124,11 +137,12 @@ Deliver **100% PRD-fidelity UI/UX** across all three views — Minimalist Light 
 
 ### Reusable Assets
 - **`src/components/ShelfSelector.tsx`** — 5-button segmented control; replace with carousel dots, reuse shelf index 0–4 labels.
-- **`src/components/CameraView.tsx`** — Already has PRD-adjacent top bar (baseline pill, torch, lang), 76px shutter skeleton, ghost slider, glassmorphism pills — polish and re-layout rather than rewrite.
+- **`src/components/CameraView.tsx`** — PRD-adjacent top bar (baseline pill always shows "established" — bug fix in D-21), 76px shutter, ghost slider, **`analysisError` banner** (Phase 4); polish and re-layout rather than rewrite.
 - **`src/components/ScanningAnimationOverlay.tsx`** — 0.8s scan beam animation with `animate-scan-beam` keyframes — enhance glow, keep duration.
-- **`src/App.tsx`** — `handleShelfChange`, `hasPersistedBaseline`, `loadShelfData` — carousel and INITIAL_GUIDE plug into existing shelf lifecycle.
-- **`src/types.ts`** — `INITIAL_GUIDE` in `AppMode` union but never assigned — wire in Phase 5.
-- **`motion` package** — Declared in `package.json`, zero imports — activate for carousel and optional transitions.
+- **`src/App.tsx`** — `handleShelfChange`, `hasPersistedBaseline`, `loadShelfData`, **`pendingBaselineImageUrl`**, **`prewarmVisionWorker`**, first-baseline `handleShutterClick` branch — carousel and INITIAL_GUIDE plug into existing shelf lifecycle.
+- **`src/components/ResultInspectView.tsx`** — DSGN-02 colors + continuous tolerance slider already implemented (Phase 4); tokenize only.
+- **`src/types.ts`** — `INITIAL_GUIDE` in `AppMode` union but never assigned — wire in Phase 5; `ToleranceValue` numeric type shipped.
+- **`motion` package** — **Not in `package.json`** — install in Wave 0 before carousel animation.
 
 ### Established Patterns
 - **I18N via `I18N[lang]`** in `constants.ts` — all new strings follow cn/en pairs.
@@ -138,10 +152,11 @@ Deliver **100% PRD-fidelity UI/UX** across all three views — Minimalist Light 
 - **Banner pattern** — camera/quota/orientation inline banners; INITIAL_GUIDE is full-screen overlay, not banner.
 
 ### Integration Points
-- **`handleShelfChange`** — carousel/swipe endpoint; add `resolveInitialGuideMode(shelfId)` after load.
-- **`loadShelfData`** — sets `hasPersistedBaseline`; drives INITIAL_GUIDE vs CAMERA_IDLE on entry.
-- **Phase 4 first capture** — INITIAL_GUIDE → CAMERA_IDLE → shutter → ROI_CONFIG (no change to ROI save contract).
-- **Reset baseline flow** — clearing baseline on a shelf re-enables INITIAL_GUIDE on next camera entry.
+- **`handleShelfChange`** — carousel/swipe endpoint; call `resolveAppModeAfterShelfLoad` after `loadShelfData`; clear `pendingBaselineImageUrl` on switch (D-36).
+- **`loadShelfData`** — sets `hasPersistedBaseline`; drives INITIAL_GUIDE vs CAMERA_IDLE on entry (D-41).
+- **Phase 4 first capture** — INITIAL_GUIDE → CAMERA_IDLE → shutter (`!hasPersistedBaseline`) → `ROI_CONFIG` with pending capture — **do not modify** (D-35).
+- **Worker error path** — failed analysis → `showAnalysisError` + `CAMERA_IDLE`; top bar refactor must not break (D-37).
+- **Reset baseline flow** — clearing baseline on a shelf re-enables INITIAL_GUIDE on next `loadShelfData`.
 
 </code_context>
 
@@ -149,8 +164,9 @@ Deliver **100% PRD-fidelity UI/UX** across all three views — Minimalist Light 
 ## Specific Ideas
 
 - All gray areas resolved via **`--auto` recommended defaults** — no user overrides.
+- **2026-09-23 drift review:** Phase 4 verified complete (83 tests). Context updated with D-35–D-41 integration contracts; D-04 motion claim corrected; D-16 scoped to tokenization (colors already shipped).
 - Primary UX bet: **motion-powered swipe carousel + per-shelf INITIAL_GUIDE overlay**, keeping Phase 2/4 data and FSM contracts intact.
-- PRD top bar simplified to **3-zone layout**; QA/demo controls demoted to bottom utility strip.
+- PRD top bar simplified to **3-zone layout**; wire `hasPersistedBaseline` to baseline pill copy; QA/demo controls demoted to bottom utility strip.
 - Stitch verification via **05-UI-SPEC + screenshot UAT**, not CI pixel diff in v1.
 
 </specifics>
@@ -171,3 +187,4 @@ Deliver **100% PRD-fidelity UI/UX** across all three views — Minimalist Light 
 
 *Phase: 5-PRD UI & Multi-Shelf Experience*
 *Context gathered: 2026-09-23*
+*Updated: 2026-09-23 after Phase 4 verification drift review*
