@@ -497,6 +497,21 @@ export default function App() {
     }
   }, [isUsingDemoFeed, startCamera, requestOrientationPermission, toggleDemoMode]);
 
+  // Auto-activate the live camera once when a shelf enters the guided first-baseline
+  // flow while still on the demo feed — otherwise the shutter would silently persist the
+  // bundled demo image as the shelf's baseline (bugfix 260924-12a).
+  const cameraAutoRequestedRef = useRef(false);
+  useEffect(() => {
+    if (
+      appMode === 'INITIAL_GUIDE' &&
+      isUsingDemoFeed &&
+      !cameraAutoRequestedRef.current
+    ) {
+      cameraAutoRequestedRef.current = true;
+      void handleEnableLiveCamera();
+    }
+  }, [appMode, isUsingDemoFeed, handleEnableLiveCamera]);
+
   const handleRetryOrientation = useCallback(async () => {
     setOrientationDismissed(false);
     await requestOrientationPermission();
