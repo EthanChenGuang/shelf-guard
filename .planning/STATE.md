@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: PRD UI & Multi-Shelf Experience
-current_plan: 5
+current_plan: 6
 status: executing
-stopped_at: Completed 05-04-PLAN.md
-last_updated: "2026-09-23T22:04:37.391Z"
+stopped_at: Completed 05-05-PLAN.md
+last_updated: "2026-09-23T22:07:31.577Z"
 last_activity: 2026-09-23
 last_activity_desc: Phase 05 execution started
-state_head: cfce92e1bb2040ba474c07d407dc7d757a31c7c6
+state_head: 56b110ac92e8710ae0ba07e41bd1d29a895b13e6
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 22
-  completed_plans: 19
+  completed_plans: 20
   percent: 80
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-09-20)
 ## Current Position
 
 Phase: 05 (PRD UI & Multi-Shelf Experience) — EXECUTING
-Current Plan: 5
+Current Plan: 6
 Total Plans in Phase: 7
 Status: Ready to execute
 Last activity: 2026-09-23 — Phase 05 execution started
@@ -79,6 +79,7 @@ Progress: [████████░░] 80%
 | Phase 05-prd-ui-multi-shelf-experience P02 | 6min | 3 tasks | 4 files |
 | Phase 05-prd-ui-multi-shelf-experience P03 | 8min | 3 tasks | 10 files |
 | Phase 05-prd-ui-multi-shelf-experience P04 | 4min | 3 tasks | 6 files |
+| Phase 05 P05 | 3min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -120,6 +121,8 @@ Recent decisions affecting current work:
 - [Phase 05]: ShelfSelector removed; ShelfCarousel below top bar with motion cross-fade
 - [Phase 05]: Demo feed hidden for all !hasPersistedBaseline shelves — neutral placeholder per D-09
 - [Phase 05]: INITIAL_GUIDE and CAMERA_IDLE share CameraView shell via showInitialGuide prop
+- [Phase 05]: Language toggle shows 中/EN per UI spec instead of CN/EN uppercase
+- [Phase 05]: Shutter breathing inferred from !isUsingDemoFeed && !cameraError && !showInitialGuide
 
 ### Pending Todos
 
@@ -139,6 +142,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-09-23T22:04:37.361Z
-Stopped at: Completed 05-04-PLAN.md
+Last session: 2026-09-23T22:07:31.540Z
+Stopped at: Completed 05-05-PLAN.md
 Resume file: None

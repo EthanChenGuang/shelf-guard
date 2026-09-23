@@ -161,7 +161,7 @@ Plans:
   4. Camera view shows PRD-spec top bar (baseline pill, level badge, torch + language toggle), 76px breathing shutter, 0.8s scan-line transition, and last-inspection thumbnail
   5. User switches 中文/English and all three-view copy updates; language preference persists across sessions
 
-**Plans**: 4/7 plans executed
+**Plans**: 5/7 plans executed
 
 Plans:
 
@@ -169,7 +169,7 @@ Plans:
 - [x] 05-02-PLAN.md — PRD design tokens + motion dependency foundation
 - [x] 05-03-PLAN.md — Tracer: shelf swipe carousel end-to-end (SHLF-01)
 - [x] 05-04-PLAN.md — INITIAL_GUIDE per-shelf onboarding (SHLF-05)
-- [ ] 05-05-PLAN.md — Camera PRD chrome: top bar, shutter, scan (CAM-04–06)
+- [x] 05-05-PLAN.md — Camera PRD chrome: top bar, shutter, scan (CAM-04–06)
 - [ ] 05-06-PLAN.md — Light theme ROI/Result views + anomaly colors (DSGN-01–03)
 - [ ] 05-07-PLAN.md — I18N audit + phase verification gate (I18N-01–02)
 
@@ -186,7 +186,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Multi-Shelf Data Layer | 3/3 | Complete    | 2026-09-21 |
 | 3. Guided Capture Quality | 3/3 | Complete    | 2026-09-23 |
 | 4. Real Inspection Pipeline | 3/3 | Complete    | 2026-09-23 |
-| 5. PRD UI & Multi-Shelf Experience | 4/7 | In Progress|  |
+| 5. PRD UI & Multi-Shelf Experience | 5/7 | In Progress|  |
 
 ---
 *Roadmap created: 2026-09-20*
