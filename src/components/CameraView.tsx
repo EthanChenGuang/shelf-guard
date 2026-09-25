@@ -33,9 +33,7 @@ interface CameraViewProps {
   tilt: number;
   isLevel: boolean;
   onSimulateTiltToggle?: () => void;
-  isUsingDemoFeed: boolean;
   hasPersistedBaseline?: boolean;
-  onToggleDemoMode: () => void;
   isTorchOn: boolean;
   onToggleTorch: () => void;
   hasTorch?: boolean;
@@ -75,9 +73,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
   tilt,
   isLevel,
   onSimulateTiltToggle,
-  isUsingDemoFeed,
   hasPersistedBaseline = false,
-  onToggleDemoMode,
   isTorchOn,
   onToggleTorch,
   hasTorch = false,
@@ -106,18 +102,14 @@ export const CameraView: React.FC<CameraViewProps> = ({
   const [showRoiGuides, setShowRoiGuides] = useState(true);
   const [flashVisible, setFlashVisible] = useState(false);
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showGhost =
-    !showInitialGuide && !isUsingDemoFeed && hasPersistedBaseline && !!baseline;
-  const showGuidePlaceholder =
-    isUsingDemoFeed && (showInitialGuide || !hasPersistedBaseline);
-  const showDemoFeedImage = isUsingDemoFeed && hasPersistedBaseline && !showInitialGuide;
+  const showGhost = !showInitialGuide && hasPersistedBaseline && !!baseline.imageDataUrl;
   const displayTilt = orientationDenied ? 0 : tilt;
   const displayIsLevel = orientationDenied ? false : isLevel;
   const showSimulateToggle =
     !!onSimulateTiltToggle && !orientationDenied && !hasSensor;
   const reduceMotion = useReducedMotion();
   const swipeLayerRef = useRef<HTMLDivElement>(null);
-  const cameraAvailable = !isUsingDemoFeed && !cameraError;
+  const cameraAvailable = !cameraError;
   const shutterBreathing =
     !showInitialGuide && !isShutterLocked && cameraAvailable && !reduceMotion;
 
@@ -178,28 +170,13 @@ export const CameraView: React.FC<CameraViewProps> = ({
             exit={{ opacity: 0 }}
             transition={feedTransition}
           >
-            {showGuidePlaceholder ? (
-              <div
-                data-testid="guide-feed-placeholder"
-                className="flex h-full w-full items-center justify-center bg-sg-camera"
-              >
-                <Camera className="h-16 w-16 text-white/25" aria-hidden="true" />
-              </div>
-            ) : showDemoFeedImage ? (
-              <img
-                src={baseline.imageDataUrl}
-                alt={t.demoFeedAlt}
-                className="w-full h-full object-cover object-center pointer-events-none transition-transform duration-300 scale-105"
-              />
-            ) : (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover object-center pointer-events-none"
-              />
-            )}
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover object-center pointer-events-none"
+            />
 
             {showGhost && (
               <div
@@ -393,7 +370,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
         </div>
 
         <div className="justify-self-end flex items-center gap-1 glass-panel rounded-full p-1">
-          {hasTorch && !isUsingDemoFeed && (
+          {hasTorch && (
             <button
               type="button"
               onClick={onToggleTorch}
@@ -435,18 +412,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
             />
           </div>
 
-          <div className="px-4">
-            <button
-              type="button"
-              data-testid="demo-utility-pill"
-              onClick={onToggleDemoMode}
-              className="glass-panel inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium text-sg-primary transition-colors hover:bg-white/90 active:scale-95"
-              title={isUsingDemoFeed ? t.useSampleFeed : t.useRealCamera}
-            >
-              <Camera className="h-3.5 w-3.5 text-sg-secondary" />
-              <span>{isUsingDemoFeed ? t.useSampleFeed : t.useRealCamera}</span>
-            </button>
-          </div>
         </div>
       )}
 
@@ -559,7 +524,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
                       onClick={onRetryCamera}
                       className="text-xs font-semibold text-emerald-400 hover:text-emerald-300"
                     >
-                      {t.useRealCamera}
+                      {t.retryCamera}
                     </button>
                   )}
                 </div>

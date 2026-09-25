@@ -1,5 +1,4 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {DEFAULT_SHELF_IMAGE_URL} from '../lib/constants';
 import {
   captureVideoFrame,
   waitForVideoReady,
@@ -60,6 +59,6 @@ describe('useCameraStream live capture helpers', () => {
     const video = makeVideoStub({videoWidth: 1920, videoHeight: 1080});
     const frame = await captureVideoFrame(video);
     expect(frame).toBe('data:image/jpeg;base64,live-frame');
-    expect(frame).not.toBe(DEFAULT_SHELF_IMAGE_URL);
+    expect(frame).toMatch(/^data:image\/jpeg/);
   });
 });

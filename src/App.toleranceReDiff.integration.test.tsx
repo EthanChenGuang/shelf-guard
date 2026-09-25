@@ -27,16 +27,14 @@ vi.mock('./lib/vision', async (importOriginal) => {
 
 vi.mock('./hooks/useCameraStream', () => ({
   useCameraStream: () => ({
-    videoRef: { current: null },
-    isUsingDemoFeed: true,
-    isTorchOn: false,
+    videoRef: { current: null },    isTorchOn: false,
     hasTorch: false,
     cameraError: null,
     captureFrame: vi.fn(async () => 'data:image/jpeg;base64,test-capture'),
     startCamera: vi.fn(),
     stopCamera: vi.fn(),
     toggleTorch: vi.fn(),
-    toggleDemoMode: vi.fn(),
+    toggleCameraFacing: vi.fn(),
     clearCameraError: vi.fn(),
   }),
 }));

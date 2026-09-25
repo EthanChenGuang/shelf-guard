@@ -19,8 +19,6 @@ const baseProps = {
   onResetBaselinePrompt: vi.fn(),
   tilt: 0,
   isLevel: true,
-  isUsingDemoFeed: true,
-  onToggleDemoMode: vi.fn(),
   isTorchOn: false,
   onToggleTorch: vi.fn(),
   videoRef: { current: null },
@@ -29,25 +27,10 @@ const baseProps = {
 };
 
 describe('CameraView ghost visibility (CAM-02)', () => {
-  it('demo feed + hasPersistedBaseline true hides ghost overlay and slider', () => {
+  it('hasPersistedBaseline false hides ghost overlay and slider', () => {
     render(
       <CameraView
         {...baseProps}
-        baseline={persistedBaseline}
-        isUsingDemoFeed={true}
-        hasPersistedBaseline={true}
-      />,
-    );
-
-    expect(screen.queryByTestId('ghost-overlay')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('幽灵图透光率')).not.toBeInTheDocument();
-  });
-
-  it('live feed + hasPersistedBaseline false hides ghost overlay and slider', () => {
-    render(
-      <CameraView
-        {...baseProps}
-        isUsingDemoFeed={false}
         hasPersistedBaseline={false}
       />,
     );
@@ -56,12 +39,11 @@ describe('CameraView ghost visibility (CAM-02)', () => {
     expect(screen.queryByLabelText('幽灵图透光率')).not.toBeInTheDocument();
   });
 
-  it('live feed + hasPersistedBaseline true shows ghost overlay and slider', () => {
+  it('hasPersistedBaseline true shows ghost overlay and slider', () => {
     render(
       <CameraView
         {...baseProps}
         baseline={persistedBaseline}
-        isUsingDemoFeed={false}
         hasPersistedBaseline={true}
       />,
     );
@@ -76,7 +58,6 @@ describe('CameraView ghost visibility (CAM-02)', () => {
     render(
       <CameraView
         {...baseProps}
-        isUsingDemoFeed={true}
         hasPersistedBaseline={false}
       />,
     );

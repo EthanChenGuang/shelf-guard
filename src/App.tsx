@@ -7,7 +7,7 @@ import {
   ShelfCalibration,
   ToleranceValue,
 } from './types';
-import { DEFAULT_CALIBRATION, DEFAULT_SHELF_IMAGE_URL, I18N } from './lib/constants';
+import { DEFAULT_CALIBRATION } from './lib/constants';
 import {
   loadSavedLanguage,
   loadSavedTolerance,
@@ -76,7 +76,7 @@ export default function App() {
   const [tolerance, setTolerance] = useState<ToleranceValue>(50);
 
   // Last captured frame
-  const [capturedFrame, setCapturedFrame] = useState<string>(DEFAULT_SHELF_IMAGE_URL);
+  const [capturedFrame, setCapturedFrame] = useState<string>('');
 
   // Analysis results
   const [anomalies, setAnomalies] = useState<DetectedAnomaly[]>([]);
@@ -115,11 +115,10 @@ export default function App() {
 
   const {
     videoRef,
-    isUsingDemoFeed,
+    stream,
     isTorchOn,
     hasTorch,
     toggleTorch,
-    toggleDemoMode,
     startCamera,
     clearCameraError,
     cameraError,
@@ -259,9 +258,7 @@ export default function App() {
     try {
       let frame: string;
       try {
-        frame = await captureFrame(baseline.imageDataUrl, {
-          requireLive: !hasPersistedBaseline,
-        });
+        frame = await captureFrame();
       } catch {
         setShowAnalysisError(true);
         return;
@@ -493,48 +490,13 @@ export default function App() {
     }
   };
 
-  const handleEnableLiveCamera = useCallback(async () => {
-    if (isUsingDemoFeed) {
-      const cameraOk = await startCamera();
-      if (cameraOk) {
-        setOrientationDismissed(false);
-        await requestOrientationPermission();
-      }
-    } else {
-      toggleDemoMode();
-    }
-  }, [isUsingDemoFeed, startCamera, requestOrientationPermission, toggleDemoMode]);
-
-  // Auto-activate the live camera once when a shelf enters the guided first-baseline
-  // flow while still on the demo feed — otherwise the shutter would silently persist the
-  // bundled demo image as the shelf's baseline (bugfix 260924-12a).
-  const cameraAutoRequestedRef = useRef(false);
-  const cameraAutoShelfRef = useRef<number | null>(null);
+  const orientationRequestedRef = useRef(false);
   useEffect(() => {
-    const needsLiveCamera =
-      !hasPersistedBaseline &&
-      isUsingDemoFeed &&
-      (appMode === 'INITIAL_GUIDE' || appMode === 'CAMERA_IDLE');
-
-    if (!needsLiveCamera) return;
-
-    if (
-      cameraAutoRequestedRef.current &&
-      cameraAutoShelfRef.current === activeShelfId
-    ) {
-      return;
-    }
-
-    cameraAutoRequestedRef.current = true;
-    cameraAutoShelfRef.current = activeShelfId;
-    void handleEnableLiveCamera();
-  }, [
-    activeShelfId,
-    appMode,
-    hasPersistedBaseline,
-    isUsingDemoFeed,
-    handleEnableLiveCamera,
-  ]);
+    if (!stream || orientationRequestedRef.current) return;
+    orientationRequestedRef.current = true;
+    setOrientationDismissed(false);
+    void requestOrientationPermission();
+  }, [stream, requestOrientationPermission]);
 
   const handleRetryOrientation = useCallback(async () => {
     setOrientationDismissed(false);
@@ -577,9 +539,7 @@ export default function App() {
           tilt={tilt}
           isLevel={isLevel}
           onSimulateTiltToggle={handleSimulateTiltToggle}
-          isUsingDemoFeed={isUsingDemoFeed}
           hasPersistedBaseline={hasPersistedBaseline}
-          onToggleDemoMode={handleEnableLiveCamera}
           isTorchOn={isTorchOn}
           onToggleTorch={toggleTorch}
           cameraError={cameraError}

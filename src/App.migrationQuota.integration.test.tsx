@@ -18,7 +18,7 @@ vi.mock('./lib/shelfStorage', async (importOriginal) => {
 vi.mock('./hooks/useCameraStream', () => ({
   useCameraStream: () => ({
     videoRef: {current: null},
-    isUsingDemoFeed: true,
+    stream: {} as MediaStream,
     isTorchOn: false,
     hasTorch: false,
     cameraError: null,
@@ -26,7 +26,7 @@ vi.mock('./hooks/useCameraStream', () => ({
     startCamera: vi.fn(),
     stopCamera: vi.fn(),
     toggleTorch: vi.fn(),
-    toggleDemoMode: vi.fn(),
+    toggleCameraFacing: vi.fn(),
     clearCameraError: vi.fn(),
   }),
 }));
@@ -36,6 +36,7 @@ vi.mock('./hooks/useDeviceOrientation', () => ({
     tilt: 0,
     isLevel: true,
     setSimulatedTilt: vi.fn(),
+    requestOrientationPermission: vi.fn(),
   }),
 }));
 

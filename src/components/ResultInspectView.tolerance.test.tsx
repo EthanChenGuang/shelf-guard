@@ -3,9 +3,14 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { ResultInspectView } from './ResultInspectView';
 import { DEFAULT_CALIBRATION } from '../lib/constants';
 
+const baselineWithImage = {
+  ...DEFAULT_CALIBRATION,
+  imageDataUrl: 'blob:https://example.com/persisted-baseline',
+};
+
 const baseProps = {
   currentCaptureUrl: 'data:image/jpeg;base64,capture',
-  baseline: DEFAULT_CALIBRATION,
+  baseline: baselineWithImage,
   anomalies: [],
   complianceRate: 94,
   standardCount: 24,
@@ -74,7 +79,7 @@ describe('ResultInspectView blink compare (RSLT-02, D-24)', () => {
     expect(document.querySelector('.ar-box')).toBeTruthy();
 
     fireEvent.mouseDown(viewport);
-    expect(img.src).toContain('demo-shelf.jpg');
+    expect(img.src).toContain('persisted-baseline');
     expect(document.querySelector('.ar-box')).toBeNull();
     expect(screen.getByText('Golden Standard Baseline')).toBeInTheDocument();
 
@@ -90,7 +95,7 @@ describe('ResultInspectView blink compare (RSLT-02, D-24)', () => {
     const img = screen.getByAltText('Shelf Inspection Display') as HTMLImageElement;
 
     fireEvent.touchStart(viewport);
-    expect(img.src).toContain('demo-shelf.jpg');
+    expect(img.src).toContain('persisted-baseline');
 
     fireEvent.touchEnd(viewport);
     expect(img.src).toContain('capture');

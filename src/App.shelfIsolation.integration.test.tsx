@@ -76,12 +76,10 @@ vi.mock('./lib/vision', async (importOriginal) => {
   };
 });
 
-let mockIsUsingDemoFeed = true;
-
 vi.mock('./hooks/useCameraStream', () => ({
   useCameraStream: () => ({
     videoRef: {current: null},
-    isUsingDemoFeed: mockIsUsingDemoFeed,
+    stream: {} as MediaStream,
     isTorchOn: false,
     hasTorch: false,
     cameraError: null,
@@ -89,7 +87,7 @@ vi.mock('./hooks/useCameraStream', () => ({
     startCamera: vi.fn(),
     stopCamera: vi.fn(),
     toggleTorch: vi.fn(),
-    toggleDemoMode: vi.fn(),
+    toggleCameraFacing: vi.fn(),
     clearCameraError: vi.fn(),
   }),
 }));
@@ -173,7 +171,6 @@ function swipeHorizontal(el: HTMLElement, dx: number) {
 
 describe('App shelf isolation integration (D-16, SHLF-02, SHLF-04)', () => {
   beforeEach(async () => {
-    mockIsUsingDemoFeed = true;
     stubCompressionGlobals();
     await clear();
     await saveBaseline(0, makeCalibration('shelf0-test'));
@@ -205,7 +202,6 @@ describe('App shelf isolation integration (D-16, SHLF-02, SHLF-04)', () => {
   });
 
   it('updates ghost overlay src on shelf switch without stale blob URLs (D-03, D-19, CAM-02)', async () => {
-    mockIsUsingDemoFeed = false;
     const user = userEvent.setup();
     render(<App />);
 

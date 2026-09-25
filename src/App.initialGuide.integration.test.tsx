@@ -57,7 +57,7 @@ vi.mock('./lib/vision', async (importOriginal) => {
 vi.mock('./hooks/useCameraStream', () => ({
   useCameraStream: () => ({
     videoRef: {current: null},
-    isUsingDemoFeed: true,
+    stream: {} as MediaStream,
     isTorchOn: false,
     hasTorch: false,
     cameraError: null,
@@ -65,7 +65,7 @@ vi.mock('./hooks/useCameraStream', () => ({
     startCamera: vi.fn(),
     stopCamera: vi.fn(),
     toggleTorch: vi.fn(),
-    toggleDemoMode: vi.fn(),
+    toggleCameraFacing: vi.fn(),
     clearCameraError: vi.fn(),
   }),
 }));
@@ -157,7 +157,7 @@ describe('App INITIAL_GUIDE integration (D-33, SHLF-05)', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('initial-guide')).toBeInTheDocument();
-      expect(screen.getByTestId('guide-feed-placeholder')).toBeInTheDocument();
+      expect(document.querySelector('video')).toBeInTheDocument();
     });
 
     await user.click(getShelfDot(0));
@@ -198,7 +198,7 @@ describe('App INITIAL_GUIDE integration (D-33, SHLF-05)', () => {
 
     await user.click(screen.getByText('基准图 (已建立)'));
 
-    await user.click(screen.getByText('恢复默认展架标准基准'));
+    await user.click(screen.getByText('清除基准图并重新拍摄'));
 
     await waitFor(() => {
       expect(screen.getByTestId('initial-guide')).toBeInTheDocument();

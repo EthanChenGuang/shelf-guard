@@ -13,8 +13,6 @@ const baseProps = {
   onResetBaselinePrompt: vi.fn(),
   tilt: 0,
   isLevel: true,
-  isUsingDemoFeed: true,
-  onToggleDemoMode: vi.fn(),
   isTorchOn: false,
   onToggleTorch: vi.fn(),
   videoRef: { current: null },

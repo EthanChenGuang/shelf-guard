@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export type CaptureFrameOptions = {
-  /** When true, never fall back to the demo baseline URL. */
-  requireLive?: boolean;
-};
-
 /** Wait until the video element has frame dimensions (handles late mount after getUserMedia). */
 export async function waitForVideoReady(
   video: HTMLVideoElement,
@@ -48,45 +43,19 @@ export async function captureVideoFrame(
   return canvas.toDataURL('image/jpeg', 0.92);
 }
 
-/** Draw baseline image URL to canvas — exported for CAM-09 unit tests. */
-export async function captureDemoFrameFromUrl(
-  baselineImageUrl: string,
-  width = 1080,
-  height = 1920,
-): Promise<string> {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return baselineImageUrl;
-
-  return new Promise((resolve) => {
-    const img = new Image();
-    if (/^https?:\/\//i.test(baselineImageUrl)) {
-      img.crossOrigin = 'anonymous';
-    }
-    img.onload = () => {
-      ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', 0.92));
-    };
-    img.onerror = () => resolve(baselineImageUrl);
-    img.src = baselineImageUrl;
-  });
-}
-
 export function useCameraStream() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [isTorchOn, setIsTorchOn] = useState<boolean>(false);
   const [hasTorch, setHasTorch] = useState<boolean>(false);
-  const [isUsingDemoFeed, setIsUsingDemoFeed] = useState<boolean>(true); // default to high-res demo shelf feed so user sees instant live planogram!
 
   const startCamera = useCallback(async (): Promise<boolean> => {
     try {
-      if (stream) {
-        stream.getTracks().forEach((t) => t.stop());
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
       }
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Camera API not available');
@@ -101,9 +70,9 @@ export function useCameraStream() {
         audio: false,
       });
 
+      streamRef.current = mediaStream;
       setStream(mediaStream);
       setCameraError(null);
-      setIsUsingDemoFeed(false);
 
       const track = mediaStream.getVideoTracks()[0];
       if (track) {
@@ -121,14 +90,14 @@ export function useCameraStream() {
     } catch (err) {
       console.warn('Camera access could not be initialized:', err);
       setCameraError((err as Error).message);
-      setIsUsingDemoFeed(true);
       return false;
     }
-  }, [facingMode, stream]);
+  }, [facingMode]);
 
   const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach((t) => t.stop());
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
       setStream(null);
       setHasTorch(false);
       setIsTorchOn(false);
@@ -136,7 +105,7 @@ export function useCameraStream() {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-  }, [stream]);
+  }, []);
 
   const toggleTorch = useCallback(async () => {
     if (!stream) return;
@@ -163,54 +132,36 @@ export function useCameraStream() {
     setCameraError(null);
   }, []);
 
-  const toggleDemoMode = useCallback(() => {
-    if (isUsingDemoFeed) {
-      startCamera();
-    } else {
-      stopCamera();
-      setIsUsingDemoFeed(true);
-    }
-  }, [isUsingDemoFeed, startCamera, stopCamera]);
-
   useEffect(() => {
+    void startCamera();
     return () => {
       stopCamera();
     };
-  }, [stopCamera]);
+  }, [startCamera, stopCamera]);
 
-  // The guided first-baseline flow renders a placeholder (no <video>) until the live
-  // feed replaces the demo feed. Attach the stream once the video element exists.
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !stream || isUsingDemoFeed) return;
+    if (!video || !stream) return;
     video.srcObject = stream;
     void video.play().catch(() => {});
-  }, [stream, isUsingDemoFeed]);
+  }, [stream]);
 
-  // Capture current visible image (either from video or from demo baseline)
-  const captureFrame = useCallback(
-    async (baselineImageUrl: string, options?: CaptureFrameOptions): Promise<string> => {
-      const video = videoRef.current;
-      const hasLiveFeed = !isUsingDemoFeed && !!stream;
+  const captureFrame = useCallback(async (): Promise<string> => {
+    const video = videoRef.current;
+    if (!video || !stream) {
+      throw new Error('Live camera frame unavailable');
+    }
 
-      if (hasLiveFeed || options?.requireLive) {
-        if (video) {
-          const liveFrame = await captureVideoFrame(video);
-          if (liveFrame) return liveFrame;
-        }
-        if (options?.requireLive) {
-          throw new Error('Live camera frame unavailable');
-        }
-      }
-
-      return captureDemoFrameFromUrl(baselineImageUrl);
-    },
-    [isUsingDemoFeed, stream],
-  );
+    const liveFrame = await captureVideoFrame(video);
+    if (!liveFrame) {
+      throw new Error('Live camera frame unavailable');
+    }
+    return liveFrame;
+  }, [stream]);
 
   return {
     videoRef,
-    isUsingDemoFeed,
+    stream,
     cameraError,
     isTorchOn,
     hasTorch,
@@ -219,7 +170,6 @@ export function useCameraStream() {
     stopCamera,
     toggleTorch,
     toggleCameraFacing,
-    toggleDemoMode,
     clearCameraError,
     captureFrame,
   };

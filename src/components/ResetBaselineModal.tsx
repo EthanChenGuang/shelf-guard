@@ -90,7 +90,7 @@ export const ResetBaselineModal: React.FC<ResetBaselineModalProps> = ({
             className="w-full py-2.5 px-4 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 font-medium text-xs flex items-center justify-center gap-2 transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
-            <span>{lang === 'cn' ? '恢复默认展架标准基准' : 'Restore Default Demo Baseline'}</span>
+            <span>{lang === 'cn' ? '清除基准图并重新拍摄' : 'Clear baseline and recapture'}</span>
           </button>
         </div>
 

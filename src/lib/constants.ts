@@ -6,15 +6,12 @@ export function getShelfLabel(lang: Language, shelfIndex: number): string {
   return lang === 'cn' ? `柜架 ${n}` : `Shelf ${n}`;
 }
 
-/** Same-origin demo shelf image — avoids canvas CORS taint on capture (G-01-7). */
-export const DEFAULT_SHELF_IMAGE_URL = '/demo-shelf.jpg';
-
 export const DEFAULT_SPLIT_Y: [number, number, number, number] = [0.295, 0.455, 0.618, 0.782];
 
 export const DEFAULT_CALIBRATION: ShelfCalibration = {
   id: 'baseline-default',
   createdAt: Date.now(),
-  imageDataUrl: DEFAULT_SHELF_IMAGE_URL,
+  imageDataUrl: '',
   imageDimensions: { width: 1080, height: 1920 },
   splitYPercentages: DEFAULT_SPLIT_Y,
   tierLabels: [
@@ -132,11 +129,10 @@ export const I18N = {
     iosInstallGuide: 'iOS 用户请点击底栏分享按钮，选择“添加到主屏幕”',
     close: '关闭',
     scanning: '正在进行透视配准与差分分析...',
-    useSampleFeed: '切换为演示货架画面',
-    useRealCamera: '切换为物理摄像头',
     cameraPermissionDenied: '无法访问摄像头',
+    retryCamera: '重试摄像头',
     cameraErrorIosGuide:
-      '请在 Safari 中打开本页 → 设置 → [ShelfGuard] → 允许相机；或从 Safari「添加到主屏幕」重新安装。也可继续使用演示画面。',
+      '请在 Safari 中打开本页 → 设置 → [ShelfGuard] → 允许相机；或从 Safari「添加到主屏幕」重新安装。',
     offlineMode: '离线模式 · 本地缓存已就绪',
     switchCamera: '切换镜头',
     torchOn: '开启补光灯',
@@ -170,7 +166,6 @@ export const I18N = {
       `巡检报告已生成：合规度 ${rate}%，已归档。`,
     defaultTierLabels: ['香氛/面霜', '护肤精华', '彩妆盘', '香氛蜡烛'],
     defaultPlanogram: '四层展架标定',
-    demoFeedAlt: '演示货架画面',
     baselineGhostAlt: '基准幽灵覆层',
     toggleRoiGrid: '切换 ROI 网格',
     captureScan: '拍摄并扫描展架',
@@ -235,11 +230,10 @@ export const I18N = {
     iosInstallGuide: 'On iOS Safari, tap Share and select "Add to Home Screen"',
     close: 'Close',
     scanning: 'Aligning homography & computing differences...',
-    useSampleFeed: 'Use Demo Shelf',
-    useRealCamera: 'Use Camera',
     cameraPermissionDenied: 'Camera access denied',
+    retryCamera: 'Retry camera',
     cameraErrorIosGuide:
-      'Open in Safari → Settings → [ShelfGuard] → allow Camera, or reinstall via Safari Add to Home Screen. You can keep using Demo mode.',
+      'Open in Safari → Settings → [ShelfGuard] → allow Camera, or reinstall via Safari Add to Home Screen.',
     offlineMode: 'Offline mode · Local cache ready',
     switchCamera: 'Switch Camera',
     torchOn: 'Flashlight On',
@@ -274,7 +268,6 @@ export const I18N = {
       `Report exported: Compliance ${rate}%, saved.`,
     defaultTierLabels: ['Fragrance', 'Skincare', 'Cosmetics', 'Candles'],
     defaultPlanogram: '4-Tier Planogram',
-    demoFeedAlt: 'Demo shelf feed',
     baselineGhostAlt: 'Baseline ghost overlay',
     toggleRoiGrid: 'Toggle ROI grid',
     captureScan: 'Capture & Scan Planogram',
