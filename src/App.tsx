@@ -114,6 +114,8 @@ export default function App() {
     hasFocus,
     focusPoint,
     setFocusPoint,
+    hasMultipleCameras,
+    switchCamera,
     startCamera,
     clearCameraError,
     cameraError,
@@ -535,6 +537,8 @@ export default function App() {
           hasFocus={hasFocus}
           focusPoint={focusPoint}
           onFocusPointChange={setFocusPoint}
+          hasMultipleCameras={hasMultipleCameras}
+          onSwitchCamera={switchCamera}
           cameraError={cameraError}
           onRetryCamera={startCamera}
           onDismissCameraError={clearCameraError}

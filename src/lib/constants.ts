@@ -134,7 +134,7 @@ export const I18N = {
     cameraErrorIosGuide:
       '请在 Safari 中打开本页 → 设置 → [ShelfGuard] → 允许相机；或从 Safari「添加到主屏幕」重新安装。',
     offlineMode: '离线模式 · 本地缓存已就绪',
-    switchCamera: '切换镜头',
+    switchCamera: '切换镜头（实验性，效果因机型而异）',
     torchOn: '开启补光灯',
     torchOff: '关闭补光灯',
     zoomLevel: '变焦',
@@ -226,7 +226,7 @@ export const I18N = {
     cameraErrorIosGuide:
       'Open in Safari → Settings → [ShelfGuard] → allow Camera, or reinstall via Safari Add to Home Screen.',
     offlineMode: 'Offline mode · Local cache ready',
-    switchCamera: 'Switch Camera',
+    switchCamera: 'Switch lens (experimental, varies by device)',
     torchOn: 'Flashlight On',
     torchOff: 'Flashlight Off',
     zoomLevel: 'Zoom',

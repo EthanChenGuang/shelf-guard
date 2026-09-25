@@ -10,6 +10,7 @@ import {
   ScanLine,
   SlidersVertical,
   Sparkles,
+  SwitchCamera,
   AlertCircle,
   X,
 } from 'lucide-react';
@@ -65,6 +66,8 @@ interface CameraViewProps {
   onRetryOrientation?: () => void;
   onDismissOrientationError?: () => void;
   hasSensor?: boolean;
+  hasMultipleCameras?: boolean;
+  onSwitchCamera?: () => void;
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -108,9 +111,11 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onRetryOrientation,
   onDismissOrientationError,
   hasSensor = false,
+  hasMultipleCameras = false,
+  onSwitchCamera,
 }) => {
   const t = I18N[lang];
-  const [showRoiGuides, setShowRoiGuides] = useState(true);
+  const [showRoiGuides, setShowRoiGuides] = useState(false);
   const [flashVisible, setFlashVisible] = useState(false);
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showGhost = hasPersistedBaseline && !!baseline.imageDataUrl;
@@ -682,6 +687,19 @@ export const CameraView: React.FC<CameraViewProps> = ({
             >
               <SlidersVertical className="w-4 h-4 text-slate-700" />
             </button>
+
+            {hasMultipleCameras && onSwitchCamera && (
+              <button
+                type="button"
+                data-testid="switch-camera-button"
+                onClick={onSwitchCamera}
+                aria-label={t.switchCamera}
+                className="w-10 h-10 rounded-full bg-white/80 hover:bg-white backdrop-blur-xl shadow-md flex items-center justify-center text-[#0F172A] transition-all active:scale-95 border border-slate-200"
+                title={t.switchCamera}
+              >
+                <SwitchCamera className="w-4 h-4 text-slate-700" />
+              </button>
+            )}
           </div>
 
           <div className="relative flex h-[76px] w-[76px] items-center justify-center">

@@ -176,31 +176,34 @@ export function useCameraStream() {
   const [currentZoom, setCurrentZoom] = useState<number | null>(null);
   const [hasFocus, setHasFocus] = useState<boolean>(false);
   const [focusPoint, setFocusPointState] = useState<{ x: number; y: number } | null>(null);
+  const [cameraDevices, setCameraDevices] = useState<MediaDeviceInfo[]>([]);
+  const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
 
-  const startCamera = useCallback(async (): Promise<boolean> => {
-    try {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-      }
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Camera API not available');
-      }
+  const acquireStream = useCallback(
+    async (videoConstraints?: MediaTrackConstraints): Promise<boolean> => {
+      try {
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((t) => t.stop());
+        }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('Camera API not available');
+        }
 
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: facingMode },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-        audio: false,
-      });
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints ?? {
+            facingMode: { ideal: facingMode },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+          audio: false,
+        });
 
-      streamRef.current = mediaStream;
-      setStream(mediaStream);
-      setCameraError(null);
+        streamRef.current = mediaStream;
+        setStream(mediaStream);
+        setCameraError(null);
 
-      const track = mediaStream.getVideoTracks()[0];
-      if (track) {
+        const track = mediaStream.getVideoTracks()[0];
+        if (track) {
         const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown> & {
           zoom?: { min?: number; max?: number; step?: number };
           focusMode?: string[];
@@ -236,6 +239,9 @@ export function useCameraStream() {
         if (!nextHasFocus) {
           setFocusPointState(null);
         }
+
+        const settings = track.getSettings?.() as { deviceId?: string } | undefined;
+        setActiveDeviceId(typeof settings?.deviceId === 'string' ? settings.deviceId : null);
       } else {
         setHasTorch(false);
         setHasZoom(false);
@@ -243,6 +249,16 @@ export function useCameraStream() {
         setCurrentZoom(null);
         setHasFocus(false);
         setFocusPointState(null);
+        setActiveDeviceId(null);
+      }
+
+      if (navigator.mediaDevices.enumerateDevices) {
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          setCameraDevices(devices.filter((d) => d.kind === 'videoinput'));
+        } catch {
+          // Device labels/enumeration can be unavailable in some browsers — leave list as-is.
+        }
       }
 
       if (videoRef.current) {
@@ -255,7 +271,23 @@ export function useCameraStream() {
       setCameraError((err as Error).message);
       return false;
     }
-  }, [facingMode]);
+    },
+    [facingMode],
+  );
+
+  const startCamera = useCallback(() => acquireStream(), [acquireStream]);
+
+  const switchCamera = useCallback(async () => {
+    if (cameraDevices.length < 2) return;
+    const currentIndex = cameraDevices.findIndex((d) => d.deviceId === activeDeviceId);
+    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % cameraDevices.length;
+    const nextDevice = cameraDevices[nextIndex];
+    await acquireStream({
+      deviceId: { exact: nextDevice.deviceId },
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
+    });
+  }, [cameraDevices, activeDeviceId, acquireStream]);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -269,6 +301,7 @@ export function useCameraStream() {
       setCurrentZoom(null);
       setHasFocus(false);
       setFocusPointState(null);
+      setActiveDeviceId(null);
     }
     if (videoRef.current) {
       videoRef.current.srcObject = null;
@@ -389,6 +422,8 @@ export function useCameraStream() {
     stopCamera,
     toggleTorch,
     toggleCameraFacing,
+    hasMultipleCameras: cameraDevices.length > 1,
+    switchCamera,
     clearCameraError,
     captureFrame,
   };
