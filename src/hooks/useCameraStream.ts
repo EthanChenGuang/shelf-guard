@@ -168,6 +168,8 @@ export function useCameraStream() {
   const [hasZoom, setHasZoom] = useState<boolean>(false);
   const [zoomLevels, setZoomLevels] = useState<number[]>([]);
   const [currentZoom, setCurrentZoom] = useState<number | null>(null);
+  const [hasFocus, setHasFocus] = useState<boolean>(false);
+  const [focusPoint, setFocusPointState] = useState<{ x: number; y: number } | null>(null);
 
   const startCamera = useCallback(async (): Promise<boolean> => {
     try {
@@ -195,6 +197,8 @@ export function useCameraStream() {
       if (track) {
         const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown> & {
           zoom?: { min?: number; max?: number; step?: number };
+          focusMode?: string[];
+          focusDistance?: { min?: number; max?: number; step?: number };
         };
         setHasTorch('torch' in capabilities);
 
@@ -216,11 +220,23 @@ export function useCameraStream() {
           setZoomLevels([]);
           setCurrentZoom(null);
         }
+
+        const focusModes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
+        const hasFocusDistance =
+          typeof capabilities.focusDistance === 'object' && capabilities.focusDistance !== null;
+        const nextHasFocus =
+          focusModes.includes('single-shot') || focusModes.includes('manual') || hasFocusDistance;
+        setHasFocus(nextHasFocus);
+        if (!nextHasFocus) {
+          setFocusPointState(null);
+        }
       } else {
         setHasTorch(false);
         setHasZoom(false);
         setZoomLevels([]);
         setCurrentZoom(null);
+        setHasFocus(false);
+        setFocusPointState(null);
       }
 
       if (videoRef.current) {
@@ -245,6 +261,8 @@ export function useCameraStream() {
       setHasZoom(false);
       setZoomLevels([]);
       setCurrentZoom(null);
+      setHasFocus(false);
+      setFocusPointState(null);
     }
     if (videoRef.current) {
       videoRef.current.srcObject = null;
@@ -282,6 +300,31 @@ export function useCameraStream() {
         setCurrentZoom(value);
       } catch (e) {
         console.warn('Zoom constraint failed:', e);
+      }
+    },
+    [stream],
+  );
+
+  const setFocusPoint = useCallback(
+    async (x: number, y: number) => {
+      if (!stream) return;
+      const track = stream.getVideoTracks()[0];
+      if (!track) return;
+      try {
+        const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown> & {
+          focusMode?: string[];
+        };
+        const focusModes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
+        if (!focusModes.includes('single-shot') && !focusModes.includes('manual')) return;
+        const mode = focusModes.includes('single-shot') ? 'single-shot' : 'manual';
+        await track.applyConstraints({
+          advanced: [
+            { focusMode: mode, pointsOfInterest: [{ x, y }] } as MediaTrackConstraintSet,
+          ],
+        });
+        setFocusPointState({ x, y });
+      } catch (e) {
+        console.warn('Focus constraint failed:', e);
       }
     },
     [stream],
@@ -332,6 +375,9 @@ export function useCameraStream() {
     zoomLevels,
     currentZoom,
     setZoomLevel,
+    hasFocus,
+    focusPoint,
+    setFocusPoint,
     facingMode,
     startCamera,
     stopCamera,
