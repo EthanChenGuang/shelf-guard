@@ -53,6 +53,27 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
+/**
+ * Compute 4 evenly-spaced zoom presets across [min, max] inclusive, snapped to the
+ * nearest multiple of `step` (if given) and clamped back into [min, max].
+ */
+function computeZoomPresets(min: number, max: number, step?: number): number[] {
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
+    return [min];
+  }
+
+  const presets: number[] = [];
+  for (let i = 0; i < 4; i += 1) {
+    let value = min + ((max - min) * i) / 3;
+    if (typeof step === 'number' && step > 0) {
+      value = min + Math.round((value - min) / step) * step;
+      value = Math.min(max, Math.max(min, value));
+    }
+    presets.push(value);
+  }
+  return presets;
+}
+
 function isCanvasMostlyBlack(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -144,6 +165,9 @@ export function useCameraStream() {
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [isTorchOn, setIsTorchOn] = useState<boolean>(false);
   const [hasTorch, setHasTorch] = useState<boolean>(false);
+  const [hasZoom, setHasZoom] = useState<boolean>(false);
+  const [zoomLevels, setZoomLevels] = useState<number[]>([]);
+  const [currentZoom, setCurrentZoom] = useState<number | null>(null);
 
   const startCamera = useCallback(async (): Promise<boolean> => {
     try {
@@ -169,10 +193,34 @@ export function useCameraStream() {
 
       const track = mediaStream.getVideoTracks()[0];
       if (track) {
-        const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown>;
+        const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown> & {
+          zoom?: { min?: number; max?: number; step?: number };
+        };
         setHasTorch('torch' in capabilities);
+
+        if (
+          capabilities.zoom &&
+          typeof capabilities.zoom.min === 'number' &&
+          typeof capabilities.zoom.max === 'number'
+        ) {
+          const presets = computeZoomPresets(
+            capabilities.zoom.min,
+            capabilities.zoom.max,
+            capabilities.zoom.step,
+          );
+          setZoomLevels(presets);
+          setHasZoom(true);
+          setCurrentZoom(presets[0]);
+        } else {
+          setHasZoom(false);
+          setZoomLevels([]);
+          setCurrentZoom(null);
+        }
       } else {
         setHasTorch(false);
+        setHasZoom(false);
+        setZoomLevels([]);
+        setCurrentZoom(null);
       }
 
       if (videoRef.current) {
@@ -194,6 +242,9 @@ export function useCameraStream() {
       setStream(null);
       setHasTorch(false);
       setIsTorchOn(false);
+      setHasZoom(false);
+      setZoomLevels([]);
+      setCurrentZoom(null);
     }
     if (videoRef.current) {
       videoRef.current.srcObject = null;
@@ -216,6 +267,25 @@ export function useCameraStream() {
       console.warn('Torch constraint failed:', e);
     }
   }, [isTorchOn, stream]);
+
+  const setZoomLevel = useCallback(
+    async (value: number) => {
+      if (!stream) return;
+      const track = stream.getVideoTracks()[0];
+      if (!track) return;
+      try {
+        const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown>;
+        if (!('zoom' in capabilities)) return;
+        await track.applyConstraints({
+          advanced: [{ zoom: value } as MediaTrackConstraintSet],
+        });
+        setCurrentZoom(value);
+      } catch (e) {
+        console.warn('Zoom constraint failed:', e);
+      }
+    },
+    [stream],
+  );
 
   const toggleCameraFacing = useCallback(() => {
     setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
@@ -258,6 +328,10 @@ export function useCameraStream() {
     cameraError,
     isTorchOn,
     hasTorch,
+    hasZoom,
+    zoomLevels,
+    currentZoom,
+    setZoomLevel,
     facingMode,
     startCamera,
     stopCamera,
