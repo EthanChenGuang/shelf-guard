@@ -45,16 +45,6 @@ import { ResetBaselineModal } from './components/ResetBaselineModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { isCarouselEnabled } from './lib/carouselEnabled';
 
-/** Mode resolution per D-07, D-12 — called after every shelf load. */
-export function resolveAppModeAfterShelfLoad(
-  hasBaseline: boolean,
-  currentMode: AppMode,
-): AppMode {
-  if (!hasBaseline) return 'INITIAL_GUIDE';
-  if (currentMode === 'INITIAL_GUIDE') return 'CAMERA_IDLE';
-  return currentMode === 'CAMERA_IDLE' ? 'CAMERA_IDLE' : currentMode;
-}
-
 export default function App() {
   // State machine
   const [appMode, setAppMode] = useState<AppMode>('CAMERA_IDLE');
@@ -107,8 +97,6 @@ export default function App() {
   const toleranceRequestSeqRef = useRef(0);
   const appModeRef = useRef(appMode);
   appModeRef.current = appMode;
-  const hasPersistedBaselineRef = useRef(hasPersistedBaseline);
-  hasPersistedBaselineRef.current = hasPersistedBaseline;
   const workerPrewarmedRef = useRef(false);
   const [isShutterLocked, setIsShutterLocked] = useState(false);
   const [showAnalysisError, setShowAnalysisError] = useState(false);
@@ -148,11 +136,9 @@ export default function App() {
       registry.set(`history:${shelfId}:${recordId}`, blob),
     );
 
-    const hasBaseline = persisted !== null;
-    setHasPersistedBaseline(hasBaseline);
+    setHasPersistedBaseline(persisted !== null);
     setBaseline(nextBaseline);
     setAuditHistory(nextHistory);
-    setAppMode((prev) => resolveAppModeAfterShelfLoad(hasBaseline, prev));
   }, []);
 
   // Load migration, active shelf, and shelf-scoped data on mount
@@ -387,14 +373,9 @@ export default function App() {
       setAuditHistory((prev) => [newRecord, ...prev].slice(0, HISTORY_CAP));
     }
 
-    // Return to camera — re-resolve guide vs idle for empty shelves (D-07)
+    // Return to camera idle after showing the result
     setTimeout(() => {
-      setAppMode(
-        resolveAppModeAfterShelfLoad(
-          hasPersistedBaselineRef.current,
-          'CAMERA_IDLE',
-        ),
-      );
+      setAppMode('CAMERA_IDLE');
     }, 400);
   };
 
@@ -458,7 +439,7 @@ export default function App() {
     setHasPersistedBaseline(false);
     setBaseline(DEFAULT_CALIBRATION);
     setShowResetModal(false);
-    setAppMode('INITIAL_GUIDE');
+    setAppMode('CAMERA_IDLE');
   };
 
   // Upload custom photo as new baseline
@@ -524,15 +505,13 @@ export default function App() {
   return (
     <div className="w-full min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col items-center justify-center font-sans antialiased">
       {/* 1. Camera Live View */}
-      {(appMode === 'CAMERA_IDLE' || appMode === 'INITIAL_GUIDE') && (
+      {appMode === 'CAMERA_IDLE' && (
         <CameraView
           baseline={baseline}
           lang={lang}
           activeShelfId={activeShelfId}
           onShelfChange={handleShelfChange}
           carouselEnabled={isCarouselEnabled(appMode)}
-          showInitialGuide={appMode === 'INITIAL_GUIDE'}
-          onDismissInitialGuide={() => setAppMode('CAMERA_IDLE')}
           quotaError={quotaError}
           onDismissQuotaError={() => setQuotaError(false)}
           onLanguageToggle={handleLanguageToggle}

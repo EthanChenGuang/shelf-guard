@@ -1,5 +1,4 @@
-export type AppMode = 
-  | 'INITIAL_GUIDE'     // 无基准图时的首次引导
+export type AppMode =
   | 'CAMERA_IDLE'       // 相机待机与水平对齐
   | 'SCANNING_ANIM'     // 抓拍后的 0.8s 扫描动画态
   | 'PROCESSING'        // 配准与差分运算阶段

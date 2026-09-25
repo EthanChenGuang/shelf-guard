@@ -19,7 +19,6 @@ import { I18N } from '../lib/constants';
 import { attachShelfSwipe } from '../lib/shelfSwipe';
 import { nextShelfIndex, prevShelfIndex, clampShelfIndex } from '../lib/shelfIndex';
 import { ShelfCarousel } from './ShelfCarousel';
-import { InitialGuideOverlay } from './InitialGuideOverlay';
 
 const FOCUS_TAP_MAX_MOVE_PX = 12;
 
@@ -66,8 +65,6 @@ interface CameraViewProps {
   onRetryOrientation?: () => void;
   onDismissOrientationError?: () => void;
   hasSensor?: boolean;
-  showInitialGuide?: boolean;
-  onDismissInitialGuide?: () => void;
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -111,14 +108,12 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onRetryOrientation,
   onDismissOrientationError,
   hasSensor = false,
-  showInitialGuide = false,
-  onDismissInitialGuide,
 }) => {
   const t = I18N[lang];
   const [showRoiGuides, setShowRoiGuides] = useState(true);
   const [flashVisible, setFlashVisible] = useState(false);
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showGhost = !showInitialGuide && hasPersistedBaseline && !!baseline.imageDataUrl;
+  const showGhost = hasPersistedBaseline && !!baseline.imageDataUrl;
   const displayTilt = orientationDenied ? 0 : tilt;
   const displayIsLevel = orientationDenied ? false : isLevel;
   const showSimulateToggle =
@@ -126,8 +121,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
   const reduceMotion = useReducedMotion();
   const swipeLayerRef = useRef<HTMLDivElement>(null);
   const cameraAvailable = !cameraError;
-  const shutterBreathing =
-    !showInitialGuide && !isShutterLocked && cameraAvailable && !reduceMotion;
+  const shutterBreathing = !isShutterLocked && cameraAvailable && !reduceMotion;
 
   const handleShutterClick = () => {
     if (isShutterLocked) return;
@@ -742,14 +736,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
         </div>
       </div>
 
-      {showInitialGuide && onDismissInitialGuide && (
-        <InitialGuideOverlay
-          lang={lang}
-          shelfIndex={activeShelfId}
-          onComplete={onDismissInitialGuide}
-          onSkip={onDismissInitialGuide}
-        />
-      )}
     </div>
   );
 };

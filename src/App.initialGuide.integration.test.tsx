@@ -139,14 +139,14 @@ async function waitForBaselineId(expectedId: string) {
   });
 }
 
-describe('App INITIAL_GUIDE integration (D-33, SHLF-05)', () => {
+describe('App skips the initial-guide tutorial (quick-260925 remove-initial-guide)', () => {
   beforeEach(async () => {
     stubCompressionGlobals();
     await clear();
     await saveBaseline(0, makeCalibration('shelf0-baseline'));
   });
 
-  it('shows initial-guide on empty shelf 1 and hides on shelf 0 with baseline', async () => {
+  it('goes straight to the live camera view on an empty shelf, never showing the guide overlay', async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -156,18 +156,12 @@ describe('App INITIAL_GUIDE integration (D-33, SHLF-05)', () => {
     await user.click(getShelfDot(1));
 
     await waitFor(() => {
-      expect(screen.getByTestId('initial-guide')).toBeInTheDocument();
       expect(document.querySelector('video')).toBeInTheDocument();
     });
-
-    await user.click(getShelfDot(0));
-
-    await waitFor(() => {
-      expect(screen.queryByTestId('initial-guide')).not.toBeInTheDocument();
-    });
+    expect(screen.queryByTestId('initial-guide')).not.toBeInTheDocument();
   });
 
-  it('keeps carousel swipe working while INITIAL_GUIDE is active', async () => {
+  it('keeps carousel swipe working on an empty shelf with no guide overlay to block it', async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -175,7 +169,7 @@ describe('App INITIAL_GUIDE integration (D-33, SHLF-05)', () => {
     await user.click(getShelfDot(1));
 
     await waitFor(() => {
-      expect(screen.getByTestId('initial-guide')).toBeInTheDocument();
+      expect(document.querySelector('video')).toBeInTheDocument();
     });
 
     const swipeLayer = screen.getByTestId('shelf-swipe-layer');
@@ -185,11 +179,11 @@ describe('App INITIAL_GUIDE integration (D-33, SHLF-05)', () => {
 
     await waitFor(() => {
       expect(getShelfDot(2)).toHaveAttribute('aria-current', 'true');
-      expect(screen.getByTestId('initial-guide')).toBeInTheDocument();
+      expect(screen.queryByTestId('initial-guide')).not.toBeInTheDocument();
     });
   });
 
-  it('re-shows initial-guide after baseline reset on shelf 0', async () => {
+  it('returns straight to the live camera view after a baseline reset on shelf 0, without the guide overlay', async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -201,7 +195,8 @@ describe('App INITIAL_GUIDE integration (D-33, SHLF-05)', () => {
     await user.click(screen.getByText('清除基准图并重新拍摄'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('initial-guide')).toBeInTheDocument();
+      expect(document.querySelector('video')).toBeInTheDocument();
     });
+    expect(screen.queryByTestId('initial-guide')).not.toBeInTheDocument();
   });
 });
