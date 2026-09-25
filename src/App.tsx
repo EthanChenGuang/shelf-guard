@@ -123,6 +123,9 @@ export default function App() {
     zoomLevels,
     currentZoom,
     setZoomLevel,
+    hasFocus,
+    focusPoint,
+    setFocusPoint,
     startCamera,
     clearCameraError,
     cameraError,
@@ -550,6 +553,9 @@ export default function App() {
           zoomLevels={zoomLevels}
           currentZoom={currentZoom}
           onZoomLevelChange={setZoomLevel}
+          hasFocus={hasFocus}
+          focusPoint={focusPoint}
+          onFocusPointChange={setFocusPoint}
           cameraError={cameraError}
           onRetryCamera={startCamera}
           onDismissCameraError={clearCameraError}

@@ -21,6 +21,8 @@ import { nextShelfIndex, prevShelfIndex, clampShelfIndex } from '../lib/shelfInd
 import { ShelfCarousel } from './ShelfCarousel';
 import { InitialGuideOverlay } from './InitialGuideOverlay';
 
+const FOCUS_TAP_MAX_MOVE_PX = 12;
+
 interface CameraViewProps {
   baseline: ShelfCalibration;
   lang: Language;
@@ -41,6 +43,9 @@ interface CameraViewProps {
   zoomLevels?: number[];
   currentZoom?: number | null;
   onZoomLevelChange?: (value: number) => void;
+  hasFocus?: boolean;
+  focusPoint?: { x: number; y: number } | null;
+  onFocusPointChange?: (x: number, y: number) => void;
   isShutterLocked?: boolean;
   videoRef: React.RefObject<HTMLVideoElement | null>;
   ghostOpacity: number;
@@ -85,6 +90,9 @@ export const CameraView: React.FC<CameraViewProps> = ({
   zoomLevels = [],
   currentZoom = null,
   onZoomLevelChange,
+  hasFocus = false,
+  focusPoint = null,
+  onFocusPointChange,
   isShutterLocked = false,
   videoRef,
   ghostOpacity,
@@ -149,6 +157,39 @@ export const CameraView: React.FC<CameraViewProps> = ({
       onSwipeRight: () => handleShelfSelect(prevShelfIndex(activeShelfId)),
     });
   }, [carouselEnabled, activeShelfId, onShelfChange]);
+
+  useEffect(() => {
+    const el = swipeLayerRef.current;
+    if (!el || !hasFocus || !onFocusPointChange) return;
+
+    let startX = 0;
+    let startY = 0;
+
+    const onPointerDown = (e: PointerEvent) => {
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (Math.hypot(dx, dy) > FOCUS_TAP_MAX_MOVE_PX) return;
+
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+
+      const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+      const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+      onFocusPointChange(x, y);
+    };
+
+    el.addEventListener('pointerdown', onPointerDown);
+    el.addEventListener('pointerup', onPointerUp);
+    return () => {
+      el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('pointerup', onPointerUp);
+    };
+  }, [hasFocus, onFocusPointChange]);
 
   const feedTransition = reduceMotion
     ? { duration: 0 }
@@ -245,6 +286,15 @@ export const CameraView: React.FC<CameraViewProps> = ({
           <div
             data-testid="shutter-flash-overlay"
             className="pointer-events-none absolute inset-0 z-[15] bg-white/90 transition-opacity duration-150"
+          />
+        )}
+
+        {hasFocus && focusPoint && (
+          <div
+            data-testid="focus-reticle"
+            aria-hidden="true"
+            className="absolute z-[8] h-14 w-14 -translate-x-1/2 -translate-y-1/2 rounded-lg border-2 border-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.6)] pointer-events-none animate-pulse"
+            style={{ left: `${focusPoint.x * 100}%`, top: `${focusPoint.y * 100}%` }}
           />
         )}
 
