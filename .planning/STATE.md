@@ -4,11 +4,11 @@ current_phase: 05
 current_phase_name: PRD UI & Multi-Shelf Experience
 current_plan: 7
 status: verifying
-stopped_at: Completed 05-07-PLAN.md
-last_updated: "2026-09-25T09:57:56.094Z"
+stopped_at: "Completed quick task 260925-r3s: tap-to-focus camera control"
+last_updated: "2026-09-25T17:51:14.495Z"
 last_activity: 2026-09-23
 last_activity_desc: Phase 05 execution started
-state_head: 62d8ca525996358ec95243c280bb88a1020c5693
+state_head: c86b0a6b531a6f2b90fd86c6b986a26e50eb7480
 progress:
   total_phases: 5
   completed_phases: 4
@@ -128,6 +128,7 @@ Recent decisions affecting current work:
 - [Phase 05]: View theming verified in f1ce10c; anomaly tests added in 39bd752
 - [Phase 05]: Phase 5 I18N complete — all UI copy via I18N cn/en; 中/EN toggle labels intentional
 - [Phase 05]: Manual Stitch UAT pending per UAT-CHECKLIST.md (D-34)
+- [Phase 05]: [Quick 260925-r3s]: setFocusPoint prefers single-shot over manual focusMode; tap-to-focus uses independent listener pair (12px) alongside shelf-swipe (50px) on the same overlay layer
 
 ### Pending Todos
 
@@ -148,6 +149,7 @@ None yet.
 | 3 | 去掉测试图片和 demo/摄像头切换，只使用物理摄像头 | 2026-09-25 | 7233580 | — |
 | 4 | 拍摄后 ROI 标定页黑屏 — 等待视频帧解码并拒绝全黑截图 | 2026-09-25 | 9223767 | — |
 | 260925-gdb | 加一个基于 MediaTrackConstraints zoom capability 的 4 档变焦选择器 | 2026-09-25 | 62d8ca5 | [260925-gdb-4-mediatrackconstraints-zoom-capability](./quick/260925-gdb-4-mediatrackconstraints-zoom-capability/) |
+| 260925-r3s | 基于 focusMode/focusDistance capability 增加点触对焦手势和绿色对焦框，与现有的展架滑动手势独立共存 | 2026-09-25 | c86b0a6 | [260925-r3s-github](./quick/260925-r3s-github/) |
 
 ## Deferred Items
 
@@ -157,8 +159,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-09-23T22:12:56.608Z
-Stopped at: Completed 05-07-PLAN.md
+Last session: 2026-09-25T17:51:01.597Z
+Stopped at: Completed quick task 260925-r3s: tap-to-focus camera control
 Resume file: None
 
 Last activity: 2026-09-25 - Completed quick task 260925-gdb: MediaTrackConstraints zoom capability — 4-level zoom selector
