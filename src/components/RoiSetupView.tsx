@@ -122,11 +122,20 @@ export const RoiSetupView: React.FC<RoiSetupViewProps> = ({
           className="relative w-full max-w-md aspect-[9/16] max-h-[66vh] rounded-2xl overflow-hidden shadow-lg bg-[#0F172A] border border-slate-200/80 touch-none"
         >
           {/* Baseline Image */}
-          <img
-            src={baseline.imageDataUrl}
-            alt="Calibration Still Shelf Frame"
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-          />
+          {baseline.imageDataUrl ? (
+            <img
+              src={baseline.imageDataUrl}
+              alt="Calibration Still Shelf Frame"
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+            />
+          ) : (
+            <div
+              data-testid="roi-missing-capture"
+              className="absolute inset-0 flex items-center justify-center bg-[#0F172A] text-white/60 text-sm px-6 text-center"
+            >
+              {lang === 'cn' ? '未获取到拍摄画面，请返回重拍' : 'No capture available — go back and retake'}
+            </div>
+          )}
 
           {/* Sub-millimeter Optical Calibration Grid */}
           <div className="absolute inset-0 pointer-events-none opacity-30 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px]" />

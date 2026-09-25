@@ -1,46 +1,139 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-/** Wait until the video element has frame dimensions (handles late mount after getUserMedia). */
+const OUTPUT_WIDTH = 1080;
+const OUTPUT_HEIGHT = 1920;
+const CAPTURE_RETRY_MS = 120;
+const MAX_CAPTURE_ATTEMPTS = 8;
+
+/** Wait until the video element has decoded at least one frame. */
 export async function waitForVideoReady(
   video: HTMLVideoElement,
   timeoutMs = 5000,
 ): Promise<boolean> {
-  if (video.videoWidth > 0) return true;
+  if (
+    video.videoWidth > 0 &&
+    video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+  ) {
+    return true;
+  }
 
   return new Promise((resolve) => {
     const finish = (ready: boolean) => {
       clearTimeout(timer);
       video.removeEventListener('loadeddata', onReady);
-      video.removeEventListener('loadedmetadata', onReady);
+      video.removeEventListener('canplay', onReady);
       resolve(ready);
     };
 
     const onReady = () => {
-      if (video.videoWidth > 0) finish(true);
+      if (
+        video.videoWidth > 0 &&
+        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+      ) {
+        finish(true);
+      }
     };
 
     const timer = setTimeout(() => finish(false), timeoutMs);
     video.addEventListener('loadeddata', onReady);
-    video.addEventListener('loadedmetadata', onReady);
+    video.addEventListener('canplay', onReady);
+
+    if (typeof video.requestVideoFrameCallback === 'function') {
+      video.requestVideoFrameCallback(() => onReady());
+    }
   });
 }
 
-/** Capture the current video frame to a JPEG data URL, or null if the stream is not ready. */
-export async function captureVideoFrame(
-  video: HTMLVideoElement,
-  width = 1080,
-  height = 1920,
-): Promise<string | null> {
-  const ready = await waitForVideoReady(video);
-  if (!ready || video.videoWidth === 0) return null;
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to read blob'));
+    reader.readAsDataURL(blob);
+  });
+}
 
+function isCanvasMostlyBlack(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+): boolean {
+  const sampleWidth = Math.min(width, 96);
+  const sampleHeight = Math.min(height, 96);
+  const { data } = ctx.getImageData(0, 0, sampleWidth, sampleHeight);
+  let sum = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    sum += data[i] + data[i + 1] + data[i + 2];
+  }
+  const avg = sum / (data.length / 4) / 3;
+  return avg < 12;
+}
+
+async function captureWithImageCapture(track: MediaStreamTrack): Promise<string | null> {
+  const ImageCaptureCtor = (
+    globalThis as typeof globalThis & {
+      ImageCapture?: new (track: MediaStreamTrack) => {
+        takePhoto: () => Promise<Blob>;
+      };
+    }
+  ).ImageCapture;
+
+  if (!ImageCaptureCtor) return null;
+
+  try {
+    const imageCapture = new ImageCaptureCtor(track);
+    const blob = await imageCapture.takePhoto();
+    if (!blob || blob.size === 0) return null;
+    return blobToDataUrl(blob);
+  } catch {
+    return null;
+  }
+}
+
+function drawVideoToCanvas(
+  video: HTMLVideoElement,
+  width = OUTPUT_WIDTH,
+  height = OUTPUT_HEIGHT,
+): string | null {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
   ctx.drawImage(video, 0, 0, width, height);
+  if (isCanvasMostlyBlack(ctx, width, height)) return null;
   return canvas.toDataURL('image/jpeg', 0.92);
+}
+
+/** Capture the current video frame to a JPEG data URL, or null if the stream is not ready. */
+export async function captureVideoFrame(
+  video: HTMLVideoElement,
+  stream?: MediaStream | null,
+): Promise<string | null> {
+  const track = stream?.getVideoTracks()[0];
+  if (track) {
+    const photo = await captureWithImageCapture(track);
+    if (photo) return photo;
+  }
+
+  if (video.paused) {
+    await video.play().catch(() => {});
+  }
+
+  for (let attempt = 0; attempt < MAX_CAPTURE_ATTEMPTS; attempt += 1) {
+    const ready = await waitForVideoReady(video, attempt === 0 ? 5000 : 1500);
+    if (!ready || video.videoWidth === 0) {
+      await new Promise((resolve) => setTimeout(resolve, CAPTURE_RETRY_MS));
+      continue;
+    }
+
+    const frame = drawVideoToCanvas(video);
+    if (frame) return frame;
+
+    await new Promise((resolve) => setTimeout(resolve, CAPTURE_RETRY_MS));
+  }
+
+  return null;
 }
 
 export function useCameraStream() {
@@ -152,7 +245,7 @@ export function useCameraStream() {
       throw new Error('Live camera frame unavailable');
     }
 
-    const liveFrame = await captureVideoFrame(video);
+    const liveFrame = await captureVideoFrame(video, stream);
     if (!liveFrame) {
       throw new Error('Live camera frame unavailable');
     }
