@@ -37,6 +37,10 @@ interface CameraViewProps {
   isTorchOn: boolean;
   onToggleTorch: () => void;
   hasTorch?: boolean;
+  hasZoom?: boolean;
+  zoomLevels?: number[];
+  currentZoom?: number | null;
+  onZoomLevelChange?: (value: number) => void;
   isShutterLocked?: boolean;
   videoRef: React.RefObject<HTMLVideoElement | null>;
   ghostOpacity: number;
@@ -77,6 +81,10 @@ export const CameraView: React.FC<CameraViewProps> = ({
   isTorchOn,
   onToggleTorch,
   hasTorch = false,
+  hasZoom = false,
+  zoomLevels = [],
+  currentZoom = null,
+  onZoomLevelChange,
   isShutterLocked = false,
   videoRef,
   ghostOpacity,
@@ -576,6 +584,29 @@ export const CameraView: React.FC<CameraViewProps> = ({
                 </button>
               )}
             </div>
+          </div>
+        )}
+
+        {hasZoom && zoomLevels.length > 0 && (
+          <div
+            data-testid="zoom-level-row"
+            className="mb-3 flex items-center gap-1 rounded-full border border-white/10 bg-[#0F172A]/75 px-1.5 py-1 backdrop-blur-md"
+          >
+            {zoomLevels.map((level) => (
+              <button
+                key={level}
+                type="button"
+                onClick={() => onZoomLevelChange?.(level)}
+                aria-label={`${t.zoomLevel} ${level.toFixed(1)}×`}
+                className={`flex h-7 items-center justify-center rounded-full px-2.5 font-mono-numbers text-[11px] font-bold transition-colors ${
+                  currentZoom === level
+                    ? 'bg-sg-success text-white shadow-sm'
+                    : 'text-white/80 hover:bg-white/15'
+                }`}
+              >
+                {level.toFixed(1)}×
+              </button>
+            ))}
           </div>
         )}
 
