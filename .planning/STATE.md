@@ -5,10 +5,10 @@ current_phase_name: PRD UI & Multi-Shelf Experience
 current_plan: 7
 status: verifying
 stopped_at: Completed 05-07-PLAN.md
-last_updated: "2026-09-23T22:12:56.638Z"
+last_updated: "2026-09-25T09:57:56.094Z"
 last_activity: 2026-09-23
 last_activity_desc: Phase 05 execution started
-state_head: ab37a63a4f99485ae9b535d3f818c4b43b892a55
+state_head: 62d8ca525996358ec95243c280bb88a1020c5693
 progress:
   total_phases: 5
   completed_phases: 4
@@ -144,6 +144,10 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260924-12a | 现在我在引导下去拍摄第一张基准图的时候，点快门按钮，它显示出来的还是那个测试的图片。你帮我检查一下是什么原因。如果是 bug，把它修正。 | 2026-09-24 | e5cd051 | [260924-12a-bug](./quick/260924-12a-bug/) |
+| 2 | 引导拍摄第一张基准图时快门回退到测试图 — 修复 stream 未绑定 video 的问题 | 2026-09-25 | 4d1abf9 | — |
+| 3 | 去掉测试图片和 demo/摄像头切换，只使用物理摄像头 | 2026-09-25 | 7233580 | — |
+| 4 | 拍摄后 ROI 标定页黑屏 — 等待视频帧解码并拒绝全黑截图 | 2026-09-25 | 9223767 | — |
+| 260925-gdb | 加一个基于 MediaTrackConstraints zoom capability 的 4 档变焦选择器 | 2026-09-25 | 62d8ca5 | [260925-gdb-4-mediatrackconstraints-zoom-capability](./quick/260925-gdb-4-mediatrackconstraints-zoom-capability/) |
 
 ## Deferred Items
 
@@ -157,4 +161,4 @@ Last session: 2026-09-23T22:12:56.608Z
 Stopped at: Completed 05-07-PLAN.md
 Resume file: None
 
-Last activity: 2026-09-24 - Completed quick task 260924-12a: 现在我在引导下去拍摄第一张基准图的时候，点快门按钮，它显示出来的还是那个测试的图片。你帮我检查一下是什么原因。如果是 bug，把它修正。
+Last activity: 2026-09-25 - Completed quick task 260925-gdb: MediaTrackConstraints zoom capability — 4-level zoom selector
