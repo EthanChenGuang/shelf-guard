@@ -53,25 +53,31 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
+/** Standard camera-app zoom multipliers: 0.5x (ultra-wide), 1x, 2x, 5x. */
+const CANONICAL_ZOOM_PRESETS = [0.5, 1, 2, 5];
+
 /**
- * Compute 4 evenly-spaced zoom presets across [min, max] inclusive, snapped to the
- * nearest multiple of `step` (if given) and clamped back into [min, max].
+ * Filter the canonical 0.5x/1x/2x/5x presets down to those the device's reported
+ * zoom range [min, max] can actually reach, snapped to the nearest multiple of
+ * `step` (if given). A preset the device can't reach (e.g. 0.5x on a phone whose
+ * "environment" camera track has no ultra-wide lens exposed via the web zoom API)
+ * is simply omitted rather than faked — clicking a fake preset would silently clamp
+ * to the nearest real value and look broken. Falls back to [min] if none apply.
  */
 function computeZoomPresets(min: number, max: number, step?: number): number[] {
   if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
     return [min];
   }
 
-  const presets: number[] = [];
-  for (let i = 0; i < 4; i += 1) {
-    let value = min + ((max - min) * i) / 3;
+  const presets = CANONICAL_ZOOM_PRESETS.filter((v) => v >= min && v <= max).map((v) => {
     if (typeof step === 'number' && step > 0) {
-      value = min + Math.round((value - min) / step) * step;
-      value = Math.min(max, Math.max(min, value));
+      const snapped = min + Math.round((v - min) / step) * step;
+      return Math.min(max, Math.max(min, snapped));
     }
-    presets.push(value);
-  }
-  return presets;
+    return v;
+  });
+
+  return presets.length > 0 ? presets : [min];
 }
 
 function isCanvasMostlyBlack(
