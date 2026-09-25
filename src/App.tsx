@@ -257,7 +257,15 @@ export default function App() {
     setShowAnalysisError(false);
 
     try {
-      const frame = await captureFrame(baseline.imageDataUrl);
+      let frame: string;
+      try {
+        frame = await captureFrame(baseline.imageDataUrl, {
+          requireLive: !hasPersistedBaseline,
+        });
+      } catch {
+        setShowAnalysisError(true);
+        return;
+      }
 
       if (!hasPersistedBaseline) {
         const dimensions = await loadImageDimensions(frame);
@@ -501,16 +509,32 @@ export default function App() {
   // flow while still on the demo feed — otherwise the shutter would silently persist the
   // bundled demo image as the shelf's baseline (bugfix 260924-12a).
   const cameraAutoRequestedRef = useRef(false);
+  const cameraAutoShelfRef = useRef<number | null>(null);
   useEffect(() => {
-    if (
-      appMode === 'INITIAL_GUIDE' &&
+    const needsLiveCamera =
+      !hasPersistedBaseline &&
       isUsingDemoFeed &&
-      !cameraAutoRequestedRef.current
+      (appMode === 'INITIAL_GUIDE' || appMode === 'CAMERA_IDLE');
+
+    if (!needsLiveCamera) return;
+
+    if (
+      cameraAutoRequestedRef.current &&
+      cameraAutoShelfRef.current === activeShelfId
     ) {
-      cameraAutoRequestedRef.current = true;
-      void handleEnableLiveCamera();
+      return;
     }
-  }, [appMode, isUsingDemoFeed, handleEnableLiveCamera]);
+
+    cameraAutoRequestedRef.current = true;
+    cameraAutoShelfRef.current = activeShelfId;
+    void handleEnableLiveCamera();
+  }, [
+    activeShelfId,
+    appMode,
+    hasPersistedBaseline,
+    isUsingDemoFeed,
+    handleEnableLiveCamera,
+  ]);
 
   const handleRetryOrientation = useCallback(async () => {
     setOrientationDismissed(false);

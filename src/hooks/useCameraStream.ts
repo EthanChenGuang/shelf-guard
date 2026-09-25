@@ -1,5 +1,53 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+export type CaptureFrameOptions = {
+  /** When true, never fall back to the demo baseline URL. */
+  requireLive?: boolean;
+};
+
+/** Wait until the video element has frame dimensions (handles late mount after getUserMedia). */
+export async function waitForVideoReady(
+  video: HTMLVideoElement,
+  timeoutMs = 5000,
+): Promise<boolean> {
+  if (video.videoWidth > 0) return true;
+
+  return new Promise((resolve) => {
+    const finish = (ready: boolean) => {
+      clearTimeout(timer);
+      video.removeEventListener('loadeddata', onReady);
+      video.removeEventListener('loadedmetadata', onReady);
+      resolve(ready);
+    };
+
+    const onReady = () => {
+      if (video.videoWidth > 0) finish(true);
+    };
+
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    video.addEventListener('loadeddata', onReady);
+    video.addEventListener('loadedmetadata', onReady);
+  });
+}
+
+/** Capture the current video frame to a JPEG data URL, or null if the stream is not ready. */
+export async function captureVideoFrame(
+  video: HTMLVideoElement,
+  width = 1080,
+  height = 1920,
+): Promise<string | null> {
+  const ready = await waitForVideoReady(video);
+  if (!ready || video.videoWidth === 0) return null;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(video, 0, 0, width, height);
+  return canvas.toDataURL('image/jpeg', 0.92);
+}
+
 /** Draw baseline image URL to canvas — exported for CAM-09 unit tests. */
 export async function captureDemoFrameFromUrl(
   baselineImageUrl: string,
@@ -130,22 +178,34 @@ export function useCameraStream() {
     };
   }, [stopCamera]);
 
+  // The guided first-baseline flow renders a placeholder (no <video>) until the live
+  // feed replaces the demo feed. Attach the stream once the video element exists.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !stream || isUsingDemoFeed) return;
+    video.srcObject = stream;
+    void video.play().catch(() => {});
+  }, [stream, isUsingDemoFeed]);
+
   // Capture current visible image (either from video or from demo baseline)
   const captureFrame = useCallback(
-    async (baselineImageUrl: string): Promise<string> => {
-      if (!isUsingDemoFeed && videoRef.current && videoRef.current.videoWidth > 0) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 1080;
-        canvas.height = 1920;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return baselineImageUrl;
-        ctx.drawImage(videoRef.current, 0, 0, 1080, 1920);
-        return canvas.toDataURL('image/jpeg', 0.92);
+    async (baselineImageUrl: string, options?: CaptureFrameOptions): Promise<string> => {
+      const video = videoRef.current;
+      const hasLiveFeed = !isUsingDemoFeed && !!stream;
+
+      if (hasLiveFeed || options?.requireLive) {
+        if (video) {
+          const liveFrame = await captureVideoFrame(video);
+          if (liveFrame) return liveFrame;
+        }
+        if (options?.requireLive) {
+          throw new Error('Live camera frame unavailable');
+        }
       }
 
       return captureDemoFrameFromUrl(baselineImageUrl);
     },
-    [isUsingDemoFeed],
+    [isUsingDemoFeed, stream],
   );
 
   return {
