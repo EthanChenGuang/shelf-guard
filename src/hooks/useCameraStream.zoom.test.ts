@@ -42,6 +42,9 @@ describe('useCameraStream zoom (GDB-260925-4)', () => {
     expect(result.current.hasZoom).toBe(true);
     expect(result.current.zoomLevels).toEqual([0.5, 1, 2, 5]);
     expect(result.current.currentZoom).toBe(0.5);
+    expect(fakeStream.track.applyConstraints).toHaveBeenCalledWith({
+      advanced: [{zoom: 0.5}],
+    });
   });
 
   it('excludes canonical presets the device cannot reach (e.g. no 0.5x wide-angle lens)', async () => {

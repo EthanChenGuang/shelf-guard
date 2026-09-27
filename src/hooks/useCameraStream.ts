@@ -81,6 +81,36 @@ function computeZoomPresets(min: number, max: number, step?: number): number[] {
   return presets.length > 0 ? presets : [min];
 }
 
+async function applyTrackZoom(track: MediaStreamTrack, zoom: number): Promise<boolean> {
+  try {
+    await track.applyConstraints({
+      advanced: [{ zoom } as MediaTrackConstraintSet],
+    });
+    return true;
+  } catch (err) {
+    console.warn('Zoom constraint failed:', err);
+    return false;
+  }
+}
+
+/** Prefer ultra-wide / wide back camera when zoom API is unavailable (multi-lens Android). */
+export function pickWideAngleDeviceId(devices: MediaDeviceInfo[]): string | null {
+  const inputs = devices.filter((d) => d.kind === 'videoinput');
+  if (inputs.length <= 1) return null;
+
+  const score = (device: MediaDeviceInfo): number => {
+    const label = device.label.toLowerCase();
+    if (/tele|长焦|narrow|zoom/.test(label)) return -2;
+    if (/ultra|超广|0\.5x|0,5x/.test(label)) return 4;
+    if (/wide|广角|wide-angle|wide angle/.test(label)) return 3;
+    if (/back|rear|environment|后/.test(label)) return 1;
+    return 0;
+  };
+
+  const ranked = [...inputs].sort((a, b) => score(b) - score(a));
+  return ranked[0]?.deviceId ?? null;
+}
+
 function isCanvasMostlyBlack(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -222,7 +252,10 @@ export function useCameraStream() {
   facingModeRef.current = facingMode;
 
   const acquireStream = useCallback(
-    async (videoConstraints?: MediaTrackConstraints): Promise<boolean> => {
+    async (
+      videoConstraints?: MediaTrackConstraints,
+      options?: { skipWideDeviceRetry?: boolean },
+    ): Promise<boolean> => {
       try {
         if (streamRef.current) {
           streamRef.current.getTracks().forEach((t) => t.stop());
@@ -263,9 +296,13 @@ export function useCameraStream() {
             capabilities.zoom.max,
             capabilities.zoom.step,
           );
+          const widestZoom = presets[0];
           setZoomLevels(presets);
           setHasZoom(true);
-          setCurrentZoom(presets[0]);
+          if (facingModeRef.current === 'environment') {
+            await applyTrackZoom(track, widestZoom);
+          }
+          setCurrentZoom(widestZoom);
         } else {
           setHasZoom(false);
           setZoomLevels([]);
@@ -309,12 +346,38 @@ export function useCameraStream() {
         setActiveDeviceId(null);
       }
 
+      let videoInputs: MediaDeviceInfo[] = [];
       if (navigator.mediaDevices.enumerateDevices) {
         try {
           const devices = await navigator.mediaDevices.enumerateDevices();
-          setCameraDevices(devices.filter((d) => d.kind === 'videoinput'));
+          videoInputs = devices.filter((d) => d.kind === 'videoinput');
+          setCameraDevices(videoInputs);
         } catch {
           // Device labels/enumeration can be unavailable in some browsers — leave list as-is.
+        }
+      }
+
+      const activeId = track?.getSettings?.()?.deviceId;
+      const hasZoomControl =
+        track &&
+        typeof (track.getCapabilities?.() as { zoom?: unknown }).zoom === 'object';
+      if (
+        !options?.skipWideDeviceRetry &&
+        facingModeRef.current === 'environment' &&
+        !hasZoomControl &&
+        videoInputs.length > 1 &&
+        typeof activeId === 'string'
+      ) {
+        const wideDeviceId = pickWideAngleDeviceId(videoInputs);
+        if (wideDeviceId && wideDeviceId !== activeId) {
+          return acquireStream(
+            {
+              deviceId: { exact: wideDeviceId },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+            },
+            { skipWideDeviceRetry: true },
+          );
         }
       }
 
