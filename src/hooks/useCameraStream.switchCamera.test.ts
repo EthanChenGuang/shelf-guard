@@ -5,7 +5,7 @@ import { useCameraStream } from './useCameraStream';
 function makeStream(facingMode: 'user' | 'environment' = 'environment', deviceId = 'cam-1') {
   const track = {
     getCapabilities: () => ({ zoom: { min: 1, max: 4, step: 1 } }),
-    getSettings: () => ({ deviceId, facingMode }),
+    getSettings: () => ({ deviceId, facingMode, zoom: 1 }),
     applyConstraints: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn(),
   };

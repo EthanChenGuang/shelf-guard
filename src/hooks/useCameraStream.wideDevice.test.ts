@@ -11,4 +11,13 @@ describe('pickWideAngleDeviceId', () => {
 
     expect(id).toBe('wide');
   });
+
+  it('ignores front-facing devices when picking wide back lens', () => {
+    const id = pickWideAngleDeviceId([
+      {deviceId: 'front', kind: 'videoinput', label: 'Front camera', groupId: 'f'},
+      {deviceId: 'wide', kind: 'videoinput', label: 'Ultra wide back', groupId: 'a'},
+    ] as MediaDeviceInfo[]);
+
+    expect(id).toBe('wide');
+  });
 });

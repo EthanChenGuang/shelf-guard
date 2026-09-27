@@ -81,21 +81,37 @@ function computeZoomPresets(min: number, max: number, step?: number): number[] {
   return presets.length > 0 ? presets : [min];
 }
 
-async function applyTrackZoom(track: MediaStreamTrack, zoom: number): Promise<boolean> {
-  try {
-    await track.applyConstraints({
-      advanced: [{ zoom } as MediaTrackConstraintSet],
-    });
-    return true;
-  } catch (err) {
-    console.warn('Zoom constraint failed:', err);
-    return false;
+function readTrackZoom(track: MediaStreamTrack): number | null {
+  const settings = track.getSettings?.() as { zoom?: number };
+  return typeof settings?.zoom === 'number' && Number.isFinite(settings.zoom) ? settings.zoom : null;
+}
+
+/** Apply zoom and return the track's reported zoom (may differ if hardware clamps). */
+async function applyZoomToTrack(track: MediaStreamTrack, zoom: number): Promise<number> {
+  const attempts: MediaTrackConstraints[] = [
+    { zoom } as MediaTrackConstraints,
+    { advanced: [{ zoom } as MediaTrackConstraintSet] },
+  ];
+  for (const constraints of attempts) {
+    try {
+      await track.applyConstraints(constraints);
+      const actual = readTrackZoom(track);
+      if (actual !== null) return actual;
+    } catch (err) {
+      console.warn('Zoom constraint failed:', err);
+    }
   }
+  return readTrackZoom(track) ?? zoom;
+}
+
+function isLikelyFrontCamera(device: MediaDeviceInfo): boolean {
+  const label = device.label.toLowerCase();
+  return /front|user|自拍|前置|face/.test(label);
 }
 
 /** Prefer ultra-wide / wide back camera when zoom API is unavailable (multi-lens Android). */
 export function pickWideAngleDeviceId(devices: MediaDeviceInfo[]): string | null {
-  const inputs = devices.filter((d) => d.kind === 'videoinput');
+  const inputs = devices.filter((d) => d.kind === 'videoinput' && !isLikelyFrontCamera(d));
   if (inputs.length <= 1) return null;
 
   const score = (device: MediaDeviceInfo): number => {
@@ -104,11 +120,28 @@ export function pickWideAngleDeviceId(devices: MediaDeviceInfo[]): string | null
     if (/ultra|超广|0\.5x|0,5x/.test(label)) return 4;
     if (/wide|广角|wide-angle|wide angle/.test(label)) return 3;
     if (/back|rear|environment|后/.test(label)) return 1;
+    const cameraIndex = label.match(/camera2\s*(\d+)/i);
+    if (cameraIndex) {
+      // Many Android devices expose ultra-wide as the lowest-index back camera.
+      return 2 - Number(cameraIndex[1]) / 10;
+    }
     return 0;
   };
 
   const ranked = [...inputs].sort((a, b) => score(b) - score(a));
   return ranked[0]?.deviceId ?? null;
+}
+
+function buildDefaultVideoConstraints(facing: 'environment' | 'user'): MediaTrackConstraints {
+  const base: MediaTrackConstraints = {
+    facingMode: { ideal: facing },
+    width: { ideal: 1920 },
+    height: { ideal: 1080 },
+  };
+  if (facing === 'environment') {
+    return { ...base, zoom: { ideal: 0.5 } } as unknown as MediaTrackConstraints;
+  }
+  return base;
 }
 
 function isCanvasMostlyBlack(
@@ -264,20 +297,33 @@ export function useCameraStream() {
           throw new Error('Camera API not available');
         }
 
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: videoConstraints ?? {
-            facingMode: { ideal: facingModeRef.current },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          },
-          audio: false,
-        });
+        let mediaStream: MediaStream;
+        try {
+          mediaStream = await navigator.mediaDevices.getUserMedia({
+            video: videoConstraints ?? buildDefaultVideoConstraints(facingModeRef.current),
+            audio: false,
+          });
+        } catch (firstErr) {
+          if (!videoConstraints && facingModeRef.current === 'environment') {
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+              video: {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1920 },
+                height: { ideal: 1080 },
+              },
+              audio: false,
+            });
+          } else {
+            throw firstErr;
+          }
+        }
 
         streamRef.current = mediaStream;
         setStream(mediaStream);
         setCameraError(null);
 
         const track = mediaStream.getVideoTracks()[0];
+        let widestZoomTarget: number | null = null;
         if (track) {
         const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown> & {
           zoom?: { min?: number; max?: number; step?: number };
@@ -285,7 +331,6 @@ export function useCameraStream() {
           focusDistance?: { min?: number; max?: number; step?: number };
         };
         setHasTorch('torch' in capabilities);
-
         if (
           capabilities.zoom &&
           typeof capabilities.zoom.min === 'number' &&
@@ -297,12 +342,15 @@ export function useCameraStream() {
             capabilities.zoom.step,
           );
           const widestZoom = presets[0];
+          widestZoomTarget = widestZoom;
           setZoomLevels(presets);
           setHasZoom(true);
           if (facingModeRef.current === 'environment') {
-            await applyTrackZoom(track, widestZoom);
+            const actual = await applyZoomToTrack(track, widestZoom);
+            setCurrentZoom(actual);
+          } else {
+            setCurrentZoom(widestZoom);
           }
-          setCurrentZoom(widestZoom);
         } else {
           setHasZoom(false);
           setZoomLevels([]);
@@ -358,13 +406,15 @@ export function useCameraStream() {
       }
 
       const activeId = track?.getSettings?.()?.deviceId;
-      const hasZoomControl =
-        track &&
-        typeof (track.getCapabilities?.() as { zoom?: unknown }).zoom === 'object';
+      const actualZoom = track ? readTrackZoom(track) : null;
+      const zoomStuckOnMain =
+        widestZoomTarget !== null &&
+        actualZoom !== null &&
+        actualZoom > widestZoomTarget + 0.15;
+
       if (
         !options?.skipWideDeviceRetry &&
         facingModeRef.current === 'environment' &&
-        !hasZoomControl &&
         videoInputs.length > 1 &&
         typeof activeId === 'string'
       ) {
@@ -375,15 +425,43 @@ export function useCameraStream() {
               deviceId: { exact: wideDeviceId },
               width: { ideal: 1920 },
               height: { ideal: 1080 },
-            },
+              zoom: { ideal: 0.5 },
+            } as unknown as MediaTrackConstraints,
             { skipWideDeviceRetry: true },
           );
+        }
+
+        if (zoomStuckOnMain && !options?.skipWideDeviceRetry) {
+          const alternateBack = videoInputs.find(
+            (d) => !isLikelyFrontCamera(d) && d.deviceId !== activeId,
+          );
+          if (alternateBack) {
+            return acquireStream(
+              {
+                deviceId: { exact: alternateBack.deviceId },
+                width: { ideal: 1920 },
+                height: { ideal: 1080 },
+                zoom: { ideal: 0.5 },
+              } as unknown as MediaTrackConstraints,
+              { skipWideDeviceRetry: true },
+            );
+          }
         }
       }
 
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        videoRef.current.play().catch(() => {});
+        await videoRef.current.play().catch(() => {});
+        if (
+          track &&
+          facingModeRef.current === 'environment' &&
+          widestZoomTarget !== null &&
+          videoRef.current
+        ) {
+          await waitForVideoReady(videoRef.current, 2500);
+          const actual = await applyZoomToTrack(track, widestZoomTarget);
+          setCurrentZoom(actual);
+        }
       }
       return true;
     } catch (err) {
@@ -455,10 +533,8 @@ export function useCameraStream() {
       try {
         const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown>;
         if (!('zoom' in capabilities)) return;
-        await track.applyConstraints({
-          advanced: [{ zoom: value } as MediaTrackConstraintSet],
-        });
-        setCurrentZoom(value);
+        const actual = await applyZoomToTrack(track, value);
+        setCurrentZoom(actual);
       } catch (e) {
         console.warn('Zoom constraint failed:', e);
       }
