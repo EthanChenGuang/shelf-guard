@@ -15,25 +15,14 @@ const STANDARD_COUNT_FALLBACK = 24;
 
 let cvInstance: CV | null = null;
 
-async function resolveCvModule(
-  cvModule: CV | Promise<CV> | { onRuntimeInitialized: () => void; Mat?: unknown },
-): Promise<CV> {
-  if (cvModule instanceof Promise) return cvModule;
-  if ((cvModule as CV).Mat) return cvModule as CV;
-  await new Promise<void>((resolve) => {
-    (cvModule as { onRuntimeInitialized: () => void }).onRuntimeInitialized = () => resolve();
-  });
-  return cvModule as CV;
-}
-
 async function loadOpenCvModule(): Promise<CV> {
   if (import.meta.env.VITEST) {
     const { loadCvForVitest } = await import('./opencvLoader.vitest');
     return loadCvForVitest();
   }
 
-  const imported = await import('@techstark/opencv-js');
-  return resolveCvModule(imported.default as CV | Promise<CV> | { onRuntimeInitialized: () => void });
+  const { loadOpenCvInWorker } = await import('./opencvLoader.browser');
+  return loadOpenCvInWorker();
 }
 
 async function getCv(): Promise<CV> {

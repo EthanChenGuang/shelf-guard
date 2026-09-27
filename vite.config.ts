@@ -1,12 +1,34 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import { cpSync, mkdirSync } from 'node:fs';
 import path from 'path';
 import {defineConfig} from 'vite';
 import {VitePWA} from 'vite-plugin-pwa';
 
+const OPENCV_SRC = path.resolve(
+  __dirname,
+  'node_modules/@techstark/opencv-js/dist/opencv.js',
+);
+const OPENCV_DEST_DIR = path.resolve(__dirname, 'public/opencv');
+const OPENCV_DEST = path.resolve(OPENCV_DEST_DIR, 'opencv.js');
+
+function copyOpenCvRuntime() {
+  mkdirSync(OPENCV_DEST_DIR, { recursive: true });
+  cpSync(OPENCV_SRC, OPENCV_DEST);
+}
+
 export default defineConfig(() => {
   return {
     plugins: [
+      {
+        name: 'copy-opencv-runtime',
+        configureServer() {
+          copyOpenCvRuntime();
+        },
+        buildStart() {
+          copyOpenCvRuntime();
+        },
+      },
       react(),
       tailwindcss(),
       VitePWA({
@@ -14,7 +36,8 @@ export default defineConfig(() => {
         manifest: false,
         workbox: {
           // OpenCV worker chunk (~16 MB) loads on demand — exclude from precache (Pitfall 1)
-          globIgnores: ['**/visionWorker*.js'],
+          globIgnores: ['**/visionWorker*.js', '**/opencv/**'],
+          navigateFallbackDenylist: [/^\/opencv\//, /^\/assets\//],
           maximumFileSizeToCacheInBytes: 20 * 1024 * 1024,
         },
         devOptions: {

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Camera,
   CheckCircle2,
@@ -12,6 +12,8 @@ import {
   Sparkles,
   SwitchCamera,
   AlertCircle,
+  ChevronDown,
+  ChevronUp,
   X,
 } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
@@ -39,10 +41,6 @@ interface CameraViewProps {
   isTorchOn: boolean;
   onToggleTorch: () => void;
   hasTorch?: boolean;
-  hasZoom?: boolean;
-  zoomLevels?: number[];
-  currentZoom?: number | null;
-  onZoomLevelChange?: (value: number) => void;
   hasFocus?: boolean;
   focusPoint?: { x: number; y: number } | null;
   onFocusPointChange?: (x: number, y: number) => void;
@@ -86,10 +84,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
   isTorchOn,
   onToggleTorch,
   hasTorch = false,
-  hasZoom = false,
-  zoomLevels = [],
-  currentZoom = null,
-  onZoomLevelChange,
   hasFocus = false,
   focusPoint = null,
   onFocusPointChange,
@@ -119,6 +113,43 @@ export const CameraView: React.FC<CameraViewProps> = ({
   const [flashVisible, setFlashVisible] = useState(false);
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showGhost = hasPersistedBaseline && !!baseline.imageDataUrl;
+  const ghostSliderRef = useRef<HTMLDivElement>(null);
+  const ghostValueTrackRef = useRef<HTMLDivElement>(null);
+  const ghostDragRef = useRef(false);
+
+  const setGhostFromClientY = useCallback(
+    (clientY: number) => {
+      const track = ghostValueTrackRef.current;
+      if (!track) return;
+      const rect = track.getBoundingClientRect();
+      if (rect.height <= 0) return;
+      const ratio = (clientY - rect.top) / rect.height;
+      const next = Math.round((1 - Math.min(1, Math.max(0, ratio))) * 100);
+      onGhostOpacityChange(next);
+    },
+    [onGhostOpacityChange],
+  );
+
+  useEffect(() => {
+    if (!showGhost) return;
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!ghostDragRef.current) return;
+      setGhostFromClientY(e.clientY);
+    };
+    const endDrag = () => {
+      ghostDragRef.current = false;
+    };
+
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerup', endDrag);
+    document.addEventListener('pointercancel', endDrag);
+    return () => {
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', endDrag);
+      document.removeEventListener('pointercancel', endDrag);
+    };
+  }, [showGhost, setGhostFromClientY]);
   const displayTilt = orientationDenied ? 0 : tilt;
   const displayIsLevel = orientationDenied ? false : isLevel;
   const showSimulateToggle =
@@ -474,32 +505,81 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
       {/* RIGHT EDGE VERTICAL SLIDER (GHOST TRANSPARENCY) */}
       {showGhost && (
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center bg-white/85 backdrop-blur-xl px-2 py-3.5 rounded-full shadow-lg border border-slate-200/70">
-        <div className="flex items-center justify-center mb-1 text-slate-600">
-          <Layers className="w-4 h-4 text-slate-700" />
-        </div>
+      <div
+        ref={ghostSliderRef}
+        role="slider"
+        aria-label={t.ghostOpacity}
+        aria-orientation="vertical"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={ghostOpacity}
+        tabIndex={0}
+        data-testid="ghost-opacity-slider"
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
+            e.preventDefault();
+            onGhostOpacityChange(Math.min(100, ghostOpacity + 5));
+          } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
+            e.preventDefault();
+            onGhostOpacityChange(Math.max(0, ghostOpacity - 5));
+          }
+        }}
+        className="absolute right-3 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center bg-white/85 backdrop-blur-xl px-1.5 py-3.5 rounded-full shadow-lg border border-slate-200/70 touch-none"
+      >
+        <button
+          type="button"
+          aria-label={`${t.ghost} +10`}
+          className="mb-0.5 flex h-8 w-10 items-center justify-center rounded-full text-slate-700 active:bg-slate-200/80"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onGhostOpacityChange(Math.min(100, ghostOpacity + 10));
+          }}
+        >
+          <ChevronUp className="h-4 w-4" />
+        </button>
 
-        <div className="relative w-6 h-40 flex flex-col items-center justify-between py-1">
-          <span className="font-mono-numbers text-[9px] text-slate-400 uppercase font-semibold">100</span>
+        <div className="relative flex w-12 flex-col items-center justify-between py-1">
+          <span className="pointer-events-none font-mono-numbers text-[9px] text-slate-400 uppercase font-semibold">100</span>
 
-          <div className="relative w-2 h-28 bg-slate-200 rounded-full overflow-hidden flex flex-col justify-end">
+          <div
+            ref={ghostValueTrackRef}
+            data-testid="ghost-opacity-track"
+            className="relative flex h-36 w-12 touch-none items-center justify-center"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              ghostDragRef.current = true;
+              setGhostFromClientY(e.clientY);
+            }}
+          >
+            <div className="pointer-events-none relative h-full w-2 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="absolute bottom-0 w-full rounded-full bg-[#10B981]"
+                style={{ height: `${ghostOpacity}%` }}
+              />
+            </div>
             <div
-              className="w-full bg-[#10B981] rounded-full transition-all duration-75"
-              style={{ height: `${ghostOpacity}%` }}
-            />
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={ghostOpacity}
-              onChange={(e) => onGhostOpacityChange(Number(e.target.value))}
-              aria-label={t.ghostOpacity}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              className="pointer-events-none absolute left-1/2 h-4 w-4 -translate-x-1/2 rounded-full border-2 border-white bg-[#10B981] shadow-md"
+              style={{ bottom: `calc(${ghostOpacity}% - 8px)` }}
             />
           </div>
 
-          <span className="font-mono-numbers text-[9px] text-slate-400 uppercase font-semibold">0</span>
+          <span className="pointer-events-none font-mono-numbers text-[9px] text-slate-400 uppercase font-semibold">0</span>
         </div>
+
+        <button
+          type="button"
+          aria-label={`${t.ghost} -10`}
+          className="mt-0.5 flex h-8 w-10 items-center justify-center rounded-full text-slate-700 active:bg-slate-200/80"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onGhostOpacityChange(Math.max(0, ghostOpacity - 10));
+          }}
+        >
+          <ChevronDown className="h-4 w-4" />
+        </button>
 
         <div className="mt-1 text-center">
           <span className="font-mono-numbers text-[10px] text-[#006C49] font-bold block">
@@ -633,29 +713,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
                 </button>
               )}
             </div>
-          </div>
-        )}
-
-        {hasZoom && zoomLevels.length > 0 && (
-          <div
-            data-testid="zoom-level-row"
-            className="mb-3 flex items-center gap-1 rounded-full border border-white/10 bg-[#0F172A]/75 px-1.5 py-1 backdrop-blur-md"
-          >
-            {zoomLevels.map((level) => (
-              <button
-                key={level}
-                type="button"
-                onClick={() => onZoomLevelChange?.(level)}
-                aria-label={`${t.zoomLevel} ${level.toFixed(1)}×`}
-                className={`flex h-7 items-center justify-center rounded-full px-2.5 font-mono-numbers text-[11px] font-bold transition-colors ${
-                  currentZoom === level
-                    ? 'bg-sg-success text-white shadow-sm'
-                    : 'text-white/80 hover:bg-white/15'
-                }`}
-              >
-                {level.toFixed(1)}×
-              </button>
-            ))}
           </div>
         )}
 
