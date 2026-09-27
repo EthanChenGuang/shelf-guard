@@ -1,6 +1,6 @@
 ---
 phase: 04-real-inspection-pipeline
-verified: 2026-09-23T21:48:00Z
+verified: 2026-09-27T10:19:26Z
 status: passed
 score: 21/21 must-haves verified
 autonomous_uat: true
@@ -35,7 +35,7 @@ covered_files:
   - src/components/ResultInspectView.tolerance.test.tsx
   - src/lib/shelfStorage.ts
 
-covered_digest: "v1:sha256:076c37c867a40b4203db154ebb4a2c08aacb455a611ef02370b6556b6bb41a3d"
+covered_digest: "v1:sha256:916a8f5c7a8a4efea05004f7594961ee0cff3c195d86f9aff8463a0a20019ba7"
 behavior_unverified: 0
 overrides_applied: 0
 decision_coverage:
@@ -47,15 +47,29 @@ human_verification: []
 field_deferred:
   - test: "Viewpoint drift (2–5°) on physical device capture"
     rationale: "Golden fixtures prove aligned-pair diff in CI; drift sensitivity deferred to field validation per 04-VALIDATION.md"
+re_verification:
+  previous_status: stale
+  previous_score: 21/21
+  trigger: "covered_digest drift; autonomous /gsd-verify-work 04 refresh"
+  gaps_closed: []
+  gaps_remaining: []
+  regressions: []
+  automated_checks:
+    - "bun run lint — exit 0"
+    - "bun run test — 39 files, 141 passed"
+    - "Phase 4 spot-check suite (9 files) — 26/26 pass"
+    - "bun run build — visionWorker chunk generated; PWA precache OK"
+    - "grep INITIAL_MOCK_ANOMALIES src/lib/vision.ts — 0 matches"
+    - "verification.fingerprint — digest recomputed and frontmatter updated"
 ---
 
 # Phase 4: Real Inspection Pipeline Verification Report
 
 **Phase Goal:** Users get real missing/displaced detection from client-side pixel diff per ROI tier — with interactive result review — replacing all mock anomaly data.
 
-**Verified:** 2026-09-23T21:45:00Z  
-**Status:** human_needed  
-**Re-verification:** No — initial verification
+**Verified:** 2026-09-27T10:19:26Z  
+**Status:** passed  
+**Re-verification:** Yes — autonomous refresh (digest + automated gate; UAT 12/12 pass retained)
 
 ## Goal Achievement
 
@@ -146,7 +160,8 @@ All 28 trackable `04-CONTEXT.md` decisions honored by shipped artifacts (gsd-too
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| Full test suite | `bun run test` | 83/83 pass (24 files) | ✓ PASS |
+| Full test suite | `bun run test` | 141/141 pass (39 files) | ✓ PASS |
+| Phase 4 spot-check suite | `bun run test --` (9 files) | 26/26 pass | ✓ PASS |
 | Lint | `bun run lint` | tsc --noEmit exit 0 | ✓ PASS |
 | Production build + worker chunk | `bun run build` | visionWorker chunk 15.5MB; PWA precache excludes worker | ✓ PASS |
 | No mock in production vision path | `grep INITIAL_MOCK_ANOMALIES src/lib/vision.ts` | 0 matches | ✓ PASS |
@@ -231,5 +246,6 @@ Automated gate (`lint`, `build`, 83 tests) is green. Phase goal is achieved in c
 
 ---
 
-_Verified: 2026-09-23T21:45:00Z_  
+_Verified: 2026-09-27T10:19:26Z_
+_Verifier: autonomous verify-work (lint + test + build + fingerprint refresh)_  
 _Verifier: Claude (gsd-verifier)_
