@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useCameraStream } from './useCameraStream';
 
-function makeStream(deviceId: string) {
+function makeStream(facingMode: 'user' | 'environment' = 'environment', deviceId = 'cam-1') {
   const track = {
     getCapabilities: () => ({}),
-    getSettings: () => ({ deviceId }),
+    getSettings: () => ({ deviceId, facingMode }),
     applyConstraints: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn(),
   };
@@ -16,88 +16,47 @@ function makeStream(deviceId: string) {
   };
 }
 
-function stubNavigator(deviceIds: string[], videoDeviceIds = deviceIds) {
-  const streamsByDevice = Object.fromEntries(
-    deviceIds.map((id) => [id, makeStream(id)]),
-  );
-
+function stubNavigator(initialFacing: 'user' | 'environment' = 'environment') {
+  let currentFacing = initialFacing;
   const getUserMedia = vi.fn(
-    async (constraints: { video?: { deviceId?: { exact?: string } } }) => {
-      const requestedId = constraints?.video?.deviceId?.exact;
-      const stream = streamsByDevice[requestedId ?? deviceIds[0]];
-      return stream as unknown as MediaStream;
+    async (constraints: { video?: { facingMode?: { exact?: string } } }) => {
+      const requested = constraints?.video?.facingMode?.exact;
+      if (requested === 'user' || requested === 'environment') {
+        currentFacing = requested;
+      }
+      return makeStream(currentFacing) as unknown as MediaStream;
     },
   );
 
-  const enumerateDevices = vi.fn().mockResolvedValue(
-    videoDeviceIds.map((id) => ({
-      deviceId: id,
-      kind: 'videoinput',
-      label: '',
-      groupId: '',
-    })),
-  );
+  const enumerateDevices = vi.fn().mockResolvedValue([
+    { deviceId: 'cam-back', kind: 'videoinput', label: 'back', groupId: 'g1' },
+    { deviceId: 'cam-front', kind: 'videoinput', label: 'front', groupId: 'g2' },
+    { deviceId: 'cam-tele', kind: 'videoinput', label: 'tele', groupId: 'g1' },
+  ]);
 
   vi.stubGlobal('navigator', {
     mediaDevices: { getUserMedia, enumerateDevices },
   });
 
-  return { getUserMedia, streamsByDevice };
+  return { getUserMedia };
 }
 
-describe('useCameraStream switchCamera (quick-260925 wide-angle lens switching)', () => {
+describe('useCameraStream switchCamera (front/rear facingMode)', () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('hasMultipleCameras is true when more than one video input device is enumerated', async () => {
-    stubNavigator(['cam-1', 'cam-2', 'cam-3']);
-
+  it('hasMultipleCameras is true when at least one video device is enumerated', async () => {
+    stubNavigator();
     const { result } = renderHook(() => useCameraStream());
-
     await act(async () => {
       await result.current.startCamera();
     });
-
     expect(result.current.hasMultipleCameras).toBe(true);
   });
 
-  it('hasMultipleCameras is false when only one camera device exists', async () => {
-    stubNavigator(['cam-1']);
-
-    const { result } = renderHook(() => useCameraStream());
-
-    await act(async () => {
-      await result.current.startCamera();
-    });
-
-    expect(result.current.hasMultipleCameras).toBe(false);
-  });
-
-  it('ignores non-video devices when deciding hasMultipleCameras', async () => {
-    const { streamsByDevice: _s } = stubNavigator(['cam-1'], ['cam-1']);
-    void _s;
-    // add a non-video device to the enumerateDevices result
-    const nav = navigator as unknown as {
-      mediaDevices: { enumerateDevices: ReturnType<typeof vi.fn> };
-    };
-    nav.mediaDevices.enumerateDevices.mockResolvedValue([
-      { deviceId: 'cam-1', kind: 'videoinput', label: '', groupId: '' },
-      { deviceId: 'mic-1', kind: 'audioinput', label: '', groupId: '' },
-    ]);
-
-    const { result } = renderHook(() => useCameraStream());
-
-    await act(async () => {
-      await result.current.startCamera();
-    });
-
-    expect(result.current.hasMultipleCameras).toBe(false);
-  });
-
-  it('switchCamera requests the next enumerated device by exact deviceId', async () => {
-    const { getUserMedia } = stubNavigator(['cam-1', 'cam-2', 'cam-3']);
-
+  it('switchCamera toggles facingMode exact user/environment instead of cycling deviceId', async () => {
+    const { getUserMedia } = stubNavigator('environment');
     const { result } = renderHook(() => useCameraStream());
 
     await act(async () => {
@@ -110,36 +69,20 @@ describe('useCameraStream switchCamera (quick-260925 wide-angle lens switching)'
 
     expect(getUserMedia).toHaveBeenLastCalledWith({
       video: {
-        deviceId: { exact: 'cam-2' },
+        facingMode: { exact: 'user' },
         width: { ideal: 1920 },
         height: { ideal: 1080 },
       },
       audio: false,
     });
-  });
 
-  it('switchCamera wraps around to the first device after the last one', async () => {
-    const { getUserMedia } = stubNavigator(['cam-1', 'cam-2', 'cam-3']);
-
-    const { result } = renderHook(() => useCameraStream());
-
-    await act(async () => {
-      await result.current.startCamera();
-    });
-
-    await act(async () => {
-      await result.current.switchCamera();
-    });
-    await act(async () => {
-      await result.current.switchCamera();
-    });
     await act(async () => {
       await result.current.switchCamera();
     });
 
     expect(getUserMedia).toHaveBeenLastCalledWith({
       video: {
-        deviceId: { exact: 'cam-1' },
+        facingMode: { exact: 'environment' },
         width: { ideal: 1920 },
         height: { ideal: 1080 },
       },
@@ -147,21 +90,18 @@ describe('useCameraStream switchCamera (quick-260925 wide-angle lens switching)'
     });
   });
 
-  it('switchCamera is a no-op when only one camera device is available', async () => {
-    const { getUserMedia } = stubNavigator(['cam-1']);
-
+  it('syncs facingMode state from track settings after switch', async () => {
+    stubNavigator('environment');
     const { result } = renderHook(() => useCameraStream());
 
     await act(async () => {
       await result.current.startCamera();
     });
-
-    const callsBeforeSwitch = getUserMedia.mock.calls.length;
+    expect(result.current.facingMode).toBe('environment');
 
     await act(async () => {
       await result.current.switchCamera();
     });
-
-    expect(getUserMedia.mock.calls.length).toBe(callsBeforeSwitch);
+    expect(result.current.facingMode).toBe('user');
   });
 });

@@ -218,6 +218,8 @@ export function useCameraStream() {
   const [focusPoint, setFocusPointState] = useState<{ x: number; y: number } | null>(null);
   const [cameraDevices, setCameraDevices] = useState<MediaDeviceInfo[]>([]);
   const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
+  const facingModeRef = useRef(facingMode);
+  facingModeRef.current = facingMode;
 
   const acquireStream = useCallback(
     async (videoConstraints?: MediaTrackConstraints): Promise<boolean> => {
@@ -231,7 +233,7 @@ export function useCameraStream() {
 
         const mediaStream = await navigator.mediaDevices.getUserMedia({
           video: videoConstraints ?? {
-            facingMode: { ideal: facingMode },
+            facingMode: { ideal: facingModeRef.current },
             width: { ideal: 1920 },
             height: { ideal: 1080 },
           },
@@ -280,8 +282,23 @@ export function useCameraStream() {
           setFocusPointState(null);
         }
 
-        const settings = track.getSettings?.() as { deviceId?: string } | undefined;
+        const settings = track.getSettings?.() as {
+          deviceId?: string;
+          facingMode?: string;
+        } | undefined;
         setActiveDeviceId(typeof settings?.deviceId === 'string' ? settings.deviceId : null);
+        const requestedFacing = videoConstraints?.facingMode;
+        const hasExplicitFacing =
+          typeof requestedFacing === 'string' ||
+          (typeof requestedFacing === 'object' &&
+            requestedFacing !== null &&
+            ('exact' in requestedFacing || 'ideal' in requestedFacing));
+        if (
+          !hasExplicitFacing &&
+          (settings?.facingMode === 'user' || settings?.facingMode === 'environment')
+        ) {
+          setFacingMode(settings.facingMode);
+        }
       } else {
         setHasTorch(false);
         setHasZoom(false);
@@ -312,22 +329,24 @@ export function useCameraStream() {
       return false;
     }
     },
-    [facingMode],
+    [],
   );
 
   const startCamera = useCallback(() => acquireStream(), [acquireStream]);
 
+  /** Flip front/rear camera. Do not cycle lens deviceIds — that changes zoom on multi-lens phones. */
   const switchCamera = useCallback(async () => {
-    if (cameraDevices.length < 2) return;
-    const currentIndex = cameraDevices.findIndex((d) => d.deviceId === activeDeviceId);
-    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % cameraDevices.length;
-    const nextDevice = cameraDevices[nextIndex];
-    await acquireStream({
-      deviceId: { exact: nextDevice.deviceId },
+    const nextFacing: 'environment' | 'user' =
+      facingModeRef.current === 'environment' ? 'user' : 'environment';
+    const ok = await acquireStream({
+      facingMode: { exact: nextFacing },
       width: { ideal: 1920 },
       height: { ideal: 1080 },
     });
-  }, [cameraDevices, activeDeviceId, acquireStream]);
+    if (ok) {
+      setFacingMode(nextFacing);
+    }
+  }, [acquireStream]);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -462,7 +481,8 @@ export function useCameraStream() {
     stopCamera,
     toggleTorch,
     toggleCameraFacing,
-    hasMultipleCameras: cameraDevices.length > 1,
+    /** Show flip control whenever the camera is live (flip uses facingMode, not lens cycling). */
+    hasMultipleCameras: cameraDevices.length > 0 && !cameraError,
     switchCamera,
     clearCameraError,
     captureFrame,
