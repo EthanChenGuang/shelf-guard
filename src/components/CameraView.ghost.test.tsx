@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { CameraView } from './CameraView';
 import { DEFAULT_CALIBRATION, I18N } from '../lib/constants';
 
@@ -63,5 +63,41 @@ describe('CameraView ghost visibility (CAM-02)', () => {
     );
 
     expect(screen.queryByAltText(I18N.cn.baselineGhostAlt)).not.toBeInTheDocument();
+  });
+
+  it('vertical pointer drag on the wide track updates opacity', () => {
+    const onGhostOpacityChange = vi.fn();
+    render(
+      <CameraView
+        {...baseProps}
+        baseline={persistedBaseline}
+        hasPersistedBaseline={true}
+        onGhostOpacityChange={onGhostOpacityChange}
+      />,
+    );
+
+    const slider = screen.getByRole('slider', { name: '幽灵图透光率' });
+    const box = slider.getBoundingClientRect();
+    expect(box.width).toBeGreaterThanOrEqual(0);
+    slider.getBoundingClientRect = () =>
+      ({
+        x: 0,
+        y: 100,
+        top: 100,
+        left: 0,
+        bottom: 300,
+        right: 48,
+        width: 48,
+        height: 200,
+        toJSON() {
+          return {};
+        },
+      }) as DOMRect;
+
+    fireEvent.pointerDown(slider, { clientY: 120, pointerId: 1 });
+    expect(onGhostOpacityChange).toHaveBeenCalledWith(90);
+
+    fireEvent.pointerMove(slider, { clientY: 280, pointerId: 1 });
+    expect(onGhostOpacityChange).toHaveBeenLastCalledWith(10);
   });
 });

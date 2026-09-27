@@ -37,6 +37,7 @@ export default defineConfig(() => {
         workbox: {
           // OpenCV worker chunk (~16 MB) loads on demand — exclude from precache (Pitfall 1)
           globIgnores: ['**/visionWorker*.js', '**/opencv/**'],
+          navigateFallbackDenylist: [/^\/opencv\//, /^\/assets\//],
           maximumFileSizeToCacheInBytes: 20 * 1024 * 1024,
         },
         devOptions: {

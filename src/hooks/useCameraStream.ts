@@ -87,7 +87,9 @@ function isCanvasMostlyBlack(
 ): boolean {
   const sampleWidth = Math.min(width, 96);
   const sampleHeight = Math.min(height, 96);
-  const { data } = ctx.getImageData(0, 0, sampleWidth, sampleHeight);
+  const sx = Math.max(0, Math.floor((width - sampleWidth) / 2));
+  const sy = Math.max(0, Math.floor((height - sampleHeight) / 2));
+  const { data } = ctx.getImageData(sx, sy, sampleWidth, sampleHeight);
   let sum = 0;
   for (let i = 0; i < data.length; i += 4) {
     sum += data[i] + data[i + 1] + data[i + 2];

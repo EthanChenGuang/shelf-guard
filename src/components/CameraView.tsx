@@ -119,6 +119,18 @@ export const CameraView: React.FC<CameraViewProps> = ({
   const [flashVisible, setFlashVisible] = useState(false);
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showGhost = hasPersistedBaseline && !!baseline.imageDataUrl;
+  const ghostTrackRef = useRef<HTMLDivElement>(null);
+  const ghostDragRef = useRef(false);
+
+  const setGhostFromClientY = (clientY: number) => {
+    const track = ghostTrackRef.current;
+    if (!track) return;
+    const rect = track.getBoundingClientRect();
+    if (rect.height <= 0) return;
+    const ratio = (clientY - rect.top) / rect.height;
+    const next = Math.round((1 - Math.min(1, Math.max(0, ratio))) * 100);
+    onGhostOpacityChange(next);
+  };
   const displayTilt = orientationDenied ? 0 : tilt;
   const displayIsLevel = orientationDenied ? false : isLevel;
   const showSimulateToggle =
@@ -474,31 +486,63 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
       {/* RIGHT EDGE VERTICAL SLIDER (GHOST TRANSPARENCY) */}
       {showGhost && (
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center bg-white/85 backdrop-blur-xl px-2 py-3.5 rounded-full shadow-lg border border-slate-200/70">
-        <div className="flex items-center justify-center mb-1 text-slate-600">
+      <div
+        ref={ghostTrackRef}
+        role="slider"
+        aria-label={t.ghostOpacity}
+        aria-orientation="vertical"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={ghostOpacity}
+        tabIndex={0}
+        data-testid="ghost-opacity-slider"
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          ghostDragRef.current = true;
+          e.currentTarget.setPointerCapture?.(e.pointerId);
+          setGhostFromClientY(e.clientY);
+        }}
+        onPointerMove={(e) => {
+          if (!ghostDragRef.current) return;
+          setGhostFromClientY(e.clientY);
+        }}
+        onPointerUp={(e) => {
+          ghostDragRef.current = false;
+          if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+          }
+        }}
+        onPointerCancel={() => {
+          ghostDragRef.current = false;
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
+            e.preventDefault();
+            onGhostOpacityChange(Math.min(100, ghostOpacity + 5));
+          } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
+            e.preventDefault();
+            onGhostOpacityChange(Math.max(0, ghostOpacity - 5));
+          }
+        }}
+        className="absolute right-3 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center bg-white/85 backdrop-blur-xl px-1.5 py-3.5 rounded-full shadow-lg border border-slate-200/70 touch-none"
+      >
+        <div className="flex items-center justify-center mb-1 text-slate-600 pointer-events-none">
           <Layers className="w-4 h-4 text-slate-700" />
         </div>
 
-        <div className="relative w-6 h-40 flex flex-col items-center justify-between py-1">
-          <span className="font-mono-numbers text-[9px] text-slate-400 uppercase font-semibold">100</span>
+        <div className="relative flex w-12 flex-col items-center justify-between py-1">
+          <span className="pointer-events-none font-mono-numbers text-[9px] text-slate-400 uppercase font-semibold">100</span>
 
-          <div className="relative w-2 h-28 bg-slate-200 rounded-full overflow-hidden flex flex-col justify-end">
-            <div
-              className="w-full bg-[#10B981] rounded-full transition-all duration-75"
-              style={{ height: `${ghostOpacity}%` }}
-            />
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={ghostOpacity}
-              onChange={(e) => onGhostOpacityChange(Number(e.target.value))}
-              aria-label={t.ghostOpacity}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-            />
+          <div className="relative flex h-36 w-12 touch-none items-center justify-center">
+            <div className="pointer-events-none relative h-full w-2 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="absolute bottom-0 w-full rounded-full bg-[#10B981]"
+                style={{ height: `${ghostOpacity}%` }}
+              />
+            </div>
           </div>
 
-          <span className="font-mono-numbers text-[9px] text-slate-400 uppercase font-semibold">0</span>
+          <span className="pointer-events-none font-mono-numbers text-[9px] text-slate-400 uppercase font-semibold">0</span>
         </div>
 
         <div className="mt-1 text-center">

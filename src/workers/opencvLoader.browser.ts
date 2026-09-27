@@ -34,6 +34,10 @@ export function loadOpenCvInWorker(): Promise<CV> {
       throw new Error(`Failed to fetch OpenCV runtime (${res.status})`);
     }
     const code = await res.text();
+    const head = code.trimStart().slice(0, 64).toLowerCase();
+    if (head.startsWith('<!doctype') || head.startsWith('<html')) {
+      throw new Error('OpenCV runtime URL returned HTML instead of the script');
+    }
 
     await new Promise<void>((resolve, reject) => {
       let settled = false;
