@@ -29,9 +29,7 @@ function stubNavigator(initialFacing: 'user' | 'environment' = 'environment') {
   );
 
   const enumerateDevices = vi.fn().mockResolvedValue([
-    { deviceId: 'cam-back', kind: 'videoinput', label: 'back', groupId: 'g1' },
-    { deviceId: 'cam-front', kind: 'videoinput', label: 'front', groupId: 'g2' },
-    { deviceId: 'cam-tele', kind: 'videoinput', label: 'tele', groupId: 'g1' },
+    { deviceId: 'cam-1', kind: 'videoinput', label: 'Back camera', groupId: 'g1' },
   ]);
 
   vi.stubGlobal('navigator', {

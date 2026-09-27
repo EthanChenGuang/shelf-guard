@@ -112,7 +112,8 @@ function isLikelyFrontCamera(device: MediaDeviceInfo): boolean {
 /** Prefer ultra-wide / wide back camera when zoom API is unavailable (multi-lens Android). */
 export function pickWideAngleDeviceId(devices: MediaDeviceInfo[]): string | null {
   const inputs = devices.filter((d) => d.kind === 'videoinput' && !isLikelyFrontCamera(d));
-  if (inputs.length <= 1) return null;
+  if (inputs.length === 0) return null;
+  if (inputs.length === 1) return inputs[0].deviceId;
 
   const score = (device: MediaDeviceInfo): number => {
     const label = device.label.toLowerCase();
