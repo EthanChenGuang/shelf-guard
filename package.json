@@ -39,6 +39,7 @@
     "fake-indexeddb": "6.2.5",
     "jpeg-js": "^0.4.4",
     "jsdom": "^30.1.0",
+    "playwright": "1.49.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2",
