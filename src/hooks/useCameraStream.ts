@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { drawImageCover } from '../lib/canvasCover';
 
 const OUTPUT_WIDTH = 1080;
 const OUTPUT_HEIGHT = 1920;
@@ -95,7 +96,8 @@ function isCanvasMostlyBlack(
     sum += data[i] + data[i + 1] + data[i + 2];
   }
   const avg = sum / (data.length / 4) / 3;
-  return avg < 12;
+  // Dim retail lighting can sit below 12; reject only near-empty frames.
+  return avg < 3;
 }
 
 /** Resize any still capture to the canonical analysis size (matches canvas fallback). */
@@ -113,7 +115,7 @@ async function normalizeCaptureDataUrl(
       bitmap.close();
       return null;
     }
-    ctx.drawImage(bitmap, 0, 0, OUTPUT_WIDTH, OUTPUT_HEIGHT);
+    drawImageCover(ctx, bitmap, bitmap.width, bitmap.height, OUTPUT_WIDTH, OUTPUT_HEIGHT);
     bitmap.close();
     if (isCanvasMostlyBlack(ctx, OUTPUT_WIDTH, OUTPUT_HEIGHT)) return null;
     return canvas.toDataURL('image/jpeg', 0.92);
@@ -164,7 +166,8 @@ function drawVideoToCanvas(
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
-  ctx.drawImage(video, 0, 0, width, height);
+  if (video.videoWidth <= 0 || video.videoHeight <= 0) return null;
+  drawImageCover(ctx, video, video.videoWidth, video.videoHeight, width, height);
   if (isCanvasMostlyBlack(ctx, width, height)) return null;
   return canvas.toDataURL('image/jpeg', 0.92);
 }

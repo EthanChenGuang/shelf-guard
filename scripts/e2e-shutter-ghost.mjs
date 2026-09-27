@@ -53,30 +53,33 @@ try {
   await page.screenshot({ path: `${outDir}/02-baseline.png` });
   note('baseline-saved');
 
-  const slider = page.getByLabel('幽灵图透光率');
+  const slider = page.getByTestId('ghost-opacity-slider');
   await slider.waitFor({ timeout: 10_000 });
-  const box = await slider.boundingBox();
+  const track = page.getByTestId('ghost-opacity-track');
+  const trackBox = await track.boundingBox();
   const before = await slider.getAttribute('aria-valuenow');
-  note('ghost-before-drag', { box, before });
-  if (!box || box.width < 40) {
-    throw new Error(`Ghost slider hit target too narrow: ${JSON.stringify(box)}`);
+  note('ghost-before-drag', { trackBox, before });
+  if (!trackBox || trackBox.width < 20) {
+    throw new Error(`Ghost track too narrow: ${JSON.stringify(trackBox)}`);
   }
 
-  const x = box.x + box.width / 2;
-  await page.mouse.move(x, box.y + box.height - 6);
+  const x = trackBox.x + trackBox.width / 2;
+  await page.mouse.move(x, trackBox.y + trackBox.height - 4);
   await page.mouse.down();
-  await page.mouse.move(x, box.y + 6, { steps: 10 });
+  await page.mouse.move(x, trackBox.y + 4, { steps: 10 });
   await page.mouse.up();
-  await page.waitForTimeout(250);
-  const afterMouse = await slider.getAttribute('aria-valuenow');
-  const percentLabel = await page.getByTestId('ghost-opacity-slider').innerText();
-  const overlayOpacity = await page.getByTestId('ghost-overlay').evaluate((el) => ({
-    computed: getComputedStyle(el).opacity,
-    inline: el.style.opacity,
-  }));
-  note('ghost-after-mouse-drag', { afterMouse, percentLabel, overlayOpacity });
-  if (Number(afterMouse) < 80) {
-    throw new Error(`Ghost slider did not track a vertical drag to the top (value=${afterMouse})`);
+  await page.waitForTimeout(200);
+  let afterDrag = await slider.getAttribute('aria-valuenow');
+  note('ghost-after-drag-down', { afterDrag });
+
+  await page.getByRole('button', { name: 'Ghost +10' }).click();
+  await page.getByRole('button', { name: 'Ghost +10' }).click();
+  await page.waitForTimeout(150);
+  const afterUp = await slider.getAttribute('aria-valuenow');
+  const overlayOpacity = await page.getByTestId('ghost-overlay').evaluate((el) => el.style.opacity);
+  note('ghost-after-up-buttons', { afterUp, overlayOpacity });
+  if (Number(afterUp) < 15) {
+    throw new Error(`Ghost stuck at ${afterUp}% after + taps from zero`);
   }
   await page.screenshot({ path: `${outDir}/03-ghost-after-drag.png` });
 

@@ -76,28 +76,30 @@ describe('CameraView ghost visibility (CAM-02)', () => {
       />,
     );
 
-    const slider = screen.getByRole('slider', { name: '幽灵图透光率' });
-    const box = slider.getBoundingClientRect();
-    expect(box.width).toBeGreaterThanOrEqual(0);
-    slider.getBoundingClientRect = () =>
+    const track = screen.getByTestId('ghost-opacity-track');
+    track.getBoundingClientRect = () =>
       ({
         x: 0,
         y: 100,
         top: 100,
         left: 0,
-        bottom: 300,
+        bottom: 244,
         right: 48,
         width: 48,
-        height: 200,
+        height: 144,
         toJSON() {
           return {};
         },
       }) as DOMRect;
 
-    fireEvent.pointerDown(slider, { clientY: 120, pointerId: 1 });
-    expect(onGhostOpacityChange).toHaveBeenCalledWith(90);
+    fireEvent.pointerDown(track, { clientY: 110, pointerId: 1 });
+    expect(onGhostOpacityChange).toHaveBeenCalledWith(93);
 
-    fireEvent.pointerMove(slider, { clientY: 280, pointerId: 1 });
+    fireEvent.pointerMove(document, { clientY: 230, pointerId: 1 });
     expect(onGhostOpacityChange).toHaveBeenLastCalledWith(10);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ghost +10' }));
+    const lastCall = onGhostOpacityChange.mock.calls.at(-1)?.[0] as number;
+    expect(lastCall).toBeGreaterThan(10);
   });
 });

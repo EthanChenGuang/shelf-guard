@@ -13,6 +13,16 @@ let cvReadyPromise: Promise<void> | null = null;
 let workerRequestId = 0;
 let muxAttached = false;
 
+export function resetVisionWorker(): void {
+  if (worker) {
+    worker.terminate();
+  }
+  worker = null;
+  cvReadyPromise = null;
+  muxAttached = false;
+  pending.clear();
+}
+
 type PendingEntry = {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
@@ -164,30 +174,38 @@ export async function analyzeShelfCapture(
 ): Promise<InspectionAnalysisResult> {
   const toleranceValue = normalizeTolerance(tolerance);
   const { width, height } = validateBeforeAnalyze(baseline, toleranceValue);
-  const [captureBitmap, baselineBitmap] = await Promise.all([
-    dataUrlToImageBitmapSized(capturedDataUrl, width, height),
-    dataUrlToImageBitmapSized(baseline.imageDataUrl, width, height),
-  ]);
 
-  const w = getWorker();
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (attempt > 0) resetVisionWorker();
 
-  try {
-    return await postWorker<InspectionAnalysisResult>(
-      w,
-      {
-        type: 'analyze',
-        captureBitmap,
-        baselineBitmap,
-        splitYPercentages: baseline.splitYPercentages,
-        toleranceValue,
-      },
-      [captureBitmap, baselineBitmap],
-    );
-  } catch (err) {
-    captureBitmap.close();
-    baselineBitmap.close();
-    throw err;
+    const [captureBitmap, baselineBitmap] = await Promise.all([
+      dataUrlToImageBitmapSized(capturedDataUrl, width, height),
+      dataUrlToImageBitmapSized(baseline.imageDataUrl, width, height),
+    ]);
+
+    try {
+      await prewarmVisionWorker();
+      const w = getWorker();
+      return await postWorker<InspectionAnalysisResult>(
+        w,
+        {
+          type: 'analyze',
+          captureBitmap,
+          baselineBitmap,
+          splitYPercentages: baseline.splitYPercentages,
+          toleranceValue,
+        },
+        [captureBitmap, baselineBitmap],
+      );
+    } catch (err) {
+      captureBitmap.close();
+      baselineBitmap.close();
+      lastError = err;
+    }
   }
+
+  throw lastError;
 }
 
 /**
