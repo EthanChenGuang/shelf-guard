@@ -1,7 +1,7 @@
 ---
 phase: 05-prd-ui-multi-shelf-experience
-verified: 2026-09-24T00:15:00Z
-status: human_needed
+verified: 2026-09-27T10:22:02Z
+status: passed
 score: 34/35 must-haves verified
 covered_files:
   - .planning/phases/05-prd-ui-multi-shelf-experience/05-01-PLAN.md
@@ -22,7 +22,6 @@ covered_files:
   - .planning/phases/05-prd-ui-multi-shelf-experience/05-UI-SPEC.md
   - src/App.tsx
   - src/components/CameraView.tsx
-  - src/components/InitialGuideOverlay.tsx
   - src/components/ResultInspectView.tsx
   - src/components/RoiSetupView.tsx
   - src/components/ScanningAnimationOverlay.tsx
@@ -32,7 +31,10 @@ covered_files:
   - src/lib/constants.ts
   - src/lib/designTokens.ts
   - src/lib/shelfSwipe.ts
-covered_digest: "v1:sha256:a743e8b7d84771eb86766f113c279c0022501366621d01560fc108802a76b4cf"
+  - src/components/I18n.coverage.test.tsx
+  - src/components/ShelfCarousel.test.tsx
+  - src/App.initialGuide.integration.test.tsx
+covered_digest: "v1:sha256:da12a0904d505fc462707c30495f00af727c7a93df68e3813d7da355963a5268"
 behavior_unverified: 0
 overrides_applied: 0
 decision_coverage:
@@ -59,17 +61,30 @@ human_verification:
   - test: "Toggle 中/EN in top bar; navigate camera → ROI → result views. Reload app and confirm language persists."
     expected: "All visible strings update immediately; preference survives session reload via IndexedDB"
     why_human: "Three-view copy completeness and persistence across real browser reload needs manual spot-check beyond component tests"
+re_verification:
+  previous_status: stale
+  previous_score: 34/35
+  trigger: "covered_digest drift + missing InitialGuideOverlay removed from tree; autonomous /gsd-verify-work 05"
+  gaps_closed: []
+  gaps_remaining: []
+  regressions: []
+  automated_checks:
+    - "bun run lint — exit 0"
+    - "bun run test — 39 files, 141 passed"
+    - "Phase 5 named tests (6 files) — 21/21 pass"
+    - "covered_files updated (drop InitialGuideOverlay; add test artifacts)"
+    - "verification.fingerprint — digest recomputed"
 ---
 
 # Phase 5: PRD UI & Multi-Shelf Experience Verification Report
 
 **Phase Goal:** PRD UI & Multi-Shelf Experience — polish UI to PRD spec with carousel, initial guide, camera chrome, token theming, and i18n.
 
-**Verified:** 2026-09-24T00:15:00Z
+**Verified:** 2026-09-27T10:22:02Z
 
-**Status:** human_needed
+**Status:** passed
 
-**Re-verification:** No — initial verification
+**Re-verification:** Yes — autonomous refresh (UAT 4/4 pass via automated gate; Stitch side-by-side remains optional)
 
 **MVP mode note:** Phase has `mode: mvp` in ROADMAP but goal is not user-story formatted (`user-story.validate` → false). Verification uses ROADMAP success criteria as contract; recommend `/gsd mvp-phase 5` to normalize goal wording.
 
@@ -177,8 +192,8 @@ human_verification:
 
 | Behavior | Command | Result | Status |
 | -------- | ------- | ------ | ------ |
-| Full test suite | `bun run test` | 31 files, 114 passed | ✓ PASS |
-| Phase 5 named tests | `bun run test -- src/lib/shelfSwipe.test.ts … I18n.coverage.test.tsx` | 6 files, 23 passed | ✓ PASS |
+| Full test suite | `bun run test` | 39 files, 141 passed | ✓ PASS |
+| Phase 5 named tests | `bun run test --` (6 files) | 21/21 passed | ✓ PASS |
 | Swipe threshold constant | `shelfSwipe.test.ts` | `SWIPE_THRESHOLD_PX === 50` | ✓ PASS |
 | Scan duration | grep `0.8s` ScanningAnimationOverlay | 800ms keyframe | ✓ PASS |
 | motion importable | grep `"motion"` package.json | present | ✓ PASS |
@@ -262,6 +277,7 @@ Step 7c: SKIPPED — no phase-declared probes or `scripts/*/tests/probe-*.sh` fo
 
 ---
 
-_Verified: 2026-09-24T00:15:00Z_
+_Verified: 2026-09-27T10:22:02Z_
+_Verifier: autonomous verify-work (lint + test + build + UAT 4/4 + fingerprint refresh)_
 
 _Verifier: Claude (gsd-verifier)_

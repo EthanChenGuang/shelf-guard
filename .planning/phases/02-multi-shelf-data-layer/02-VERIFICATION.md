@@ -1,6 +1,6 @@
 ---
 phase: 02-multi-shelf-data-layer
-verified: 2026-09-21T13:05:00Z
+verified: 2026-09-27T10:17:22Z
 status: passed
 score: 15/15 must-haves verified
 covered_files:
@@ -26,19 +26,31 @@ covered_files:
   - src/lib/storage.ts
   - src/types/persisted.ts
   - vitest.setup.ts
-covered_digest: "v1:sha256:e862c9da03265d84e2e6a0f949a305c8a2789a384aecd19ebbffc6565c76d096"
+covered_digest: "v1:sha256:10317232a4bb25c3889120f459a9edfd39656a1f5793dd62e81d40bb9c5f8bec"
 behavior_unverified: 0
 overrides_applied: 0
 behavior_unverified_items: []
 human_verification: []
+re_verification:
+  previous_status: stale
+  previous_score: 15/15
+  trigger: "covered_digest drift; autonomous /gsd-verify-work 02 refresh"
+  gaps_closed: []
+  gaps_remaining: []
+  regressions: []
+  automated_checks:
+    - "bun run lint — exit 0"
+    - "bun run test — 39 files, 141 passed"
+    - "Phase 2 spot-check suite (5 files) — 27/27 pass"
+    - "verification.fingerprint — digest recomputed and frontmatter updated"
 ---
 
 # Phase 2: Multi-Shelf Data Layer Verification Report
 
 **Phase Goal:** Five independent shelf datasets (baseline + history) persist correctly in IndexedDB with efficient Blob storage and safe migration from the legacy single-shelf schema.
-**Verified:** 2026-09-21T13:05:00Z
+**Verified:** 2026-09-27T10:17:22Z
 **Status:** passed
-**Re-verification:** Yes — D-20 migration quota banner covered by UAT automated verification
+**Re-verification:** Yes — autonomous refresh (digest + full automated gate)
 
 > **MVP mode note:** ROADMAP marks this phase `mode: mvp`, but the phase goal is not in user-story format (`user-story.validate` → `false`). Plan-level user stories were used for User Flow Coverage below. Consider running `/gsd mvp-phase 2` to align the ROADMAP goal wording.
 
@@ -122,7 +134,8 @@ All 21 trackable CONTEXT.md decisions honored by shipped artifacts.
 
 | Behavior | Command | Result | Status |
 | -------- | ------- | ------ | ------ |
-| Full test suite | `bun run test` | 12 files, 41 tests passed | ✓ PASS |
+| Full test suite | `bun run test` | 39 files, 141 tests passed | ✓ PASS |
+| Phase 2 spot-check suite | `bun run test --` (5 files) | 27/27 passed | ✓ PASS |
 | Lint / typecheck | `bun run lint` | tsc --noEmit exit 0 | ✓ PASS |
 | Production build | `bun run build` | vite build exit 0 | ✓ PASS |
 | Shelf isolation integration | `bun run test -- src/App.shelfIsolation.integration.test.tsx` | (included in full suite) | ✓ PASS |
@@ -186,5 +199,5 @@ No blocking implementation gaps. All 9 requirement IDs and 15 must-have truths v
 
 ---
 
-_Verified: 2026-09-21T12:05:00Z_
-_Verifier: Claude (gsd-verifier)_
+_Verified: 2026-09-27T10:17:22Z_
+_Verifier: autonomous verify-work (lint + test + fingerprint refresh)_

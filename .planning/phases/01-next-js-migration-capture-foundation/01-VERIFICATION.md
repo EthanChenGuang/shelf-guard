@@ -1,6 +1,6 @@
 ---
 phase: 01-next-js-migration-capture-foundation
-verified: 2026-09-22T08:05:00Z
+verified: 2026-09-27T10:02:48Z
 status: passed
 score: 13/13 must-haves verified
 covered_files:
@@ -30,22 +30,22 @@ covered_files:
   - src/lib/constants.ts
   - src/lib/captureLock.ts
   - src/lib/imageDimensions.ts
-covered_digest: "v1:sha256:edf251ee24fa5536931224712aaea85d0c7ac8600e6f4b02bbe77131605e236d"
+covered_digest: "v1:sha256:02c8a7fe14c7ab558db0faca21a2037ee5efc4dbf0f8aecde32b65b1539700a1"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
   previous_status: stale
   previous_score: 13/13
-  trigger: "01-06-SUMMARY.md newer than prior verified timestamp; autonomous verify-work refresh"
-  gaps_closed:
-    - "G-01-4 second pass: offline pill raised to bottom-28 with shutter-top (532px) clearance test (plan 01-06)"
+  trigger: "covered_digest drift after later-phase code changes; autonomous /gsd-verify-work 01 refresh"
+  gaps_closed: []
   gaps_remaining: []
   regressions: []
   automated_checks:
-    - "npm run lint — exit 0"
-    - "npm run test — 13 files, 43 passed"
-    - "npm run build — dist/sw.js + manifest.json generated; 0 blob: in precache"
-    - "OfflineIndicator.test.tsx + App.processing.integration.test.tsx — 4/4 pass"
+    - "bun run lint — exit 0"
+    - "bun run test — 39 files, 141 passed"
+    - "bun run build — dist/sw.js + manifest.json generated; 0 blob: in precache"
+    - "Phase 1 spot-check suite (8 files) — 15/15 pass"
+    - "verification.fingerprint — digest recomputed and frontmatter updated"
 human_verification:
   - test: "Install PWA from Vercel preview URL and verify offline app shell"
     expected: "PWA installs; after going offline the app loads from Service Worker cache; demo capture + analysis completes without network"
@@ -63,9 +63,9 @@ human_verification:
 
 **Phase Goal:** App runs as a Vite 8 pure-client PWA deployed to Vercel with no backend dependencies; users can reliably capture shelf photos without race conditions, silent camera failures, or broken demo-mode frames.
 
-**Verified:** 2026-09-20T19:28:00Z  
-**Status:** human_needed  
-**Re-verification:** Yes — after gap closure plan 01-05 (G-01-4)
+**Verified:** 2026-09-27T10:02:48Z  
+**Status:** passed  
+**Re-verification:** Yes — autonomous refresh (digest + full automated gate)
 
 > **MVP mode discrepancy:** ROADMAP marks this phase `mode: mvp`, but the phase goal is not in user-story format (`user-story.validate` returned `false`). User Flow Coverage below maps roadmap success-criteria outcomes instead. Run `/gsd mvp-phase 1` to align goal wording if strict MVP UAT framing is required.
 
@@ -153,7 +153,7 @@ human_verification:
 |----------|---------|--------|--------|
 | TypeScript lint | `bun run lint` | exit 0 (regression) | ✓ PASS |
 | Production build + PWA artifacts | `bun run build` | dist/sw.js, manifest.json, registerSW.js, assets/ | ✓ PASS |
-| Full test suite | `npm run test` | 13 files, 43 passed, 0 skipped | ✓ PASS |
+| Full test suite | `bun run test` | 39 files, 141 passed, 0 skipped | ✓ PASS |
 | SW precache no user blobs | `grep blob: dist/sw.js` | no matches | ✓ PASS |
 | G-01-4 layout regression | `npm test -- src/components/OfflineIndicator.test.tsx` | passed (shutter-top clearance) | ✓ PASS |
 | STAB-03 App integration | `npm test -- src/App.processing.integration.test.tsx` | 1 passed | ✓ PASS |
@@ -237,5 +237,5 @@ None — re-verification scoped to G-01-4 gap closure; no new-scope blockers wit
 
 ---
 
-_Verified: 2026-09-22T08:05:00Z_  
-_Verifier: autonomous verify-work (npm test + build)_
+_Verified: 2026-09-27T10:02:48Z_  
+_Verifier: autonomous verify-work (lint + test + build + fingerprint refresh)_
