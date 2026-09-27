@@ -54,33 +54,6 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-/** Standard camera-app zoom multipliers: 0.5x (ultra-wide), 1x, 2x, 5x. */
-const CANONICAL_ZOOM_PRESETS = [0.5, 1, 2, 5];
-
-/**
- * Filter the canonical 0.5x/1x/2x/5x presets down to those the device's reported
- * zoom range [min, max] can actually reach, snapped to the nearest multiple of
- * `step` (if given). A preset the device can't reach (e.g. 0.5x on a phone whose
- * "environment" camera track has no ultra-wide lens exposed via the web zoom API)
- * is simply omitted rather than faked — clicking a fake preset would silently clamp
- * to the nearest real value and look broken. Falls back to [min] if none apply.
- */
-function computeZoomPresets(min: number, max: number, step?: number): number[] {
-  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
-    return [min];
-  }
-
-  const presets = CANONICAL_ZOOM_PRESETS.filter((v) => v >= min && v <= max).map((v) => {
-    if (typeof step === 'number' && step > 0) {
-      const snapped = min + Math.round((v - min) / step) * step;
-      return Math.min(max, Math.max(min, snapped));
-    }
-    return v;
-  });
-
-  return presets.length > 0 ? presets : [min];
-}
-
 function readTrackZoom(track: MediaStreamTrack): number | null {
   const settings = track.getSettings?.() as { zoom?: number };
   return typeof settings?.zoom === 'number' && Number.isFinite(settings.zoom) ? settings.zoom : null;
@@ -275,9 +248,6 @@ export function useCameraStream() {
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [isTorchOn, setIsTorchOn] = useState<boolean>(false);
   const [hasTorch, setHasTorch] = useState<boolean>(false);
-  const [hasZoom, setHasZoom] = useState<boolean>(false);
-  const [zoomLevels, setZoomLevels] = useState<number[]>([]);
-  const [currentZoom, setCurrentZoom] = useState<number | null>(null);
   const [hasFocus, setHasFocus] = useState<boolean>(false);
   const [focusPoint, setFocusPointState] = useState<{ x: number; y: number } | null>(null);
   const [cameraDevices, setCameraDevices] = useState<MediaDeviceInfo[]>([]);
@@ -288,8 +258,9 @@ export function useCameraStream() {
   const acquireStream = useCallback(
     async (
       videoConstraints?: MediaTrackConstraints,
-      options?: { skipWideDeviceRetry?: boolean },
+      options?: { skipWideDeviceRetry?: boolean; preferWideLens?: boolean },
     ): Promise<boolean> => {
+      const preferWideLens = options?.preferWideLens ?? facingModeRef.current === 'environment';
       try {
         if (streamRef.current) {
           streamRef.current.getTracks().forEach((t) => t.stop());
@@ -333,29 +304,13 @@ export function useCameraStream() {
         };
         setHasTorch('torch' in capabilities);
         if (
+          preferWideLens &&
           capabilities.zoom &&
           typeof capabilities.zoom.min === 'number' &&
           typeof capabilities.zoom.max === 'number'
         ) {
-          const presets = computeZoomPresets(
-            capabilities.zoom.min,
-            capabilities.zoom.max,
-            capabilities.zoom.step,
-          );
-          const widestZoom = presets[0];
-          widestZoomTarget = widestZoom;
-          setZoomLevels(presets);
-          setHasZoom(true);
-          if (facingModeRef.current === 'environment') {
-            const actual = await applyZoomToTrack(track, widestZoom);
-            setCurrentZoom(actual);
-          } else {
-            setCurrentZoom(widestZoom);
-          }
-        } else {
-          setHasZoom(false);
-          setZoomLevels([]);
-          setCurrentZoom(null);
+          widestZoomTarget = capabilities.zoom.min;
+          await applyZoomToTrack(track, widestZoomTarget);
         }
 
         const focusModes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
@@ -387,9 +342,6 @@ export function useCameraStream() {
         }
       } else {
         setHasTorch(false);
-        setHasZoom(false);
-        setZoomLevels([]);
-        setCurrentZoom(null);
         setHasFocus(false);
         setFocusPointState(null);
         setActiveDeviceId(null);
@@ -415,7 +367,7 @@ export function useCameraStream() {
 
       if (
         !options?.skipWideDeviceRetry &&
-        facingModeRef.current === 'environment' &&
+        preferWideLens &&
         videoInputs.length > 1 &&
         typeof activeId === 'string'
       ) {
@@ -453,15 +405,9 @@ export function useCameraStream() {
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
         await videoRef.current.play().catch(() => {});
-        if (
-          track &&
-          facingModeRef.current === 'environment' &&
-          widestZoomTarget !== null &&
-          videoRef.current
-        ) {
+        if (track && preferWideLens && widestZoomTarget !== null && videoRef.current) {
           await waitForVideoReady(videoRef.current, 2500);
-          const actual = await applyZoomToTrack(track, widestZoomTarget);
-          setCurrentZoom(actual);
+          await applyZoomToTrack(track, widestZoomTarget);
         }
       }
       return true;
@@ -478,15 +424,25 @@ export function useCameraStream() {
 
   /** Flip front/rear camera. Do not cycle lens deviceIds — that changes zoom on multi-lens phones. */
   const switchCamera = useCallback(async () => {
+    const previousFacing = facingModeRef.current;
     const nextFacing: 'environment' | 'user' =
-      facingModeRef.current === 'environment' ? 'user' : 'environment';
-    const ok = await acquireStream({
-      facingMode: { exact: nextFacing },
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
-    });
+      previousFacing === 'environment' ? 'user' : 'environment';
+    facingModeRef.current = nextFacing;
+    const ok = await acquireStream(
+      {
+        facingMode: { exact: nextFacing },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+      {
+        skipWideDeviceRetry: nextFacing === 'user',
+        preferWideLens: nextFacing === 'environment',
+      },
+    );
     if (ok) {
       setFacingMode(nextFacing);
+    } else {
+      facingModeRef.current = previousFacing;
     }
   }, [acquireStream]);
 
@@ -497,9 +453,6 @@ export function useCameraStream() {
       setStream(null);
       setHasTorch(false);
       setIsTorchOn(false);
-      setHasZoom(false);
-      setZoomLevels([]);
-      setCurrentZoom(null);
       setHasFocus(false);
       setFocusPointState(null);
       setActiveDeviceId(null);
@@ -525,23 +478,6 @@ export function useCameraStream() {
       console.warn('Torch constraint failed:', e);
     }
   }, [isTorchOn, stream]);
-
-  const setZoomLevel = useCallback(
-    async (value: number) => {
-      if (!stream) return;
-      const track = stream.getVideoTracks()[0];
-      if (!track) return;
-      try {
-        const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown>;
-        if (!('zoom' in capabilities)) return;
-        const actual = await applyZoomToTrack(track, value);
-        setCurrentZoom(actual);
-      } catch (e) {
-        console.warn('Zoom constraint failed:', e);
-      }
-    },
-    [stream],
-  );
 
   const setFocusPoint = useCallback(
     async (x: number, y: number) => {
@@ -609,10 +545,6 @@ export function useCameraStream() {
     cameraError,
     isTorchOn,
     hasTorch,
-    hasZoom,
-    zoomLevels,
-    currentZoom,
-    setZoomLevel,
     hasFocus,
     focusPoint,
     setFocusPoint,

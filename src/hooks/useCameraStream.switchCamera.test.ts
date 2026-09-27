@@ -102,4 +102,49 @@ describe('useCameraStream switchCamera (front/rear facingMode)', () => {
     });
     expect(result.current.facingMode).toBe('user');
   });
+
+  it('does not wide-lens retry when switching to front with multiple back lenses enumerated', async () => {
+    vi.unstubAllGlobals();
+    const getUserMedia = vi.fn(async (constraints: { video?: Record<string, unknown> }) => {
+      const facing =
+        (constraints?.video?.facingMode as { exact?: string } | undefined)?.exact ?? 'environment';
+      const mode = facing === 'user' ? 'user' : 'environment';
+      return makeStream(mode, mode === 'user' ? 'front-1' : 'back-wide') as unknown as MediaStream;
+    });
+
+    vi.stubGlobal('navigator', {
+      mediaDevices: {
+        getUserMedia,
+        enumerateDevices: vi.fn().mockResolvedValue([
+          { deviceId: 'back-wide', kind: 'videoinput', label: 'Ultra wide back', groupId: 'b' },
+          { deviceId: 'back-main', kind: 'videoinput', label: 'Back camera', groupId: 'b' },
+          { deviceId: 'front-1', kind: 'videoinput', label: 'Front camera', groupId: 'f' },
+        ]),
+      },
+    });
+
+    vi.stubGlobal(
+      'HTMLVideoElement',
+      class {
+        play = vi.fn().mockResolvedValue(undefined);
+        requestVideoFrameCallback = undefined;
+        videoWidth = 1920;
+        readyState = 4;
+      },
+    );
+
+    const { result } = renderHook(() => useCameraStream());
+    await act(async () => {
+      await result.current.startCamera();
+    });
+
+    await act(async () => {
+      await result.current.switchCamera();
+    });
+
+    const lastVideo = getUserMedia.mock.calls.at(-1)?.[0]?.video as Record<string, unknown>;
+    expect(lastVideo.facingMode).toEqual({ exact: 'user' });
+    expect(lastVideo.deviceId).toBeUndefined();
+    expect(result.current.facingMode).toBe('user');
+  });
 });

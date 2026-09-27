@@ -107,10 +107,6 @@ export default function App() {
     isTorchOn,
     hasTorch,
     toggleTorch,
-    hasZoom,
-    zoomLevels,
-    currentZoom,
-    setZoomLevel,
     hasFocus,
     focusPoint,
     setFocusPoint,
@@ -530,10 +526,6 @@ export default function App() {
           hasPersistedBaseline={hasPersistedBaseline}
           isTorchOn={isTorchOn}
           onToggleTorch={toggleTorch}
-          hasZoom={hasZoom}
-          zoomLevels={zoomLevels}
-          currentZoom={currentZoom}
-          onZoomLevelChange={setZoomLevel}
           hasFocus={hasFocus}
           focusPoint={focusPoint}
           onFocusPointChange={setFocusPoint}
