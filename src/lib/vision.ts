@@ -99,9 +99,29 @@ export function prewarmVisionWorker(): Promise<void> {
   return cvReadyPromise;
 }
 
-async function dataUrlToImageBitmap(dataUrl: string): Promise<ImageBitmap> {
+async function dataUrlToImageBitmapSized(
+  dataUrl: string,
+  targetWidth: number,
+  targetHeight: number,
+): Promise<ImageBitmap> {
   const blob = await dataUrlToBlob(dataUrl);
-  return createImageBitmap(blob);
+  const source = await createImageBitmap(blob);
+  if (source.width === targetWidth && source.height === targetHeight) {
+    return source;
+  }
+  try {
+    const canvas = new OffscreenCanvas(targetWidth, targetHeight);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Failed to resize capture for analysis');
+    }
+    ctx.drawImage(source, 0, 0, targetWidth, targetHeight);
+    source.close();
+    return canvas.transferToImageBitmap();
+  } catch (err) {
+    source.close();
+    throw err;
+  }
 }
 
 function normalizeTolerance(tolerance: ToleranceLevel | number): number {
@@ -136,9 +156,10 @@ export async function analyzeShelfCapture(
   const toleranceValue = normalizeTolerance(tolerance);
   validateBeforeAnalyze(baseline, toleranceValue);
 
+  const { width, height } = baseline.imageDimensions;
   const [captureBitmap, baselineBitmap] = await Promise.all([
-    dataUrlToImageBitmap(capturedDataUrl),
-    dataUrlToImageBitmap(baseline.imageDataUrl),
+    dataUrlToImageBitmapSized(capturedDataUrl, width, height),
+    dataUrlToImageBitmapSized(baseline.imageDataUrl, width, height),
   ]);
 
   const w = getWorker();

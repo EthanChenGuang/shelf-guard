@@ -96,6 +96,41 @@ function isCanvasMostlyBlack(
   return avg < 12;
 }
 
+/** Resize any still capture to the canonical analysis size (matches canvas fallback). */
+async function normalizeCaptureDataUrl(
+  source: Blob | string,
+): Promise<string | null> {
+  try {
+    const bitmap =
+      source instanceof Blob ? await createImageBitmap(source) : await loadBitmapFromDataUrl(source);
+    const canvas = document.createElement('canvas');
+    canvas.width = OUTPUT_WIDTH;
+    canvas.height = OUTPUT_HEIGHT;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      bitmap.close();
+      return null;
+    }
+    ctx.drawImage(bitmap, 0, 0, OUTPUT_WIDTH, OUTPUT_HEIGHT);
+    bitmap.close();
+    if (isCanvasMostlyBlack(ctx, OUTPUT_WIDTH, OUTPUT_HEIGHT)) return null;
+    return canvas.toDataURL('image/jpeg', 0.92);
+  } catch {
+    return null;
+  }
+}
+
+function loadBitmapFromDataUrl(dataUrl: string): Promise<ImageBitmap> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      createImageBitmap(img).then(resolve).catch(reject);
+    };
+    img.onerror = () => reject(new Error('Failed to load capture for normalization'));
+    img.src = dataUrl;
+  });
+}
+
 async function captureWithImageCapture(track: MediaStreamTrack): Promise<string | null> {
   const ImageCaptureCtor = (
     globalThis as typeof globalThis & {
@@ -111,7 +146,7 @@ async function captureWithImageCapture(track: MediaStreamTrack): Promise<string 
     const imageCapture = new ImageCaptureCtor(track);
     const blob = await imageCapture.takePhoto();
     if (!blob || blob.size === 0) return null;
-    return blobToDataUrl(blob);
+    return normalizeCaptureDataUrl(blob);
   } catch {
     return null;
   }
