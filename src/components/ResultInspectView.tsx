@@ -19,6 +19,7 @@ import {
 import confetti from 'canvas-confetti';
 import { DetectedAnomaly, Language, ShelfCalibration, ToleranceValue } from '../types';
 import { I18N } from '../lib/constants';
+import { frameBoxStyle } from '../lib/frameBox';
 
 interface ResultInspectViewProps {
   currentCaptureUrl: string;
@@ -185,7 +186,8 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
 
       {/* Main Viewport: Shelf Image & Interactive AR Canvas */}
       <div
-        className="relative w-full max-w-md mx-auto aspect-[9/16] overflow-hidden bg-slate-900 cursor-pointer select-none"
+        className="relative mx-auto overflow-hidden bg-slate-900 cursor-pointer select-none"
+        style={frameBoxStyle(baseline.imageDimensions, '72vh')}
         onMouseDown={() => setIsBlinkingBaseline(true)}
         onMouseUp={() => setIsBlinkingBaseline(false)}
         onMouseLeave={() => setIsBlinkingBaseline(false)}
@@ -197,7 +199,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
         <img
           src={isBlinkingBaseline ? baseline.imageDataUrl : currentCaptureUrl}
           alt="Shelf Inspection Display"
-          className={`w-full h-full object-cover transition-all duration-150 ${
+          className={`w-full h-full object-fill transition-all duration-150 ${
             isBlinkingBaseline ? 'filter contrast-110 brightness-105' : ''
           }`}
         />

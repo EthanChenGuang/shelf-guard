@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Language, ShelfCalibration } from '../types';
 import { DEFAULT_SPLIT_Y, I18N } from '../lib/constants';
+import { frameBoxStyle } from '../lib/frameBox';
 
 interface RoiSetupViewProps {
   baseline: ShelfCalibration;
@@ -119,14 +120,15 @@ export const RoiSetupView: React.FC<RoiSetupViewProps> = ({
       <div className="relative flex-1 w-full px-4 py-3 flex flex-col items-center justify-center">
         <div
           ref={stageRef}
-          className="relative w-full max-w-md aspect-[9/16] max-h-[66vh] rounded-2xl overflow-hidden shadow-lg bg-[#0F172A] border border-slate-200/80 touch-none"
+          className="relative rounded-2xl overflow-hidden shadow-lg bg-[#0F172A] border border-slate-200/80 touch-none"
+          style={frameBoxStyle(baseline.imageDimensions, '66vh')}
         >
           {/* Baseline Image */}
           {baseline.imageDataUrl ? (
             <img
               src={baseline.imageDataUrl}
               alt="Calibration Still Shelf Frame"
-              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              className="absolute inset-0 w-full h-full object-fill pointer-events-none"
             />
           ) : (
             <div

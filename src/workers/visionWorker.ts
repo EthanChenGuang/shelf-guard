@@ -7,6 +7,7 @@ import { toleranceToDiffParams } from '../lib/vision/toleranceParams';
 import { tierBoundsFromSplits, validateSplitYPercentages } from '../lib/vision/tierGeometry';
 import { rasterFromImageBitmap, type RasterFrame } from '../lib/vision/rasterFrame';
 import type { InspectionAnalysisResult } from '../lib/vision/resultTypes';
+import { alignCapture, mapRectToCapture, matchPhotometry, warpToBaseline } from './alignment';
 
 const MAX_ANOMALIES_PER_TIER = 8;
 const MAX_BITMAP_WIDTH = 1080;
@@ -87,193 +88,384 @@ function foregroundCentroidFromMask(
   }
 }
 
-function contourRegionStats(
-  cv: CV,
-  grayBaseline: InstanceType<CV['Mat']>,
-  grayCapture: InstanceType<CV['Mat']>,
-  contour: InstanceType<CV['Mat']>,
-): {
-  baselineMean: number;
-  captureMean: number;
-  baselineCentroid: { x: number; y: number };
-  captureCentroid: { x: number; y: number };
-} {
-  const mask = new cv.Mat(grayBaseline.rows, grayBaseline.cols, cv.CV_8UC1, new cv.Scalar(0));
-  const vec = new cv.MatVector();
-  vec.push_back(contour);
+const BACKDROP_DISTANCE = 45;
+const PRODUCT_COLUMN_FILL = 0.4;
+const MIN_PRODUCT_WIDTH_FRACTION = 0.025;
+const MAX_PRODUCT_GAP_FRACTION = 0.006;
+
+/**
+ * Count products in one tier: estimate the back-panel color as the tier's dominant color, mark
+ * pixels clearly unlike it, then count runs of columns that are mostly "not back panel".
+ * Works for light and dark shelves alike (no brightness-polarity assumption).
+ */
+function countTierProducts(cv: CV, planes: Mat[], frameWidth: number): number {
+  const data = planes.map((plane) => {
+    // ROI views are strided; copyTo yields a packed buffer (roi().clone() does not in opencv.js).
+    const copy = new cv.Mat();
+    plane.copyTo(copy);
+    const bytes = new Uint8Array(copy.data);
+    copy.delete();
+    return bytes;
+  });
+  const width = planes[0].cols;
+  const height = planes[0].rows;
+  if (width === 0 || height === 0) return 0;
+
+  // Back panel = the most common coarse color in the tier's middle rows (products vary, the
+  // panel doesn't; the top/bottom rows are dominated by shelf boards).
+  const bins = new Map<number, number>();
+  const midStart = Math.floor(height * 0.2) * width;
+  const midEnd = Math.ceil(height * 0.8) * width;
+  for (let i = midStart; i < midEnd; i += 1) {
+    const key = ((data[0][i] >> 4) << 8) | ((data[1][i] >> 4) << 4) | (data[2][i] >> 4);
+    bins.set(key, (bins.get(key) ?? 0) + 1);
+  }
+  let modeKey = 0;
+  let modeCount = -1;
+  for (const [key, n] of bins) {
+    if (n > modeCount) {
+      modeKey = key;
+      modeCount = n;
+    }
+  }
+  const backdrop = [((modeKey >> 8) & 15) * 16 + 8, ((modeKey >> 4) & 15) * 16 + 8, (modeKey & 15) * 16 + 8];
+
+  const threshold2 = BACKDROP_DISTANCE * BACKDROP_DISTANCE;
+  const productColumn: boolean[] = [];
+  for (let x = 0; x < width; x += 1) {
+    let filled = 0;
+    for (let y = 0; y < height; y += 1) {
+      const i = y * width + x;
+      let d2 = 0;
+      for (let ch = 0; ch < data.length; ch += 1) {
+        const d = data[ch][i] - backdrop[ch];
+        d2 += d * d;
+      }
+      if (d2 > threshold2) filled += 1;
+    }
+    productColumn.push(filled / height > PRODUCT_COLUMN_FILL);
+  }
+
+  const minWidth = frameWidth * MIN_PRODUCT_WIDTH_FRACTION;
+  const maxGap = frameWidth * MAX_PRODUCT_GAP_FRACTION;
+  let count = 0;
+  let runStart = -1;
+  let lastProduct = -Infinity;
+  const closeRun = (end: number) => {
+    if (runStart >= 0 && end - runStart >= minWidth) count += 1;
+    runStart = -1;
+  };
+  for (let x = 0; x < width; x += 1) {
+    if (!productColumn[x]) continue;
+    if (runStart < 0) runStart = x;
+    else if (x - lastProduct > maxGap) {
+      closeRun(lastProduct + 1);
+      runStart = x;
+    }
+    lastProduct = x;
+  }
+  closeRun(lastProduct + 1);
+  return count;
+}
+
+type Mat = InstanceType<CV['Mat']>;
+
+const REFERENCE_AREA = 1080 * 1920;
+/** Smallest reportable change, as a fraction of the frame (a product is ~1% or more). */
+const MIN_REGION_FRACTION = 0.0015;
+
+function oddKernel(n: number): number {
+  const k = Math.max(3, Math.round(n));
+  return k % 2 === 0 ? k + 1 : k;
+}
+
+/**
+ * Per-pixel difference that forgives small residual misalignment: a pixel only counts as
+ * changed if it falls outside the other image's local min/max range, in both directions.
+ */
+function tolerantDiff(cv: CV, a: Mat, b: Mat, kernelSize: number): Mat {
+  const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(kernelSize, kernelSize));
+  const aMax = new cv.Mat();
+  const aMin = new cv.Mat();
+  const bMax = new cv.Mat();
+  const bMin = new cv.Mat();
+  const t1 = new cv.Mat();
+  const t2 = new cv.Mat();
+  const dA = new cv.Mat();
+  const dB = new cv.Mat();
+  const out = new cv.Mat();
   try {
-    cv.drawContours(mask, vec, 0, new cv.Scalar(255), -1);
-    const baselineMean = cv.mean(grayBaseline, mask)[0] ?? 0;
-    const captureMean = cv.mean(grayCapture, mask)[0] ?? 0;
-    const rect = cv.boundingRect(contour);
-    const offset = { x: rect.x, y: rect.y };
-    return {
-      baselineMean,
-      captureMean,
-      baselineCentroid: foregroundCentroidFromMask(cv, grayBaseline, mask, offset),
-      captureCentroid: foregroundCentroidFromMask(cv, grayCapture, mask, offset),
-    };
+    cv.dilate(a, aMax, kernel);
+    cv.erode(a, aMin, kernel);
+    cv.dilate(b, bMax, kernel);
+    cv.erode(b, bMin, kernel);
+    cv.subtract(a, bMax, t1);
+    cv.subtract(bMin, a, t2);
+    cv.max(t1, t2, dA);
+    cv.subtract(b, aMax, t1);
+    cv.subtract(aMin, b, t2);
+    cv.max(t1, t2, dB);
+    cv.min(dA, dB, out);
+    return out;
   } finally {
-    mask.delete();
-    vec.delete();
+    kernel.delete();
+    aMax.delete();
+    aMin.delete();
+    bMax.delete();
+    bMin.delete();
+    t1.delete();
+    t2.delete();
+    dA.delete();
+    dB.delete();
   }
 }
 
-function countForegroundBlobs(
+/**
+ * Blurred R/G/B planes of both photos in the baseline frame, with each capture plane
+ * exposure-matched to the baseline plane.
+ */
+function alignedColorPlanes(
   cv: CV,
-  gray: InstanceType<CV['Mat']>,
-  minContourArea: number,
-): number {
-  const binary = new cv.Mat();
-  const closed = new cv.Mat();
-  const contours = new cv.MatVector();
-  const hierarchy = new cv.Mat();
-  const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
+  baselineRgba: Mat,
+  captureRgba: Mat,
+  alignment: ReturnType<typeof alignCapture>,
+): { base: Mat[]; cap: Mat[] } {
+  const bCh = new cv.MatVector();
+  const cCh = new cv.MatVector();
+  const blur = new cv.Size(5, 5);
+  const base: Mat[] = [];
+  const cap: Mat[] = [];
   try {
-    cv.threshold(gray, binary, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
-    cv.morphologyEx(binary, closed, cv.MORPH_CLOSE, kernel);
-    cv.findContours(closed, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-    let count = 0;
-    for (let i = 0; i < contours.size(); i += 1) {
-      const area = cv.contourArea(contours.get(i));
-      if (area >= minContourArea) count += 1;
+    cv.split(baselineRgba, bCh);
+    cv.split(captureRgba, cCh);
+    for (let ch = 0; ch < 3; ch += 1) {
+      const b = new cv.Mat();
+      cv.GaussianBlur(bCh.get(ch), b, blur, 0);
+      const c = warpToBaseline(cv, cCh.get(ch), alignment);
+      matchPhotometry(cv, b, c, alignment.valid);
+      cv.GaussianBlur(c, c, blur, 0);
+      base.push(b);
+      cap.push(c);
     }
-    return count;
+    return { base, cap };
   } finally {
-    binary.delete();
-    closed.delete();
-    contours.delete();
-    hierarchy.delete();
-    kernel.delete();
+    bCh.delete();
+    cCh.delete();
   }
+}
+
+/** Max over color planes of the tolerant diff, so hue-only changes still register. */
+function colorTolerantDiff(cv: CV, base: Mat[], cap: Mat[], kernelSize: number): Mat {
+  const out = new cv.Mat(base[0].rows, base[0].cols, cv.CV_8UC1, new cv.Scalar(0));
+  for (let ch = 0; ch < base.length; ch += 1) {
+    const d = tolerantDiff(cv, base[ch], cap[ch], kernelSize);
+    cv.max(out, d, out);
+    d.delete();
+  }
+  return out;
+}
+
+/** Euclidean RGB distance between the mean color inside `mask` and inside `ring`. */
+function colorContrast(cv: CV, planes: Mat[], mask: Mat, ring: Mat): number {
+  let sum = 0;
+  for (const plane of planes) {
+    const d = (cv.mean(plane, mask)[0] ?? 0) - (cv.mean(plane, ring)[0] ?? 0);
+    sum += d * d;
+  }
+  return Math.sqrt(sum);
+}
+
+/** Gradient magnitude map (8-bit) used to tell "product detail" from plain shelf back. */
+function textureMap(cv: CV, gray: Mat): Mat {
+  const gx = new cv.Mat();
+  const gy = new cv.Mat();
+  const ax = new cv.Mat();
+  const ay = new cv.Mat();
+  const out = new cv.Mat();
+  try {
+    cv.Sobel(gray, gx, cv.CV_16S, 1, 0, 3);
+    cv.Sobel(gray, gy, cv.CV_16S, 0, 1, 3);
+    cv.convertScaleAbs(gx, ax);
+    cv.convertScaleAbs(gy, ay);
+    cv.addWeighted(ax, 0.5, ay, 0.5, 0, out);
+    return out;
+  } finally {
+    gx.delete();
+    gy.delete();
+    ax.delete();
+    ay.delete();
+  }
+}
+
+type Fragment = { index: number; area: number; rect: { x: number; y: number; width: number; height: number } };
+
+/**
+ * Merge diff fragments that belong to one product: a removed item often splits into pieces
+ * around its label, all sharing the same column within the tier.
+ */
+function groupFragments(fragments: Fragment[]): Fragment[][] {
+  const parent = fragments.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  for (let i = 0; i < fragments.length; i += 1) {
+    for (let j = i + 1; j < fragments.length; j += 1) {
+      const a = fragments[i].rect;
+      const b = fragments[j].rect;
+      const overlapX = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+      if (overlapX >= 0.5 * Math.min(a.width, b.width)) parent[find(i)] = find(j);
+    }
+  }
+  const groups = new Map<number, Fragment[]>();
+  fragments.forEach((f, i) => {
+    const root = find(i);
+    groups.set(root, [...(groups.get(root) ?? []), f]);
+  });
+  return [...groups.values()];
+}
+
+function regionStats(cv: CV, grayB: Mat, grayC: Mat, mask: Mat) {
+  return {
+    baselineMean: cv.mean(grayB, mask)[0] ?? 0,
+    captureMean: cv.mean(grayC, mask)[0] ?? 0,
+    baselineCentroid: foregroundCentroidFromMask(cv, grayB, mask, { x: 0, y: 0 }),
+    captureCentroid: foregroundCentroidFromMask(cv, grayC, mask, { x: 0, y: 0 }),
+  };
+}
+
+interface TierInputs {
+  colorB: Mat[];
+  colorC: Mat[];
+  grayB: Mat;
+  grayC: Mat;
+  diff: Mat;
+  texB: Mat;
+  texC: Mat;
+  valid: Mat;
 }
 
 function diffTier(
   cv: CV,
-  baselineTier: InstanceType<CV['Mat']>,
-  captureTier: InstanceType<CV['Mat']>,
+  tier: TierInputs,
   tierIndex: 0 | 1 | 2 | 3,
   tierOffset: { x: number; y: number },
   frameSize: { width: number; height: number },
   params: ReturnType<typeof toleranceToDiffParams>,
+  toCapture: (rect: { x: number; y: number; width: number; height: number }) => {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  },
 ): DetectedAnomaly[] {
-  const grayB = new cv.Mat();
-  const grayC = new cv.Mat();
-  const diff = new cv.Mat();
+  const { grayB, grayC, diff, texB, texC, valid, colorB, colorC } = tier;
   const binary = new cv.Mat();
-  const closed = new cv.Mat();
+  const cleaned = new cv.Mat();
   const contours = new cv.MatVector();
   const hierarchy = new cv.Mat();
-  const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
+  const minDim = Math.min(frameSize.width, frameSize.height);
+  const openKernel = cv.getStructuringElement(
+    cv.MORPH_RECT,
+    new cv.Size(oddKernel(minDim * 0.006), oddKernel(minDim * 0.006)),
+  );
+  const closeKernel = cv.getStructuringElement(
+    cv.MORPH_RECT,
+    new cv.Size(oddKernel(minDim * 0.02), oddKernel(minDim * 0.02)),
+  );
+  const frameArea = frameSize.width * frameSize.height;
+  const minArea = Math.max(
+    params.minContourArea * (frameArea / REFERENCE_AREA),
+    frameArea * MIN_REGION_FRACTION,
+  );
 
   try {
-    cv.cvtColor(baselineTier, grayB, cv.COLOR_RGBA2GRAY);
-    cv.cvtColor(captureTier, grayC, cv.COLOR_RGBA2GRAY);
-    cv.GaussianBlur(grayB, grayB, new cv.Size(5, 5), 0);
-    cv.GaussianBlur(grayC, grayC, new cv.Size(5, 5), 0);
-    cv.absdiff(grayB, grayC, diff);
     cv.threshold(diff, binary, params.diffThreshold, 255, cv.THRESH_BINARY);
-    cv.morphologyEx(binary, closed, cv.MORPH_CLOSE, kernel);
-    cv.findContours(closed, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+    cv.bitwise_and(binary, valid, binary);
+    cv.morphologyEx(binary, cleaned, cv.MORPH_OPEN, openKernel);
+    cv.morphologyEx(cleaned, cleaned, cv.MORPH_CLOSE, closeKernel);
+    cv.findContours(cleaned, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-    const candidates: Array<{ area: number; anomaly: DetectedAnomaly }> = [];
-
+    const fragments: Array<{ index: number; area: number; rect: { x: number; y: number; width: number; height: number } }> = [];
     for (let i = 0; i < contours.size(); i += 1) {
-      const contour = contours.get(i);
-      const area = cv.contourArea(contour);
-      if (area < params.minContourArea) continue;
-
-      const stats = contourRegionStats(cv, grayB, grayC, contour);
-      const type = classifyContourType(stats, params.displacementThresholdPx);
-      if (!type) continue;
-
-      const rect = cv.boundingRect(contour);
-      const fullFrameRect = {
-        x: tierOffset.x + rect.x,
-        y: tierOffset.y + rect.y,
-        width: rect.width,
-        height: rect.height,
-      };
-      const bbox = pixelRectToNormalized(fullFrameRect, frameSize.width, frameSize.height);
-      const rowIndex = tierIndex;
-      candidates.push({
-        area,
-        anomaly: {
-          id: stableAnomalyId(rowIndex, bbox),
-          rowIndex,
-          type,
-          title: type === 'MISSING' ? `Tier ${rowIndex + 1} missing` : `Tier ${rowIndex + 1} moved`,
-          score: Math.min(1, area / (params.minContourArea * 4)),
-          boundingBox: bbox,
-          dismissed: false,
-          ...(type === 'MOVED' ? { displacementNote: 'detected shift' } : {}),
-        },
-      });
+      const area = cv.contourArea(contours.get(i));
+      if (area < minArea * 0.25) continue;
+      const r = cv.boundingRect(contours.get(i));
+      fragments.push({ index: i, area, rect: { x: r.x, y: r.y, width: r.width, height: r.height } });
     }
 
-    if (!candidates.some((c) => c.anomaly.type === 'MOVED')) {
-      const fullMask = new cv.Mat(grayB.rows, grayB.cols, cv.CV_8UC1, new cv.Scalar(255));
-      try {
-        const baselineCentroid = foregroundCentroidFromMask(cv, grayB, fullMask, { x: 0, y: 0 });
-        const captureCentroid = foregroundCentroidFromMask(cv, grayC, fullMask, { x: 0, y: 0 });
-        const tierStats = {
-          baselineMean: cv.mean(grayB)[0] ?? 0,
-          captureMean: cv.mean(grayC)[0] ?? 0,
-          baselineCentroid,
-          captureCentroid,
-        };
-        if (classifyContourType(tierStats, params.displacementThresholdPx) === 'MOVED') {
-          let unionRect = { x: 0, y: 0, width: grayB.cols, height: grayB.rows };
-          for (let j = 0; j < contours.size(); j += 1) {
-            const r = cv.boundingRect(contours.get(j));
-            if (j === 0) {
-              unionRect = { x: r.x, y: r.y, width: r.width, height: r.height };
-            } else {
-              const x2 = Math.max(unionRect.x + unionRect.width, r.x + r.width);
-              const y2 = Math.max(unionRect.y + unionRect.height, r.y + r.height);
-              unionRect.x = Math.min(unionRect.x, r.x);
-              unionRect.y = Math.min(unionRect.y, r.y);
-              unionRect.width = x2 - unionRect.x;
-              unionRect.height = y2 - unionRect.y;
-            }
-          }
-          const fullFrameRect = {
-            x: tierOffset.x + unionRect.x,
-            y: tierOffset.y + unionRect.y,
-            width: unionRect.width,
-            height: unionRect.height,
-          };
-          const bbox = pixelRectToNormalized(fullFrameRect, frameSize.width, frameSize.height);
+    const candidates: Array<{ area: number; anomaly: DetectedAnomaly }> = [];
+    const ringKernel = cv.getStructuringElement(
+      cv.MORPH_RECT,
+      new cv.Size(oddKernel(minDim * 0.03), oddKernel(minDim * 0.03)),
+    );
+
+    try {
+      for (const group of groupFragments(fragments)) {
+        const area = group.reduce((sum, f) => sum + f.area, 0);
+        if (area < minArea) continue;
+
+        const mask = new cv.Mat(grayB.rows, grayB.cols, cv.CV_8UC1, new cv.Scalar(0));
+        const ring = new cv.Mat();
+        try {
+          for (const f of group) cv.drawContours(mask, contours, f.index, new cv.Scalar(255), -1);
+          cv.dilate(mask, ring, ringKernel);
+          cv.subtract(ring, mask, ring);
+          cv.bitwise_and(ring, valid, ring);
+
+          const stats = regionStats(cv, grayB, grayC, mask);
+          const hasRing = cv.countNonZero(ring) > 0;
+          const type = classifyContourType(
+            {
+              ...stats,
+              baselineTexture: cv.mean(texB, mask)[0] ?? 0,
+              captureTexture: cv.mean(texC, mask)[0] ?? 0,
+              baselineContrast: hasRing ? colorContrast(cv, colorB, mask, ring) : 0,
+              captureContrast: hasRing ? colorContrast(cv, colorC, mask, ring) : 0,
+            },
+            params.displacementThresholdPx,
+          );
+          if (!type) continue;
+
+          const x0 = Math.min(...group.map((f) => f.rect.x));
+          const y0 = Math.min(...group.map((f) => f.rect.y));
+          const x1 = Math.max(...group.map((f) => f.rect.x + f.rect.width));
+          const y1 = Math.max(...group.map((f) => f.rect.y + f.rect.height));
+          const captureRect = toCapture({
+            x: tierOffset.x + x0,
+            y: tierOffset.y + y0,
+            width: x1 - x0,
+            height: y1 - y0,
+          });
+          const bbox = pixelRectToNormalized(captureRect, frameSize.width, frameSize.height);
           candidates.push({
-            area: params.minContourArea * 2,
+            area,
             anomaly: {
               id: stableAnomalyId(tierIndex, bbox),
               rowIndex: tierIndex,
-              type: 'MOVED',
-              title: `Tier ${tierIndex + 1} moved`,
-              score: 0.75,
+              type,
+              title: type === 'MISSING' ? `Tier ${tierIndex + 1} missing` : `Tier ${tierIndex + 1} moved`,
+              score: Math.min(1, area / (minArea * 4)),
               boundingBox: bbox,
               dismissed: false,
-              displacementNote: 'detected shift',
+              ...(type === 'MOVED' ? { displacementNote: 'detected shift' } : {}),
             },
           });
+        } finally {
+          mask.delete();
+          ring.delete();
         }
-      } finally {
-        fullMask.delete();
       }
+    } finally {
+      ringKernel.delete();
     }
 
     candidates.sort((a, b) => b.area - a.area);
     return candidates.slice(0, MAX_ANOMALIES_PER_TIER).map((c) => c.anomaly);
   } finally {
-    grayB.delete();
-    grayC.delete();
-    diff.delete();
     binary.delete();
-    closed.delete();
+    cleaned.delete();
     contours.delete();
     hierarchy.delete();
-    kernel.delete();
+    openKernel.delete();
+    closeKernel.delete();
   }
 }
 
@@ -288,8 +480,32 @@ function analyzeAllTiers(
   const params = toleranceToDiffParams(toleranceValue);
   const baselineMat = rasterToMat(cv, baselineFrame);
   const captureMat = rasterToMat(cv, captureFrame);
+  const rawB = new cv.Mat();
+  const rawC = new cv.Mat();
+  const grayB = new cv.Mat();
+  const grayC = new cv.Mat();
+  let alignment: ReturnType<typeof alignCapture> | null = null;
+  let diff: Mat | null = null;
+  let texB: Mat | null = null;
+  let texC: Mat | null = null;
+  let planes: { base: Mat[]; cap: Mat[] } | null = null;
 
   try {
+    cv.cvtColor(baselineMat, rawB, cv.COLOR_RGBA2GRAY);
+    cv.cvtColor(captureMat, rawC, cv.COLOR_RGBA2GRAY);
+    alignment = alignCapture(cv, rawB, rawC);
+    const blur = new cv.Size(5, 5);
+    cv.GaussianBlur(rawB, grayB, blur, 0);
+    cv.GaussianBlur(alignment.alignedGray, grayC, blur, 0);
+    const minDim = Math.min(frameSize.width, frameSize.height);
+    planes = alignedColorPlanes(cv, baselineMat, captureMat, alignment);
+    diff = colorTolerantDiff(cv, planes.base, planes.cap, oddKernel(minDim * 0.012));
+    texB = textureMap(cv, grayB);
+    texC = textureMap(cv, grayC);
+    const inverse = alignment.inverse;
+    const toCapture = (rect: { x: number; y: number; width: number; height: number }) =>
+      mapRectToCapture(inverse, rect, frameSize);
+
     let standardCount = 0;
     const anomalies: DetectedAnomaly[] = [];
 
@@ -299,30 +515,33 @@ function analyzeAllTiers(
         frameSize,
         tierIndex as 0 | 1 | 2 | 3,
       );
-      const baselineTier = cropMat(cv, baselineMat, bounds);
-      const captureTier = cropMat(cv, captureMat, bounds);
-      const grayB = new cv.Mat();
+      const tier: TierInputs = {
+        grayB: cropMat(cv, grayB, bounds),
+        grayC: cropMat(cv, grayC, bounds),
+        diff: cropMat(cv, diff, bounds),
+        texB: cropMat(cv, texB, bounds),
+        texC: cropMat(cv, texC, bounds),
+        valid: cropMat(cv, alignment.valid, bounds),
+        colorB: planes.base.map((m) => cropMat(cv, m, bounds)),
+        colorC: planes.cap.map((m) => cropMat(cv, m, bounds)),
+      };
       try {
-        cv.cvtColor(baselineTier, grayB, cv.COLOR_RGBA2GRAY);
-        standardCount += countForegroundBlobs(cv, grayB, params.minContourArea);
-      } finally {
-        grayB.delete();
-      }
-
-      try {
-        const tierAnomalies = diffTier(
-          cv,
-          baselineTier,
-          captureTier,
-          tierIndex as 0 | 1 | 2 | 3,
-          { x: bounds.x, y: bounds.y },
-          frameSize,
-          params,
+        standardCount += countTierProducts(cv, tier.colorB, frameSize.width);
+        anomalies.push(
+          ...diffTier(
+            cv,
+            tier,
+            tierIndex as 0 | 1 | 2 | 3,
+            { x: bounds.x, y: bounds.y },
+            frameSize,
+            params,
+            toCapture,
+          ),
         );
-        anomalies.push(...tierAnomalies);
       } finally {
-        baselineTier.delete();
-        captureTier.delete();
+        [tier.grayB, tier.grayC, tier.diff, tier.texB, tier.texC, tier.valid, ...tier.colorB, ...tier.colorC].forEach((m) =>
+          m.delete(),
+        );
       }
     }
 
@@ -340,6 +559,19 @@ function analyzeAllTiers(
   } finally {
     baselineMat.delete();
     captureMat.delete();
+    rawB.delete();
+    rawC.delete();
+    grayB.delete();
+    grayC.delete();
+    diff?.delete();
+    texB?.delete();
+    texC?.delete();
+    alignment?.alignedGray.delete();
+    alignment?.valid.delete();
+    alignment?.inverse?.delete();
+    alignment?.forward?.delete();
+    planes?.base.forEach((m) => m.delete());
+    planes?.cap.forEach((m) => m.delete());
   }
 }
 
