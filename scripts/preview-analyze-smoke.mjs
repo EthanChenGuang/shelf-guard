@@ -62,7 +62,6 @@ const result = await page.evaluate(async (wp) => {
         type: 'analyze',
         captureBitmap,
         baselineBitmap,
-        splitYPercentages: [0.295, 0.455, 0.618, 0.782],
         toleranceValue: 50,
       },
       [captureBitmap, baselineBitmap],

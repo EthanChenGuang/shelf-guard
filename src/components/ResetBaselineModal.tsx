@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, Camera, Check, RefreshCw, SlidersVertical, X } from 'lucide-react';
+import { AlertCircle, Camera, Check, RefreshCw, X } from 'lucide-react';
 import { Language, ShelfCalibration } from '../types';
 import { I18N } from '../lib/constants';
 
@@ -7,7 +7,6 @@ interface ResetBaselineModalProps {
   baseline: ShelfCalibration;
   lang: Language;
   onClose: () => void;
-  onRecalibrate: () => void;
   onResetToDefault: () => void;
   onUploadCustomImage: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
@@ -16,7 +15,6 @@ export const ResetBaselineModal: React.FC<ResetBaselineModalProps> = ({
   baseline,
   lang,
   onClose,
-  onRecalibrate,
   onResetToDefault,
   onUploadCustomImage,
 }) => {
@@ -50,28 +48,19 @@ export const ResetBaselineModal: React.FC<ResetBaselineModalProps> = ({
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2.5">
             <span className="text-white text-xs font-semibold flex items-center gap-1">
               <Check className="w-3.5 h-3.5 text-emerald-400" />
-              {t.baselineEstablished} (4 Tiers)
+              {t.baselineEstablished}
             </span>
           </div>
         </div>
 
         <p className="text-xs text-slate-600 leading-relaxed">
           {lang === 'cn'
-            ? '当前基准图用于每次巡检时的幽灵覆层透视配准与四排横梁差分比对。您可以调整分段标定，或上传新拍摄的货架标准照。'
-            : 'The current baseline is used for ghost alignment and 4-tier differential inspection. You can recalibrate tiers or upload a new photo.'}
+            ? '当前基准图用于每次巡检时的幽灵覆层透视配准与整图差分比对。您可以上传新拍摄的货架标准照。'
+            : 'The current baseline is used for ghost alignment and whole-photo differential inspection. You can upload a new photo.'}
         </p>
 
         {/* Action Options */}
         <div className="space-y-2 pt-1">
-          {/* Recalibrate horizontal dividers */}
-          <button
-            onClick={onRecalibrate}
-            className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#0F172A] font-semibold text-xs flex items-center justify-center gap-2 transition-colors"
-          >
-            <SlidersVertical className="w-4 h-4 text-[#006C49]" />
-            <span>{t.tierCalibration}</span>
-          </button>
-
           {/* Upload new photo as baseline */}
           <label className="w-full py-2.5 px-4 rounded-xl border border-dashed border-slate-300 hover:border-[#10B981] hover:bg-emerald-50/50 text-[#0F172A] font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer">
             <Camera className="w-4 h-4 text-[#006C49]" />

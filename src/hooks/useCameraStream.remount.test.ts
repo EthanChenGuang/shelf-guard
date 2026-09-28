@@ -8,7 +8,7 @@ import { useCameraStream } from './useCameraStream';
  *
  * Root cause: App.tsx conditionally renders <CameraView> (which owns the sole <video>
  * element) only while appMode === 'CAMERA_IDLE'. CameraView fully unmounts/remounts on every
- * transition through ROI_CONFIG / SCANNING_ANIM / PROCESSING / RESULT_INSPECT and back — which
+ * transition through SCANNING_ANIM / PROCESSING / RESULT_INSPECT and back — which
  * happens after the very first baseline capture, and after every capture thereafter. The
  * effect that attaches the live MediaStream to the <video> element previously depended only on
  * `[stream]`; since the MediaStream object's identity never changes across these remounts, a
@@ -61,9 +61,8 @@ describe('useCameraStream video reattachment across CameraView remount', () => {
       expect((video1 as unknown as { srcObject: unknown }).srcObject).toBe(mediaStream);
     });
 
-    // Simulate App.tsx conditionally unmounting CameraView (e.g. appMode -> ROI_CONFIG,
-    // which happens right after the baseline shutter press, or SCANNING_ANIM/RESULT_INSPECT
-    // after every subsequent capture).
+    // Simulate App.tsx conditionally unmounting CameraView (appMode -> SCANNING_ANIM /
+    // RESULT_INSPECT after every inspection capture).
     rerender(React.createElement(Harness, { mountVideo: false }));
     expect(screen.queryByTestId('video')).toBeNull();
 

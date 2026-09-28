@@ -14,7 +14,6 @@ const baseProps = {
   lang: 'cn' as const,
   onLanguageToggle: vi.fn(),
   onShutterClick: vi.fn(),
-  onOpenRoiConfig: vi.fn(),
   onOpenHistory: vi.fn(),
   onResetBaselinePrompt: vi.fn(),
   tilt: 0,

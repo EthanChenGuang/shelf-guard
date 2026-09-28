@@ -16,8 +16,8 @@ const baseUrl = process.env.PREVIEW_URL || 'http://127.0.0.1:4173';
 const outDir = process.env.ARTIFACT_DIR || './.uat-artifacts/native-capture';
 mkdirSync(outDir, { recursive: true });
 
-// Synthetic shelf on a dark back panel, products placed inside the default tier bands.
-// `missing` lists [tier, slot] cells to leave empty; `focal35` embeds an EXIF lens focal length.
+// Synthetic shelf on a dark back panel, products in a 4-row x 5-slot grid.
+// `missing` lists [row, slot] cells to leave empty; `focal35` embeds an EXIF lens focal length.
 async function makeShelfJpeg(page, width, height, { missing = [], focal35 = null } = {}) {
   const b64 = await page.evaluate(
     async ({ width, height, missing }) => {
@@ -83,6 +83,12 @@ async function shootWithOsCamera(page, buffer, name) {
   await chooser.setFiles({ name, mimeType: 'image/jpeg', buffer });
 }
 
+// Shelf tiers / split lines were removed; none of their UI may come back.
+async function assertNoTierUi(page) {
+  const tierUi = page.getByText(/Tier \d|基准横梁标定|拖动横线|确认并保存基准/);
+  if (await tierUi.count()) throw new Error('Tier calibration UI is still shown');
+}
+
 async function backToCamera(page) {
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#shutter-trigger', { timeout: 25_000 });
@@ -110,10 +116,10 @@ async function run(deviceName) {
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
     await page.waitForSelector('#shutter-trigger', { timeout: 25_000 });
 
-    // 1. Establish a live baseline so the reset modal is reachable.
+    // 1. Establish a live baseline so the reset modal is reachable: the first shot is saved directly.
     await page.locator('#shutter-trigger').click({ force: true });
-    await page.getByRole('button', { name: '确认并保存基准' }).click({ timeout: 30_000 });
     await page.getByText('基准图 (已建立)').waitFor({ timeout: 20_000 });
+    await assertNoTierUi(page);
     log('live-baseline-saved');
 
     const nativeHint = page.getByText(/基准图由系统相机拍摄/);
@@ -125,11 +131,12 @@ async function run(deviceName) {
     const MAIN_1X = 27;
     const baselineJpeg = insertExifFocal35(fixture('baseline'), ULTRA_WIDE);
     await page.getByTestId('baseline-status-pill').click({ force: true });
+    await assertNoTierUi(page);
     await page.locator('input[type=file]').first().setInputFiles({
       name: 'baseline.jpg', mimeType: 'image/jpeg', buffer: baselineJpeg,
     });
-    await page.getByRole('button', { name: '确认并保存基准' }).click({ timeout: 30_000 });
     await nativeHint.waitFor({ timeout: 20_000 });
+    await assertNoTierUi(page);
     log('native-baseline-saved-hint-visible');
     await page.screenshot({ path: join(dir, '01-native-mode.png') });
 
@@ -151,6 +158,7 @@ async function run(deviceName) {
     const missingText = await page.getByText(/^\d+ 处缺失/).first().innerText().catch(() => '');
     const missingN = Number(missingText.match(/\d+/)?.[0] ?? 0);
     if (missingN !== 2) throw new Error(`Expected exactly 2 missing, got "${missingText}"`);
+    await assertNoTierUi(page);
     log('same-lens-removed-items-detected', { missingText, analysisMs });
     await page.screenshot({ path: join(dir, '02-result.png') });
     await backToCamera(page);

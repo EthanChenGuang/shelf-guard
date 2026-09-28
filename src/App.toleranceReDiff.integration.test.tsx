@@ -66,8 +66,6 @@ const persistedBaseline = {
   createdAt: Date.now(),
   imageBlob: new Blob(['baseline'], { type: 'image/jpeg' }),
   imageDimensions: { width: 1080, height: 1920 },
-  splitYPercentages: [0.25, 0.45, 0.65, 0.85] as [number, number, number, number],
-  tierLabels: ['T1', 'T2', 'T3', 'T4'] as [string, string, string, string],
 };
 
 vi.mock('./lib/shelfStorage', () => ({
@@ -85,8 +83,6 @@ vi.mock('./lib/shelfStorage', () => ({
     createdAt: p.createdAt,
     imageDataUrl: url,
     imageDimensions: p.imageDimensions,
-    splitYPercentages: p.splitYPercentages,
-    tierLabels: p.tierLabels,
   })),
   toViewAuditRecord: vi.fn(),
 }));

@@ -12,7 +12,7 @@ export function toleranceToDiffParams(toleranceValue: number): DiffParams {
   const t = clamped / 100;
   const lerp = (a: number, b: number) => Math.round(a + (b - a) * t);
   return {
-    diffThreshold: lerp(60, 15),
+    diffThreshold: lerp(12, 28),
     minContourArea: lerp(200, 1200),
     displacementThresholdPx: lerp(8, 35),
   };

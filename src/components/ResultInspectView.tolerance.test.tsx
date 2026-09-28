@@ -59,7 +59,6 @@ describe('ResultInspectView blink compare (RSLT-02, D-24)', () => {
     anomalies: [
       {
         id: 'a1',
-        rowIndex: 0 as const,
         type: 'MISSING' as const,
         title: 'Tier 1 missing',
         score: 0.9,
@@ -100,4 +99,5 @@ describe('ResultInspectView blink compare (RSLT-02, D-24)', () => {
     fireEvent.touchEnd(viewport);
     expect(img.src).toContain('capture');
   });
+
 });

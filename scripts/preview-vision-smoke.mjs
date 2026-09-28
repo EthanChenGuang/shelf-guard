@@ -41,8 +41,6 @@ const result = await page.evaluate(async () => {
     createdAt: Date.now(),
     imageDataUrl: baselineUrl,
     imageDimensions: { width: 1080, height: 1920 },
-    splitYPercentages: [0.295, 0.455, 0.618, 0.782],
-    tierLabels: ['T1', 'T2', 'T3', 'T4'],
   };
 
   // Dynamic import the app chunk's vision helper via window hook if absent — use worker directly
@@ -98,7 +96,6 @@ const result = await page.evaluate(async () => {
         type: 'analyze',
         captureBitmap,
         baselineBitmap,
-        splitYPercentages: baseline.splitYPercentages,
         toleranceValue: 50,
       },
       [captureBitmap, baselineBitmap],

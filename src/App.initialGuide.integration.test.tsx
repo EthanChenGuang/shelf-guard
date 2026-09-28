@@ -34,8 +34,6 @@ function makeCalibration(id: string): ShelfCalibration {
     createdAt: Date.now(),
     imageDataUrl: TEST_DATA_URL,
     imageDimensions: {width: 1080, height: 1920},
-    splitYPercentages: [0.295, 0.455, 0.618, 0.782],
-    tierLabels: ['T1', 'T2', 'T3', 'T4'],
   };
 }
 

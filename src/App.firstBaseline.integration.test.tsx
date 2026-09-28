@@ -1,11 +1,13 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {act, render, screen} from '@testing-library/react';
+import {act, render, screen, waitFor} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 import {I18N} from './lib/constants';
+import {saveBaseline} from './lib/shelfStorage';
 
-const {analyzeShelfCapture} = vi.hoisted(() => ({
+const {analyzeShelfCapture, FIRST_FRAME} = vi.hoisted(() => ({
   analyzeShelfCapture: vi.fn(),
+  FIRST_FRAME: 'data:image/jpeg;base64,Zmlyc3QtYmFzZWxpbmU=',
 }));
 
 vi.mock('./lib/vision', async (importOriginal) => {
@@ -23,7 +25,7 @@ vi.mock('./hooks/useCameraStream', () => ({
     isTorchOn: false,
     hasTorch: false,
     cameraError: null,
-    captureFrame: vi.fn(async () => 'data:image/jpeg;base64,first-baseline-frame'),
+    captureFrame: vi.fn(async () => FIRST_FRAME),
     startCamera: vi.fn(),
     stopCamera: vi.fn(),
     toggleTorch: vi.fn(),
@@ -82,33 +84,41 @@ vi.mock('./lib/shelfStorage', () => ({
     createdAt: p.createdAt,
     imageDataUrl: url,
     imageDimensions: p.imageDimensions,
-    splitYPercentages: p.splitYPercentages,
-    tierLabels: p.tierLabels,
   })),
 }));
 
-describe('App first-baseline integration (D-01, ROI-01)', () => {
+describe('App first-baseline integration (D-01)', () => {
   beforeEach(() => {
     analyzeShelfCapture.mockClear();
+    vi.mocked(saveBaseline).mockClear();
     vi.stubGlobal('Image', MockImage);
+    vi.stubGlobal('URL', Object.assign(URL, {createObjectURL: vi.fn(() => 'blob:baseline'), revokeObjectURL: vi.fn()}));
     vi.useFakeTimers({shouldAdvanceTime: true});
   });
 
-  it('routes empty shelf shutter to ROI setup without calling vision', async () => {
+  it('saves the first shutter photo as the baseline with no calibration step', async () => {
     const user = userEvent.setup({advanceTimers: vi.advanceTimersByTimeAsync});
     render(<App />);
 
     await act(async () => {
       await Promise.resolve();
     });
+    expect(screen.getByText(I18N.cn.baselineNotSet)).toBeInTheDocument();
 
     await user.click(screen.getByLabelText(I18N.cn.captureScan));
 
-    expect(screen.getByText('基准横梁标定')).toBeInTheDocument();
-    expect(screen.getByAltText('Calibration Still Shelf Frame')).toHaveAttribute(
-      'src',
-      'data:image/jpeg;base64,first-baseline-frame',
-    );
+    await waitFor(() => {
+      expect(screen.getByText(I18N.cn.baselineEstablished)).toBeInTheDocument();
+    });
+    expect(saveBaseline).toHaveBeenCalledTimes(1);
+    const [shelfId, saved] = vi.mocked(saveBaseline).mock.calls[0];
+    expect(shelfId).toBe(0);
+    expect(saved).toMatchObject({
+      imageDataUrl: FIRST_FRAME,
+      imageDimensions: {width: 1080, height: 1920},
+    });
+    expect(saved).not.toHaveProperty('splitYPercentages');
+    expect(screen.getByLabelText(I18N.cn.captureScan)).toBeInTheDocument();
     expect(analyzeShelfCapture).not.toHaveBeenCalled();
     expect(
       screen.queryByText('正在进行透视配准与差分分析...'),

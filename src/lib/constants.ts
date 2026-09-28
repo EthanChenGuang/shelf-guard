@@ -6,26 +6,16 @@ export function getShelfLabel(lang: Language, shelfIndex: number): string {
   return lang === 'cn' ? `柜架 ${n}` : `Shelf ${n}`;
 }
 
-export const DEFAULT_SPLIT_Y: [number, number, number, number] = [0.295, 0.455, 0.618, 0.782];
-
 export const DEFAULT_CALIBRATION: ShelfCalibration = {
   id: 'baseline-default',
   createdAt: Date.now(),
   imageDataUrl: '',
   imageDimensions: { width: 1080, height: 1920 },
-  splitYPercentages: DEFAULT_SPLIT_Y,
-  tierLabels: [
-    'Tier 1: 香氛/面霜',
-    'Tier 2: 护肤精华',
-    'Tier 3: 彩妆盘/粉底',
-    'Tier 4: 香氛蜡烛/洗护',
-  ],
 };
 
 export const INITIAL_MOCK_ANOMALIES: DetectedAnomaly[] = [
   {
     id: 'box-displaced-1',
-    rowIndex: 1,
     type: 'MOVED',
     title: 'Drunk Elephant',
     displacementNote: '+8cm',
@@ -40,7 +30,6 @@ export const INITIAL_MOCK_ANOMALIES: DetectedAnomaly[] = [
   },
   {
     id: 'box-displaced-2',
-    rowIndex: 2,
     type: 'MOVED',
     title: 'NARS Palette',
     displacementNote: '倾斜 12°',
@@ -55,7 +44,6 @@ export const INITIAL_MOCK_ANOMALIES: DetectedAnomaly[] = [
   },
   {
     id: 'box-missing',
-    rowIndex: 3,
     type: 'MISSING',
     title: 'Aesop Balm (应放1件)',
     expectedCount: 1,
@@ -86,15 +74,6 @@ export const I18N = {
     resetConfirm: '确定要清除当前基准图并重新拍摄标定吗？',
     cancel: '取消',
     confirm: '确认',
-    retake: '重拍',
-    resetSplits: '重置分段',
-    saveCalibration: '确认并保存基准',
-    tierCalibration: '基准横梁标定',
-    tierSubtitle: '四层货架层板边缘精密对准',
-    firstBaselineHint: '首次拍摄将作为基准图，请标定 4 排分割线',
-    tiersIdentified: '4 排已识别',
-    dragHint: '拖动横线对齐层板上边缘，支持亚毫米自动磁吸',
-    edgeSnapped: '边缘已吸附',
     auditResult: '展架巡检比对结果',
     complianceRate: '合规度',
     missingCount: '处缺失',
@@ -150,15 +129,9 @@ export const I18N = {
       '请在 Safari 中打开本页 → 设置 → Safari → 运动与方向访问，允许后返回重试。',
     retryOrientation: '重试方向权限',
     shelfCarouselLabel: '柜架选择',
-    selectedTier: '当前调整：',
-    tierLayer: (n: number) => `第 ${n} 层 (Tier ${n})`,
-    fineTuneActive: '微调模式激活',
-    calibrationSaved: '标定已保存 (4 Tiers Locked)',
     backToCamera: '返回相机',
     exportReportToast: (rate: number) =>
       `巡检报告已生成：合规度 ${rate}%，已归档。`,
-    defaultTierLabels: ['香氛/面霜', '护肤精华', '彩妆盘', '香氛蜡烛'],
-    defaultPlanogram: '四层展架标定',
     baselineGhostAlt: '基准幽灵覆层',
     captureScan: '拍摄并扫描展架',
     viewPreviousAudit: '查看上次巡检',
@@ -179,15 +152,6 @@ export const I18N = {
     resetConfirm: 'Are you sure you want to clear current baseline and recalibrate?',
     cancel: 'Cancel',
     confirm: 'Confirm',
-    retake: 'Retake',
-    resetSplits: 'Reset Splits',
-    saveCalibration: 'Save Calibration',
-    tierCalibration: 'Shelf Plumb Calibration',
-    tierSubtitle: 'Sub-millimeter Shelf Edge Alignment',
-    firstBaselineHint: 'First capture becomes your baseline — align the 4 shelf dividers',
-    tiersIdentified: '4 Tiers Locked',
-    dragHint: 'Drag horizontal dividers to align shelf edges with magnetic snap',
-    edgeSnapped: 'Edge Snapped',
     auditResult: 'Audit Inspection Results',
     complianceRate: 'Compliance',
     missingCount: 'Missing',
@@ -244,15 +208,9 @@ export const I18N = {
       'Open in Safari → Settings → Safari → Motion & Orientation Access, then return and retry.',
     retryOrientation: 'Retry orientation',
     shelfCarouselLabel: 'Shelf selection',
-    selectedTier: 'Selected: ',
-    tierLayer: (n: number) => `Tier ${n}`,
-    fineTuneActive: 'Fine-Tune Active',
-    calibrationSaved: 'Calibration Saved!',
     backToCamera: 'Back to Camera',
     exportReportToast: (rate: number) =>
       `Report exported: Compliance ${rate}%, saved.`,
-    defaultTierLabels: ['Fragrance', 'Skincare', 'Cosmetics', 'Candles'],
-    defaultPlanogram: '4-Tier Planogram',
     baselineGhostAlt: 'Baseline ghost overlay',
     captureScan: 'Capture & Scan Planogram',
     viewPreviousAudit: 'View previous shelf audit',

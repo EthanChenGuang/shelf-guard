@@ -58,8 +58,6 @@ vi.mock('./lib/shelfStorage', () => ({
     createdAt: p.createdAt,
     imageDataUrl: url,
     imageDimensions: p.imageDimensions,
-    splitYPercentages: p.splitYPercentages,
-    tierLabels: p.tierLabels,
   })),
 }));
 

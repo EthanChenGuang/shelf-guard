@@ -2,7 +2,6 @@ export type AppMode =
   | 'CAMERA_IDLE'       // 相机待机与水平对齐
   | 'SCANNING_ANIM'     // 抓拍后的 0.8s 扫描动画态
   | 'PROCESSING'        // 配准与差分运算阶段
-  | 'ROI_CONFIG'        // 拖动 4 排分割线校准阶段
   | 'RESULT_INSPECT';   // 比对结果交互页
 
 export type ToleranceLevel = 'strict' | 'normal' | 'loose';
@@ -15,15 +14,12 @@ export interface ShelfCalibration {
   createdAt: number;
   imageDataUrl: string;
   imageDimensions: { width: number; height: number };
-  splitYPercentages: [number, number, number, number]; // 4条水平线垂直百分比 (0.0 - 1.0)
-  tierLabels: [string, string, string, string];
   /** EXIF focal length of an OS-camera baseline; used to reject shots taken with another lens. */
   lensFocalLength?: number | null;
 }
 
 export interface DetectedAnomaly {
   id: string;
-  rowIndex: 0 | 1 | 2 | 3;
   type: 'MISSING' | 'MOVED';
   title: string;
   expectedCount?: number;

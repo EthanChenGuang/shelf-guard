@@ -7,7 +7,7 @@
  */
 import { ImageData } from '@napi-rs/canvas';
 import { describe, expect, it } from 'vitest';
-import { analyzeAllTiers, getCv } from './visionWorker';
+import { analyzeFrame, getCv } from './visionWorker';
 import {
   handheldMatrix,
   jpegRoundTrip,
@@ -71,12 +71,12 @@ describe('hand-held re-shoot comparison', () => {
     const frame = { width: w, height: h };
 
     const unchanged = await simulateHandheld(cv, renderShelf(scene), motion, seed);
-    const same = analyzeAllTiers(cv, unchanged, baseline, scene.splits, frame, TOLERANCE);
+    const same = analyzeFrame(cv, unchanged, baseline, frame, TOLERANCE);
     expect(same.anomalies.filter((a) => !a.dismissed)).toEqual([]);
     expect(Math.abs(same.standardCount - scene.products.length)).toBeLessThanOrEqual(1);
 
     const emptied = await simulateHandheld(cv, renderShelf(scene, removed), motion, seed + 500);
-    const result = analyzeAllTiers(cv, emptied, baseline, scene.splits, frame, TOLERANCE);
+    const result = analyzeFrame(cv, emptied, baseline, frame, TOLERANCE);
     const active = result.anomalies.filter((a) => !a.dismissed);
     for (const i of removed) {
       expect(active.some((a) => a.type === 'MISSING' && overlaps(a, truth[i], w, h))).toBe(true);

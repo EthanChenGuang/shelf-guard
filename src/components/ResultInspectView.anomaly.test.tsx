@@ -25,7 +25,6 @@ describe('ResultInspectView anomaly colors (DSGN-02, D-16)', () => {
     anomalies: [
       {
         id: 'missing-1',
-        rowIndex: 0 as const,
         type: 'MISSING' as const,
         title: 'Missing SKU',
         score: 0.92,
@@ -34,7 +33,6 @@ describe('ResultInspectView anomaly colors (DSGN-02, D-16)', () => {
       },
       {
         id: 'moved-1',
-        rowIndex: 1 as const,
         type: 'MOVED' as const,
         title: 'Displaced item',
         score: 0.85,

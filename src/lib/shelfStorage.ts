@@ -7,7 +7,6 @@ import type {
 } from '../types/persisted';
 import {compressToJpegBlob, dataUrlToBlob, isQuotaError} from './blobUtils';
 import {DEFAULT_CALIBRATION} from './constants';
-import {validateSplitYPercentages} from './vision/tierGeometry';
 
 const LEGACY_KEY_BASELINE = 'shelfguard_baseline';
 const LEGACY_KEY_HISTORY = 'shelfguard_audit_history';
@@ -34,8 +33,6 @@ export function toViewBaseline(
     createdAt: persisted.createdAt,
     imageDataUrl: displayUrl,
     imageDimensions: persisted.imageDimensions,
-    splitYPercentages: persisted.splitYPercentages,
-    tierLabels: persisted.tierLabels,
     lensFocalLength: persisted.lensFocalLength ?? null,
   };
 }
@@ -60,10 +57,9 @@ export function toViewAuditRecord(
   };
 }
 
-function isValidSplitY(
-  splits: unknown,
-): splits is [number, number, number, number] {
-  return validateSplitYPercentages(splits);
+/** Records from earlier versions may carry extra fields (e.g. tier split lines); they are ignored. */
+function isBaselineRecord(data: PersistedBaseline | undefined): data is PersistedBaseline {
+  return !!data && data.imageDimensions?.width > 0 && data.imageDimensions?.height > 0;
 }
 
 async function viewToPersistedBaseline(
@@ -76,8 +72,6 @@ async function viewToPersistedBaseline(
     createdAt: view.createdAt,
     imageBlob,
     imageDimensions: view.imageDimensions,
-    splitYPercentages: view.splitYPercentages,
-    tierLabels: view.tierLabels,
     lensFocalLength: view.lensFocalLength ?? null,
   };
 }
@@ -115,18 +109,13 @@ export async function runSchemaMigrationIfNeeded(): Promise<StorageWriteResult> 
 
     const entries: [string, unknown][] = [[KEY_SCHEMA_VERSION, CURRENT_SCHEMA]];
 
-    if (
-      legacyBaseline &&
-      isValidSplitY(legacyBaseline.splitYPercentages)
-    ) {
+    if (legacyBaseline?.imageDataUrl) {
       const imageBlob = await dataUrlToBlob(legacyBaseline.imageDataUrl);
       const persisted: PersistedBaseline = {
         id: legacyBaseline.id,
         createdAt: legacyBaseline.createdAt,
         imageBlob,
         imageDimensions: legacyBaseline.imageDimensions,
-        splitYPercentages: legacyBaseline.splitYPercentages,
-        tierLabels: legacyBaseline.tierLabels,
       };
       entries.push([baselineKey(0), persisted]);
     }
@@ -183,7 +172,7 @@ export async function loadBaselineRaw(
   const id = validateShelfId(shelfId);
   try {
     const data = await get<PersistedBaseline>(baselineKey(id));
-    if (data && isValidSplitY(data.splitYPercentages)) {
+    if (isBaselineRecord(data)) {
       return data;
     }
   } catch (err) {

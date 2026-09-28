@@ -74,6 +74,34 @@ export function classifyContourType(
   return null;
 }
 
+const WEAK_DIFF_FACTOR = 1.5;
+const MAX_LIGHTING_MISMATCH = 0.16;
+
+/** |a - b| relative to the stronger of the two vectors. */
+function mismatch(a: number[], b: number[]): number {
+  return Math.hypot(...a.map((v, i) => v - b[i])) / Math.max(Math.hypot(...a), Math.hypot(...b), 1);
+}
+
+/**
+ * A faint difference is only an object change if the region's color relation to its
+ * surroundings changed — it stood out and now blends in, or stands out differently. When the
+ * relation is unchanged, or merely scaled by the region's own brightness change (`gain`,
+ * capture/baseline), the area just got brighter or darker along with its surroundings — a
+ * highlight such as white paper or a sunlit wall under a different exposure — and that is
+ * lighting. `relationB/C` are per-channel region-minus-surroundings means.
+ */
+export function isLightingShift(
+  relationB: number[],
+  relationC: number[],
+  gain: number,
+  meanDiff: number,
+  diffThreshold: number,
+): boolean {
+  if (meanDiff >= diffThreshold * WEAK_DIFF_FACTOR) return false;
+  const scaled = relationB.map((v) => v * gain);
+  return Math.min(mismatch(relationB, relationC), mismatch(scaled, relationC)) < MAX_LIGHTING_MISMATCH;
+}
+
 /** Prefer MISSING when both heuristics could apply (D-09). */
 export function dedupeAnomalyTypes(
   missingCandidate: boolean,

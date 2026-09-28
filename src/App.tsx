@@ -43,7 +43,6 @@ import { useCameraStream } from './hooks/useCameraStream';
 import { useDeviceOrientation } from './hooks/useDeviceOrientation';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { CameraView } from './components/CameraView';
-import { RoiSetupView } from './components/RoiSetupView';
 import { ResultInspectView } from './components/ResultInspectView';
 import { ScanningAnimationOverlay } from './components/ScanningAnimationOverlay';
 import { AuditHistoryModal } from './components/AuditHistoryModal';
@@ -63,7 +62,6 @@ export default function App() {
   // Baseline calibration
   const [baseline, setBaseline] = useState<ShelfCalibration>(DEFAULT_CALIBRATION);
   const [hasPersistedBaseline, setHasPersistedBaseline] = useState<boolean>(false);
-  const [pendingBaselineImageUrl, setPendingBaselineImageUrl] = useState<string | null>(null);
   // Language
   const [lang, setLang] = useState<Language>('cn');
   // Ghost opacity (0 - 100)
@@ -245,6 +243,22 @@ export default function App() {
     await loadShelfData(newShelfId);
   };
 
+  // Persist a photo as this shelf's baseline and show it; false when storage is full.
+  const persistBaseline = async (calibration: ShelfCalibration): Promise<boolean> => {
+    const result = await saveBaseline(activeShelfId, calibration);
+    if (!result.ok) {
+      setQuotaError(true);
+      return false;
+    }
+    const registry = urlRegistryRef.current;
+    registry.revoke(`baseline:${activeShelfId}`);
+    const blob = await fetch(calibration.imageDataUrl).then((r) => r.blob());
+    const displayUrl = registry.set(`baseline:${activeShelfId}`, blob);
+    setBaseline({ ...calibration, imageDataUrl: displayUrl });
+    setHasPersistedBaseline(true);
+    return true;
+  };
+
   // Shutter action: snaps frame, runs 0.8s scanning beam animation, then shows inspect view
   const runCapture = async (
     acquire: () => Promise<
@@ -282,14 +296,14 @@ export default function App() {
 
       if (!hasPersistedBaseline) {
         const dimensions = await loadImageDimensions(frame);
-        setPendingBaselineImageUrl(frame);
-        setBaseline((prev) => ({
-          ...prev,
+        await persistBaseline({
+          ...baseline,
+          id: `baseline-${activeShelfId}-${Date.now()}`,
+          createdAt: Date.now(),
           imageDataUrl: frame,
           imageDimensions: dimensions,
           lensFocalLength: null,
-        }));
-        setAppMode('ROI_CONFIG');
+        });
         return;
       }
 
@@ -407,55 +421,6 @@ export default function App() {
     }, 400);
   };
 
-  // Save new horizontal shelf dividers in ROI setup
-  const handleSaveRoiCalibration = async (
-    updatedPercentages: [number, number, number, number]
-  ) => {
-    const imageDataUrl = pendingBaselineImageUrl ?? baseline.imageDataUrl;
-    const updated: ShelfCalibration = {
-      ...baseline,
-      imageDataUrl,
-      splitYPercentages: updatedPercentages,
-      createdAt: Date.now(),
-      id: pendingBaselineImageUrl
-        ? `baseline-${activeShelfId}-${Date.now()}`
-        : baseline.id,
-    };
-    const result = await saveBaseline(activeShelfId, updated);
-    if (!result.ok) {
-      setQuotaError(true);
-      return;
-    }
-
-    if (pendingBaselineImageUrl) {
-      const registry = urlRegistryRef.current;
-      registry.revoke(`baseline:${activeShelfId}`);
-      const blob = await fetch(pendingBaselineImageUrl).then((r) => r.blob());
-      const displayUrl = registry.set(`baseline:${activeShelfId}`, blob);
-      setBaseline({ ...updated, imageDataUrl: displayUrl });
-      setPendingBaselineImageUrl(null);
-    } else {
-      setBaseline(updated);
-    }
-
-    setHasPersistedBaseline(true);
-    setAppMode('CAMERA_IDLE');
-  };
-
-  const handleRetakeFirstBaseline = () => {
-    setPendingBaselineImageUrl(null);
-    setBaseline(DEFAULT_CALIBRATION);
-    setAppMode('CAMERA_IDLE');
-  };
-
-  const handleCancelRoiConfig = () => {
-    if (pendingBaselineImageUrl) {
-      setPendingBaselineImageUrl(null);
-      setBaseline(DEFAULT_CALIBRATION);
-    }
-    setAppMode('CAMERA_IDLE');
-  };
-
   // Reset baseline to default demo shelf
   const handleResetToDefault = async () => {
     const result = await clearBaseline(activeShelfId);
@@ -484,28 +449,17 @@ export default function App() {
         setShowAnalysisError(true);
         return;
       }
-      const newCalibration: ShelfCalibration = {
+      const saved = await persistBaseline({
         ...baseline,
         id: `custom-baseline-${Date.now()}`,
         imageDataUrl: photo.dataUrl,
         imageDimensions: { width: photo.width, height: photo.height },
         lensFocalLength: photo.focalLength,
         createdAt: Date.now(),
-      };
-      const result = await saveBaseline(activeShelfId, newCalibration);
-      if (!result.ok) {
-        setQuotaError(true);
-        return;
-      }
-      const registry = urlRegistryRef.current;
-      registry.revoke(`baseline:${activeShelfId}`);
-      const blob = await fetch(photo.dataUrl).then((r) => r.blob());
-      const displayUrl = registry.set(`baseline:${activeShelfId}`, blob);
-      setHasPersistedBaseline(true);
-      setBaseline({ ...newCalibration, imageDataUrl: displayUrl });
+      });
+      if (!saved) return;
       setShowResetModal(false);
-      // Prompt user to check ROI dividers
-      setAppMode('ROI_CONFIG');
+      setAppMode('CAMERA_IDLE');
     })();
   };
 
@@ -549,7 +503,6 @@ export default function App() {
           onShutterClick={handleShutterClick}
           isShutterLocked={isShutterLocked}
           hasTorch={hasTorch}
-          onOpenRoiConfig={() => setAppMode('ROI_CONFIG')}
           onOpenHistory={() => setShowHistoryModal(true)}
           onResetBaselinePrompt={() => setShowResetModal(true)}
           lastAudit={lastAudit}
@@ -602,19 +555,7 @@ export default function App() {
         />
       )}
 
-      {/* 3. ROI 4-Tier Calibration Setup View */}
-      {appMode === 'ROI_CONFIG' && (
-        <RoiSetupView
-          baseline={baseline}
-          lang={lang}
-          onSave={handleSaveRoiCalibration}
-          onCancel={handleCancelRoiConfig}
-          isFirstBaseline={!hasPersistedBaseline && pendingBaselineImageUrl !== null}
-          onRetake={handleRetakeFirstBaseline}
-        />
-      )}
-
-      {/* 4. Inspection & Differential Analysis Result View */}
+      {/* 3. Inspection & Differential Analysis Result View */}
       {appMode === 'RESULT_INSPECT' && (
         <ResultInspectView
           currentCaptureUrl={capturedFrame}
@@ -649,10 +590,6 @@ export default function App() {
           baseline={baseline}
           lang={lang}
           onClose={() => setShowResetModal(false)}
-          onRecalibrate={() => {
-            setShowResetModal(false);
-            setAppMode('ROI_CONFIG');
-          }}
           onResetToDefault={handleResetToDefault}
           onUploadCustomImage={handleUploadCustomBaseline}
         />

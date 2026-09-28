@@ -61,8 +61,6 @@ function makeCalibration(id: string): ShelfCalibration {
     createdAt: Date.now(),
     imageDataUrl: TEST_DATA_URL,
     imageDimensions: {width: 1080, height: 1920},
-    splitYPercentages: [0.295, 0.455, 0.618, 0.782],
-    tierLabels: ['T1', 'T2', 'T3', 'T4'],
   };
 }
 
@@ -140,8 +138,6 @@ describe('runSchemaMigrationIfNeeded (DATA-03)', () => {
       createdAt: 1,
       imageBlob: new Blob(['x'], {type: 'image/jpeg'}),
       imageDimensions: {width: 1, height: 1},
-      splitYPercentages: [0.1, 0.2, 0.3, 0.4],
-      tierLabels: ['a', 'b', 'c', 'd'],
     });
 
     const result = await runSchemaMigrationIfNeeded();
@@ -177,6 +173,29 @@ describe('loadBaseline / saveBaseline (DATA-01, DATA-02)', () => {
       const baseline = await loadBaseline(shelfId);
       expect(baseline.id).toBe(DEFAULT_CALIBRATION.id);
     }
+  });
+
+  it('loads a baseline saved by an earlier version with tier split lines', async () => {
+    await set('shelf:0:baseline', {
+      id: 'tiered',
+      createdAt: 1,
+      imageBlob: new Blob(['x'], {type: 'image/jpeg'}),
+      imageDimensions: {width: 1080, height: 1920},
+      splitYPercentages: [0.295, 0.455, 0.618, 0.782],
+      tierLabels: ['a', 'b', 'c', 'd'],
+    });
+
+    const baseline = await loadBaseline(0, 'url-0');
+    expect(baseline.id).toBe('tiered');
+    expect(baseline).not.toHaveProperty('splitYPercentages');
+    expect(baseline).not.toHaveProperty('tierLabels');
+  });
+
+  it('does not keep tier fields when saving', async () => {
+    await saveBaseline(0, makeCalibration('no-tiers'));
+    const raw = await get('shelf:0:baseline');
+    expect(raw).not.toHaveProperty('splitYPercentages');
+    expect(raw).not.toHaveProperty('tierLabels');
   });
 
   it('persists imageBlob as Blob, not string', async () => {

@@ -243,7 +243,7 @@ export async function captureVideoFrame(
 export function useCameraStream() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   // CameraView (and its sole <video> element) unmounts/remounts on every appMode transition
-  // away from and back to CAMERA_IDLE (ROI_CONFIG, SCANNING_ANIM, PROCESSING, RESULT_INSPECT).
+  // away from and back to CAMERA_IDLE (SCANNING_ANIM, PROCESSING, RESULT_INSPECT).
   // Track the live node in state so effects can react to a freshly-mounted element, not just
   // to `stream` changing identity (a plain useRef mutation is invisible to effect deps).
   const [videoNode, setVideoNode] = useState<HTMLVideoElement | null>(null);

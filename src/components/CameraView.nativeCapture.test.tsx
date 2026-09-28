@@ -7,7 +7,6 @@ const baseProps = {
   baseline: DEFAULT_CALIBRATION,
   lang: 'cn' as const,
   onLanguageToggle: vi.fn(),
-  onOpenRoiConfig: vi.fn(),
   onOpenHistory: vi.fn(),
   onResetBaselinePrompt: vi.fn(),
   tilt: 0,

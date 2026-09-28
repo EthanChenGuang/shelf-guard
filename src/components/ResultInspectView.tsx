@@ -117,9 +117,6 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
             <h1 className="text-base font-bold text-sg-primary truncate">
               {t.auditResult}
             </h1>
-            <p className="text-xs text-sg-secondary truncate">
-              {baseline.tierLabels ? baseline.tierLabels.join(' · ') : t.defaultPlanogram}
-            </p>
           </div>
         </div>
 

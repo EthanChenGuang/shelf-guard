@@ -15,10 +15,10 @@ const report = { baseUrl, devices: [], passed: true };
 
 async function runFullCaptureFlow(page, deviceDir, log) {
   await page.locator('#shutter-trigger').click({ force: true });
-  await page.getByRole('button', { name: '确认并保存基准' }).waitFor({ timeout: 30_000 });
-  log('roi-open');
-  await page.getByRole('button', { name: '确认并保存基准' }).click();
   await page.getByText('基准图 (已建立)').waitFor({ timeout: 20_000 });
+  if (await page.getByText(/Tier \d|基准横梁标定|确认并保存基准/).count()) {
+    throw new Error('Tier calibration UI is still shown');
+  }
   log('baseline-saved');
 
   const slider = page.getByTestId('ghost-opacity-slider');

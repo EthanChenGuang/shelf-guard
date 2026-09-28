@@ -7,7 +7,6 @@ import {
   Layers,
   RotateCcw,
   ScanLine,
-  SlidersVertical,
   Sparkles,
   SwitchCamera,
   AlertCircle,
@@ -29,7 +28,6 @@ interface CameraViewProps {
   lang: Language;
   onLanguageToggle: () => void;
   onShutterClick: () => void;
-  onOpenRoiConfig: () => void;
   onOpenHistory: () => void;
   onResetBaselinePrompt: () => void;
   lastAudit?: AuditRecord | null;
@@ -76,7 +74,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
   lang,
   onLanguageToggle,
   onShutterClick,
-  onOpenRoiConfig,
   onOpenHistory,
   onResetBaselinePrompt,
   lastAudit,
@@ -715,15 +712,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
         )}
 
         <div className="w-full flex items-center justify-between max-w-sm px-2">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onOpenRoiConfig}
-              className="w-10 h-10 rounded-full bg-white/80 hover:bg-white backdrop-blur-xl shadow-md flex items-center justify-center text-[#0F172A] transition-all active:scale-95 border border-slate-200"
-              title={t.tierCalibration}
-            >
-              <SlidersVertical className="w-4 h-4 text-slate-700" />
-            </button>
-
+          <div className="flex min-w-12 items-center gap-2">
             {hasMultipleCameras && onSwitchCamera && (
               <button
                 type="button"

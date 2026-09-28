@@ -40,10 +40,10 @@ describe('bboxUtils', () => {
   });
 
   describe('stableAnomalyId', () => {
-    it('is deterministic for same tier and bbox', () => {
+    it('is deterministic for the same bbox', () => {
       const bbox = { x: 0.32, y: 0.37, width: 0.28, height: 0.09 };
-      const first = stableAnomalyId(1, bbox);
-      const second = stableAnomalyId(1, bbox);
+      const first = stableAnomalyId(bbox);
+      const second = stableAnomalyId(bbox);
       expect(first).toBe(second);
       expect(first).toMatch(/^anomaly-/);
     });

@@ -157,16 +157,11 @@ function validateBeforeAnalyze(
   if (!Number.isFinite(toleranceValue) || toleranceValue < 0 || toleranceValue > 100) {
     throw new Error('toleranceValue must be between 0 and 100');
   }
-  if (!baseline.splitYPercentages || baseline.splitYPercentages.length !== 4) {
-    throw new Error('baseline.splitYPercentages must contain exactly 4 values');
-  }
   const { width, height } = baseline.imageDimensions;
   return fitAnalysisSize(width, height);
 }
 
-/**
- * Perform multi-band differential image analysis across the 4 shelf tiers via Web Worker (D-19–D-22).
- */
+/** Compare the whole capture against the baseline in the vision Web Worker. */
 export async function analyzeShelfCapture(
   capturedDataUrl: string,
   baseline: ShelfCalibration,
@@ -193,7 +188,6 @@ export async function analyzeShelfCapture(
           type: 'analyze',
           captureBitmap,
           baselineBitmap,
-          splitYPercentages: baseline.splitYPercentages,
           toleranceValue,
         },
         [captureBitmap, baselineBitmap],

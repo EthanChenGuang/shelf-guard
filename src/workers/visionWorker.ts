@@ -1,15 +1,16 @@
 import type { CV } from '@techstark/opencv-js/dist/src/types/opencv';
 import { DetectedAnomaly } from '../types';
 import { pixelRectToNormalized, stableAnomalyId } from '../lib/vision/bboxUtils';
-import { classifyContourType } from '../lib/vision/classifyContour';
+import { classifyContourType, isLightingShift } from '../lib/vision/classifyContour';
 import { computeComplianceStats } from '../lib/vision/complianceStats';
 import { toleranceToDiffParams } from '../lib/vision/toleranceParams';
-import { tierBoundsFromSplits, validateSplitYPercentages } from '../lib/vision/tierGeometry';
 import { rasterFromImageBitmap, type RasterFrame } from '../lib/vision/rasterFrame';
 import type { InspectionAnalysisResult } from '../lib/vision/resultTypes';
-import { alignCapture, mapRectToCapture, matchPhotometry, warpToBaseline } from './alignment';
+import { alignCapture, CLIPPED, mapRectToCapture, matchIllumination, matchPhotometry, warpToBaseline } from './alignment';
 
-const MAX_ANOMALIES_PER_TIER = 8;
+const MAX_ANOMALIES = 32;
+/** Same offset the illumination model uses, so dark regions do not produce wild gains. */
+const ILLUM_OFFSET = 10;
 const MAX_BITMAP_WIDTH = 1080;
 const MAX_BITMAP_HEIGHT = 1920;
 const STANDARD_COUNT_FALLBACK = 24;
@@ -33,13 +34,7 @@ async function getCv(): Promise<CV> {
 }
 
 function validateAnalyzePayload(data: Record<string, unknown>): void {
-  const { splitYPercentages, toleranceValue } = data;
-  if (!validateSplitYPercentages(splitYPercentages)) {
-    throw new Error(
-      'splitYPercentages must be 4 monotonically increasing values in (0, 1]',
-    );
-  }
-  const tol = Number(toleranceValue);
+  const tol = Number(data.toleranceValue);
   if (!Number.isFinite(tol) || tol < 0 || tol > 100) {
     throw new Error('toleranceValue must be between 0 and 100');
   }
@@ -51,23 +46,13 @@ function rasterToMat(cv: CV, frame: RasterFrame): InstanceType<CV['Mat']> {
   return cv.matFromImageData(imageData);
 }
 
-function cropMat(
-  cv: CV,
-  source: InstanceType<CV['Mat']>,
-  rect: { x: number; y: number; width: number; height: number },
-): InstanceType<CV['Mat']> {
-  const roi = new cv.Rect(rect.x, rect.y, rect.width, rect.height);
-  return source.roi(roi);
-}
-
 const FOREGROUND_MIN = 35;
 
-/** Centroid of foreground pixels within a contour mask (tier-local coordinates). */
+/** Centroid of foreground pixels within a contour mask. */
 function foregroundCentroidFromMask(
   cv: CV,
   gray: InstanceType<CV['Mat']>,
   mask: InstanceType<CV['Mat']>,
-  offset: { x: number; y: number },
 ): { x: number; y: number } {
   const binary = new cv.Mat();
   const masked = new cv.Mat();
@@ -76,12 +61,9 @@ function foregroundCentroidFromMask(
     cv.bitwise_and(binary, mask, masked);
     const moments = cv.moments(masked, true);
     if (moments.m00 <= 0) {
-      return { x: offset.x, y: offset.y };
+      return { x: 0, y: 0 };
     }
-    return {
-      x: offset.x + moments.m10 / moments.m00,
-      y: offset.y + moments.m01 / moments.m00,
-    };
+    return { x: moments.m10 / moments.m00, y: moments.m01 / moments.m00 };
   } finally {
     binary.delete();
     masked.delete();
@@ -89,90 +71,163 @@ function foregroundCentroidFromMask(
 }
 
 const BACKDROP_DISTANCE = 45;
-const PRODUCT_COLUMN_FILL = 0.4;
-const MIN_PRODUCT_WIDTH_FRACTION = 0.025;
-const MAX_PRODUCT_GAP_FRACTION = 0.006;
+/** A coarse color covering at least this share of the photo is part of the shelf back. */
+const BACKDROP_MIN_SHARE = 0.02;
+/** Horizontal runs at least this wide are shelf boards or shadows, not products. */
+const BOARD_RUN_FRACTION = 0.5;
+/** Vertical gaps up to this share of the frame height (a label as dark/light as the back) are bridged. */
+const LABEL_BRIDGE_FRACTION = 0.06;
+const MIN_PRODUCT_SIDE_FRACTION = 0.025;
 
 /**
- * Count products in one tier: estimate the back-panel color as the tier's dominant color, mark
- * pixels clearly unlike it, then count runs of columns that are mostly "not back panel".
- * Works for light and dark shelves alike (no brightness-polarity assumption).
+ * Colors of the shelf back, most common first: every coarse color that covers a sizeable share
+ * of the baseline, so a lighting gradient across the frame stays "back". No brightness-polarity
+ * assumption, so light and dark shelves both work.
  */
-function countTierProducts(cv: CV, planes: Mat[], frameWidth: number): number {
-  const data = planes.map((plane) => {
-    // ROI views are strided; copyTo yields a packed buffer (roi().clone() does not in opencv.js).
-    const copy = new cv.Mat();
-    plane.copyTo(copy);
-    const bytes = new Uint8Array(copy.data);
-    copy.delete();
-    return bytes;
-  });
-  const width = planes[0].cols;
-  const height = planes[0].rows;
-  if (width === 0 || height === 0) return 0;
-
-  // Back panel = the most common coarse color in the tier's middle rows (products vary, the
-  // panel doesn't; the top/bottom rows are dominated by shelf boards).
+function backdropPalette(planes: Mat[]): number[][] {
+  const data = planes.map((p) => p.data as Uint8Array);
+  const n = data[0].length;
   const bins = new Map<number, number>();
-  const midStart = Math.floor(height * 0.2) * width;
-  const midEnd = Math.ceil(height * 0.8) * width;
-  for (let i = midStart; i < midEnd; i += 1) {
+  for (let i = 0; i < n; i += 1) {
     const key = ((data[0][i] >> 4) << 8) | ((data[1][i] >> 4) << 4) | (data[2][i] >> 4);
     bins.set(key, (bins.get(key) ?? 0) + 1);
   }
   let modeKey = 0;
   let modeCount = -1;
-  for (const [key, n] of bins) {
-    if (n > modeCount) {
+  const keys: number[] = [];
+  for (const [key, count] of bins) {
+    if (count > modeCount) {
       modeKey = key;
-      modeCount = n;
+      modeCount = count;
     }
+    if (count >= n * BACKDROP_MIN_SHARE) keys.push(key);
   }
-  const backdrop = [((modeKey >> 8) & 15) * 16 + 8, ((modeKey >> 4) & 15) * 16 + 8, (modeKey & 15) * 16 + 8];
+  const ordered = [modeKey, ...keys.filter((k) => k !== modeKey)];
+  return ordered.map((k) => [((k >> 8) & 15) * 16 + 8, ((k >> 4) & 15) * 16 + 8, (k & 15) * 16 + 8]);
+}
 
-  const threshold2 = BACKDROP_DISTANCE * BACKDROP_DISTANCE;
-  const productColumn: boolean[] = [];
-  for (let x = 0; x < width; x += 1) {
-    let filled = 0;
-    for (let y = 0; y < height; y += 1) {
-      const i = y * width + x;
-      let d2 = 0;
-      for (let ch = 0; ch < data.length; ch += 1) {
-        const d = data[ch][i] - backdrop[ch];
-        d2 += d * d;
+/** Per 6-bit-per-channel color: bit 1 = shelf back, bit 2 = unlike the dominant back color. */
+function backdropLookup(palette: number[][]): Uint8Array {
+  const lut = new Uint8Array(1 << 18);
+  const t2 = BACKDROP_DISTANCE * BACKDROP_DISTANCE;
+  for (let key = 0; key < lut.length; key += 1) {
+    const rgb = [((key >> 12) << 2) + 2, (((key >> 6) & 63) << 2) + 2, ((key & 63) << 2) + 2];
+    let flags = 0;
+    for (let p = 0; p < palette.length; p += 1) {
+      const c = palette[p];
+      const d0 = rgb[0] - c[0];
+      const d1 = rgb[1] - c[1];
+      const d2 = rgb[2] - c[2];
+      if (d0 * d0 + d1 * d1 + d2 * d2 <= t2) {
+        flags |= 1;
+        break;
       }
-      if (d2 > threshold2) filled += 1;
+      if (p === 0) flags |= 2;
     }
-    productColumn.push(filled / height > PRODUCT_COLUMN_FILL);
+    lut[key] = flags;
   }
+  return lut;
+}
 
-  const minWidth = frameWidth * MIN_PRODUCT_WIDTH_FRACTION;
-  const maxGap = frameWidth * MAX_PRODUCT_GAP_FRACTION;
-  let count = 0;
-  let runStart = -1;
-  let lastProduct = -Infinity;
-  const closeRun = (end: number) => {
-    if (runStart >= 0 && end - runStart >= minWidth) count += 1;
-    runStart = -1;
-  };
-  for (let x = 0; x < width; x += 1) {
-    if (!productColumn[x]) continue;
-    if (runStart < 0) runStart = x;
-    else if (x - lastProduct > maxGap) {
-      closeRun(lastProduct + 1);
-      runStart = x;
+/** Set every horizontal run of 255s at least `minRun` long in `src` to 255 in `dst`. */
+function markLongRows(src: Uint8Array, dst: Uint8Array, rows: number, cols: number, minRun: number): void {
+  for (let y = 0; y < rows; y += 1) {
+    const row = y * cols;
+    let start = -1;
+    for (let x = 0; x <= cols; x += 1) {
+      const on = x < cols && src[row + x] !== 0;
+      if (on && start < 0) start = x;
+      if (!on && start >= 0) {
+        if (x - start >= minRun) dst.fill(255, row + start, row + x);
+        start = -1;
+      }
     }
-    lastProduct = x;
   }
-  closeRun(lastProduct + 1);
-  return count;
+}
+
+/** Fill vertical gaps shorter than `maxGap` that have 255 above and below (a 1xN closing). */
+function bridgeColumns(mask: Uint8Array, rows: number, cols: number, maxGap: number): void {
+  for (let x = 0; x < cols; x += 1) {
+    let lastOn = -1;
+    for (let y = 0; y < rows; y += 1) {
+      if (mask[y * cols + x] === 0) continue;
+      if (lastOn >= 0 && y - lastOn - 1 > 0 && y - lastOn - 1 < maxGap) {
+        for (let g = lastOn + 1; g < y; g += 1) mask[g * cols + x] = 255;
+      }
+      lastOn = y;
+    }
+  }
+}
+
+/** 255 where a pixel belongs to an object in front of the shelf back (boards stripped). */
+function objectMask(cv: CV, planes: Mat[], lookup: Uint8Array): Mat {
+  const rows = planes[0].rows;
+  const cols = planes[0].cols;
+  const n = rows * cols;
+  const mask = new cv.Mat(rows, cols, cv.CV_8UC1, new cv.Scalar(0));
+  const cleanKernel = cv.getStructuringElement(
+    cv.MORPH_RECT,
+    new cv.Size(oddKernel(Math.min(rows, cols) * 0.006), oddKernel(Math.min(rows, cols) * 0.006)),
+  );
+  try {
+    // Mat.data views into WASM memory go stale when a later allocation grows the heap: take them
+    // only after every Mat above exists.
+    const [r, g, b] = planes.map((p) => p.data as Uint8Array);
+    const out = mask.data;
+    // Anything unlike the dominant back color; its full-width runs are boards and shadows, even
+    // when a board is common enough to be in the palette.
+    const notDominant = new Uint8Array(n);
+    for (let i = 0; i < n; i += 1) {
+      const flags = lookup[((r[i] >> 2) << 12) | ((g[i] >> 2) << 6) | (b[i] >> 2)];
+      if (!(flags & 1)) out[i] = 255;
+      if (flags & 2) notDominant[i] = 255;
+    }
+    // Strip boards after bridging, so a bridge across a board is cut again by its rows.
+    bridgeColumns(out, rows, cols, oddKernel(rows * LABEL_BRIDGE_FRACTION));
+    const boards = new Uint8Array(n);
+    markLongRows(notDominant, boards, rows, cols, Math.max(3, Math.round(cols * BOARD_RUN_FRACTION)));
+    for (let i = 0; i < n; i += 1) if (boards[i]) out[i] = 0;
+    cv.morphologyEx(mask, mask, cv.MORPH_OPEN, cleanKernel);
+    return mask;
+  } finally {
+    cleanKernel.delete();
+  }
+}
+
+interface ObjectMap {
+  /** CV_32S: 0 = shelf back, otherwise the id of the object the pixel belongs to. */
+  labels: Mat;
+  /** Objects big enough to be a product. */
+  productCount: number;
+}
+
+/** Label the separate objects in `mask` (consumed) and count the product-sized ones. */
+function labelObjects(cv: CV, mask: Mat): ObjectMap {
+  const labels = new cv.Mat();
+  const stats = new cv.Mat();
+  const centroids = new cv.Mat();
+  try {
+    const n = cv.connectedComponentsWithStats(mask, labels, stats, centroids, 8, cv.CV_32S);
+    const minSide = mask.cols * MIN_PRODUCT_SIDE_FRACTION;
+    let productCount = 0;
+    for (let i = 1; i < n; i += 1) {
+      const w = stats.intAt(i, cv.CC_STAT_WIDTH);
+      const h = stats.intAt(i, cv.CC_STAT_HEIGHT);
+      if (w >= minSide && h >= minSide) productCount += 1;
+    }
+    return { labels, productCount };
+  } finally {
+    mask.delete();
+    stats.delete();
+    centroids.delete();
+  }
 }
 
 type Mat = InstanceType<CV['Mat']>;
 
 const REFERENCE_AREA = 1080 * 1920;
-/** Smallest reportable change, as a fraction of the frame (a product is ~1% or more). */
-const MIN_REGION_FRACTION = 0.0015;
+/** Smallest reportable change, as a fraction of the frame (half of a small object moved aside). */
+const MIN_REGION_FRACTION = 0.001;
 
 function oddKernel(n: number): number {
   const k = Math.max(3, Math.round(n));
@@ -220,20 +275,74 @@ function tolerantDiff(cv: CV, a: Mat, b: Mat, kernelSize: number): Mat {
   }
 }
 
+/** 1 where a plane is blown out (at/near 255), widened to cover the 5x5 blur applied later. */
+function clippedMask(cv: CV, plane: Mat): Uint8Array {
+  const bin = new cv.Mat();
+  const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5));
+  try {
+    cv.threshold(plane, bin, CLIPPED - 1, 1, cv.THRESH_BINARY);
+    cv.dilate(bin, bin, kernel);
+    return new Uint8Array(bin.data);
+  } finally {
+    bin.delete();
+    kernel.delete();
+  }
+}
+
+const CLIPPED_FLOOR_QUANTILE = 0.1;
+
+/**
+ * How bright the baseline is where the capture is blown out — mostly unchanged background, so a
+ * low percentile is the tone from which the capture saturates.
+ */
+function clippedFloor(base: Uint8Array, clipC: Uint8Array, valid: Uint8Array): number {
+  const hist = new Uint32Array(256);
+  let total = 0;
+  for (let i = 0; i < base.length; i += 1) {
+    if (!clipC[i] || !valid[i]) continue;
+    hist[base[i]] += 1;
+    total += 1;
+  }
+  let seen = 0;
+  for (let v = 0; v < 256; v += 1) {
+    seen += hist[v];
+    if (seen > total * CLIPPED_FLOOR_QUANTILE) return v;
+  }
+  return 255;
+}
+
+/**
+ * A blown-out pixel only says "at least this bright", so it is evidence of change only where the
+ * other photo is darker than that floor. Elsewhere the two are made to agree.
+ */
+function reconcileClipping(
+  base: Uint8Array,
+  cap: Uint8Array,
+  clipB: Uint8Array,
+  clipC: Uint8Array,
+  capFloor: number,
+): void {
+  for (let i = 0; i < cap.length; i += 1) {
+    if (clipC[i]) cap[i] = base[i] >= capFloor ? base[i] : capFloor;
+    if (clipB[i] && cap[i] > base[i]) cap[i] = base[i];
+  }
+}
+
 /**
  * Blurred R/G/B planes of both photos in the baseline frame, with each capture plane
- * exposure-matched to the baseline plane.
+ * exposure-matched to the baseline plane, plus the baseline relit to the capture's lighting.
  */
 function alignedColorPlanes(
   cv: CV,
   baselineRgba: Mat,
   captureRgba: Mat,
   alignment: ReturnType<typeof alignCapture>,
-): { base: Mat[]; cap: Mat[] } {
+): { base: Mat[]; baseLit: Mat[]; cap: Mat[] } {
   const bCh = new cv.MatVector();
   const cCh = new cv.MatVector();
   const blur = new cv.Size(5, 5);
   const base: Mat[] = [];
+  const baseLit: Mat[] = [];
   const cap: Mat[] = [];
   try {
     cv.split(baselineRgba, bCh);
@@ -242,37 +351,49 @@ function alignedColorPlanes(
       const b = new cv.Mat();
       cv.GaussianBlur(bCh.get(ch), b, blur, 0);
       const c = warpToBaseline(cv, cCh.get(ch), alignment);
+      const clipB = clippedMask(cv, bCh.get(ch));
+      const clipC = clippedMask(cv, c);
       matchPhotometry(cv, b, c, alignment.valid);
       cv.GaussianBlur(c, c, blur, 0);
+      const lit = b.clone();
+      const clipped = new Uint8Array(clipB.length);
+      for (let i = 0; i < clipped.length; i += 1) clipped[i] = clipB[i] | clipC[i];
+      matchIllumination(cv, lit, c, alignment.valid, clipped);
+      reconcileClipping(lit.data, c.data, clipB, clipC, clippedFloor(lit.data, clipC, alignment.valid.data));
       base.push(b);
+      baseLit.push(lit);
       cap.push(c);
     }
-    return { base, cap };
+    return { base, baseLit, cap };
   } finally {
     bCh.delete();
     cCh.delete();
   }
 }
 
-/** Max over color planes of the tolerant diff, so hue-only changes still register. */
+/**
+ * RGB distance of the per-plane tolerant diffs: a color change registers at its full strength
+ * instead of only its largest single-channel component.
+ */
 function colorTolerantDiff(cv: CV, base: Mat[], cap: Mat[], kernelSize: number): Mat {
+  const per = base.map((b, ch) => tolerantDiff(cv, b, cap[ch], kernelSize));
   const out = new cv.Mat(base[0].rows, base[0].cols, cv.CV_8UC1, new cv.Scalar(0));
-  for (let ch = 0; ch < base.length; ch += 1) {
-    const d = tolerantDiff(cv, base[ch], cap[ch], kernelSize);
-    cv.max(out, d, out);
-    d.delete();
+  try {
+    const o = out.data;
+    const [r, g, bl] = per.map((m) => m.data);
+    for (let i = 0; i < o.length; i += 1) {
+      const d = Math.sqrt(r[i] * r[i] + g[i] * g[i] + bl[i] * bl[i]);
+      o[i] = d > 255 ? 255 : d;
+    }
+    return out;
+  } finally {
+    per.forEach((m) => m.delete());
   }
-  return out;
 }
 
-/** Euclidean RGB distance between the mean color inside `mask` and inside `ring`. */
-function colorContrast(cv: CV, planes: Mat[], mask: Mat, ring: Mat): number {
-  let sum = 0;
-  for (const plane of planes) {
-    const d = (cv.mean(plane, mask)[0] ?? 0) - (cv.mean(plane, ring)[0] ?? 0);
-    sum += d * d;
-  }
-  return Math.sqrt(sum);
+/** Per-channel mean color inside `mask` minus inside `ring`. */
+function colorRelation(cv: CV, planes: Mat[], mask: Mat, ring: Mat): number[] {
+  return planes.map((plane) => (cv.mean(plane, mask)[0] ?? 0) - (cv.mean(plane, ring)[0] ?? 0));
 }
 
 /** Gradient magnitude map (8-bit) used to tell "product detail" from plain shelf back. */
@@ -297,21 +418,69 @@ function textureMap(cv: CV, gray: Mat): Mat {
   }
 }
 
-type Fragment = { index: number; area: number; rect: { x: number; y: number; width: number; height: number } };
+function regionStats(cv: CV, grayB: Mat, grayC: Mat, mask: Mat) {
+  return {
+    baselineMean: cv.mean(grayB, mask)[0] ?? 0,
+    captureMean: cv.mean(grayC, mask)[0] ?? 0,
+    baselineCentroid: foregroundCentroidFromMask(cv, grayB, mask),
+    captureCentroid: foregroundCentroidFromMask(cv, grayC, mask),
+  };
+}
+
+interface FrameInputs {
+  colorB: Mat[];
+  colorC: Mat[];
+  grayB: Mat;
+  grayC: Mat;
+  diff: Mat;
+  texB: Mat;
+  texC: Mat;
+  valid: Mat;
+  objectsB: Mat;
+  objectsC: Mat;
+}
+
+type Rect = { x: number; y: number; width: number; height: number };
+
+type Fragment = { label: number; area: number; rect: Rect; objectB: number; objectC: number };
+
+/** Most common non-zero object id under the fragment's pixels (0 if it covers only shelf back). */
+function dominantObject(fragLabels: Int32Array, objects: Int32Array, cols: number, f: Omit<Fragment, 'objectB' | 'objectC'>): number {
+  const votes = new Map<number, number>();
+  for (let y = f.rect.y; y < f.rect.y + f.rect.height; y += 1) {
+    for (let x = f.rect.x; x < f.rect.x + f.rect.width; x += 1) {
+      const i = y * cols + x;
+      if (fragLabels[i] !== f.label || objects[i] === 0) continue;
+      votes.set(objects[i], (votes.get(objects[i]) ?? 0) + 1);
+    }
+  }
+  let best = 0;
+  let bestVotes = 0;
+  for (const [id, n] of votes) {
+    if (n > bestVotes) {
+      best = id;
+      bestVotes = n;
+    }
+  }
+  return best;
+}
 
 /**
- * Merge diff fragments that belong to one product: a removed item often splits into pieces
- * around its label, all sharing the same column within the tier.
+ * Merge diff fragments of one product: a removed item often splits into pieces around its label.
+ * Pieces are merged only when they share columns and lie on the same object, so products
+ * stacked on adjacent shelves stay separate.
  */
 function groupFragments(fragments: Fragment[]): Fragment[][] {
   const parent = fragments.map((_, i) => i);
   const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
   for (let i = 0; i < fragments.length; i += 1) {
     for (let j = i + 1; j < fragments.length; j += 1) {
-      const a = fragments[i].rect;
-      const b = fragments[j].rect;
-      const overlapX = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
-      if (overlapX >= 0.5 * Math.min(a.width, b.width)) parent[find(i)] = find(j);
+      const a = fragments[i];
+      const b = fragments[j];
+      const overlapX = Math.min(a.rect.x + a.rect.width, b.rect.x + b.rect.width) - Math.max(a.rect.x, b.rect.x);
+      const sameObject =
+        (a.objectB !== 0 && a.objectB === b.objectB) || (a.objectC !== 0 && a.objectC === b.objectC);
+      if (sameObject && overlapX >= 0.5 * Math.min(a.rect.width, b.rect.width)) parent[find(i)] = find(j);
     }
   }
   const groups = new Map<number, Fragment[]>();
@@ -322,45 +491,19 @@ function groupFragments(fragments: Fragment[]): Fragment[][] {
   return [...groups.values()];
 }
 
-function regionStats(cv: CV, grayB: Mat, grayC: Mat, mask: Mat) {
-  return {
-    baselineMean: cv.mean(grayB, mask)[0] ?? 0,
-    captureMean: cv.mean(grayC, mask)[0] ?? 0,
-    baselineCentroid: foregroundCentroidFromMask(cv, grayB, mask, { x: 0, y: 0 }),
-    captureCentroid: foregroundCentroidFromMask(cv, grayC, mask, { x: 0, y: 0 }),
-  };
-}
-
-interface TierInputs {
-  colorB: Mat[];
-  colorC: Mat[];
-  grayB: Mat;
-  grayC: Mat;
-  diff: Mat;
-  texB: Mat;
-  texC: Mat;
-  valid: Mat;
-}
-
-function diffTier(
+function diffRegions(
   cv: CV,
-  tier: TierInputs,
-  tierIndex: 0 | 1 | 2 | 3,
-  tierOffset: { x: number; y: number },
+  frame: FrameInputs,
   frameSize: { width: number; height: number },
   params: ReturnType<typeof toleranceToDiffParams>,
-  toCapture: (rect: { x: number; y: number; width: number; height: number }) => {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  },
+  toCapture: (rect: Rect) => Rect,
 ): DetectedAnomaly[] {
-  const { grayB, grayC, diff, texB, texC, valid, colorB, colorC } = tier;
+  const { grayB, grayC, diff, texB, texC, valid, colorB, colorC, objectsB, objectsC } = frame;
   const binary = new cv.Mat();
   const cleaned = new cv.Mat();
-  const contours = new cv.MatVector();
-  const hierarchy = new cv.Mat();
+  const fragLabels = new cv.Mat();
+  const fragStats = new cv.Mat();
+  const fragCentroids = new cv.Mat();
   const minDim = Math.min(frameSize.width, frameSize.height);
   const openKernel = cv.getStructuringElement(
     cv.MORPH_RECT,
@@ -381,14 +524,27 @@ function diffTier(
     cv.bitwise_and(binary, valid, binary);
     cv.morphologyEx(binary, cleaned, cv.MORPH_OPEN, openKernel);
     cv.morphologyEx(cleaned, cleaned, cv.MORPH_CLOSE, closeKernel);
-    cv.findContours(cleaned, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+    const n = cv.connectedComponentsWithStats(cleaned, fragLabels, fragStats, fragCentroids, 8, cv.CV_32S);
 
-    const fragments: Array<{ index: number; area: number; rect: { x: number; y: number; width: number; height: number } }> = [];
-    for (let i = 0; i < contours.size(); i += 1) {
-      const area = cv.contourArea(contours.get(i));
+    const cols = grayB.cols;
+    // A copy, not a view: the WASM heap may grow while the groups below allocate masks.
+    const labelData = new Int32Array(fragLabels.data32S);
+    const fragments: Fragment[] = [];
+    for (let label = 1; label < n; label += 1) {
+      const area = fragStats.intAt(label, cv.CC_STAT_AREA);
       if (area < minArea * 0.25) continue;
-      const r = cv.boundingRect(contours.get(i));
-      fragments.push({ index: i, area, rect: { x: r.x, y: r.y, width: r.width, height: r.height } });
+      const rect = {
+        x: fragStats.intAt(label, cv.CC_STAT_LEFT),
+        y: fragStats.intAt(label, cv.CC_STAT_TOP),
+        width: fragStats.intAt(label, cv.CC_STAT_WIDTH),
+        height: fragStats.intAt(label, cv.CC_STAT_HEIGHT),
+      };
+      const base = { label, area, rect };
+      fragments.push({
+        ...base,
+        objectB: dominantObject(labelData, objectsB.data32S, cols, base),
+        objectC: dominantObject(labelData, objectsC.data32S, cols, base),
+      });
     }
 
     const candidates: Array<{ area: number; anomaly: DetectedAnomaly }> = [];
@@ -405,20 +561,33 @@ function diffTier(
         const mask = new cv.Mat(grayB.rows, grayB.cols, cv.CV_8UC1, new cv.Scalar(0));
         const ring = new cv.Mat();
         try {
-          for (const f of group) cv.drawContours(mask, contours, f.index, new cv.Scalar(255), -1);
+          const maskData = mask.data;
+          for (const f of group) {
+            for (let y = f.rect.y; y < f.rect.y + f.rect.height; y += 1) {
+              for (let x = f.rect.x; x < f.rect.x + f.rect.width; x += 1) {
+                if (labelData[y * cols + x] === f.label) maskData[y * cols + x] = 255;
+              }
+            }
+          }
           cv.dilate(mask, ring, ringKernel);
           cv.subtract(ring, mask, ring);
           cv.bitwise_and(ring, valid, ring);
 
-          const stats = regionStats(cv, grayB, grayC, mask);
           const hasRing = cv.countNonZero(ring) > 0;
+          const relationB = hasRing ? colorRelation(cv, colorB, mask, ring) : [0, 0, 0];
+          const relationC = hasRing ? colorRelation(cv, colorC, mask, ring) : [0, 0, 0];
+          const region = regionStats(cv, grayB, grayC, mask);
+          const gain = (region.captureMean + ILLUM_OFFSET) / (region.baselineMean + ILLUM_OFFSET);
+          if (hasRing && isLightingShift(relationB, relationC, gain, cv.mean(diff, mask)[0] ?? 0, params.diffThreshold)) {
+            continue;
+          }
           const type = classifyContourType(
             {
-              ...stats,
+              ...region,
               baselineTexture: cv.mean(texB, mask)[0] ?? 0,
               captureTexture: cv.mean(texC, mask)[0] ?? 0,
-              baselineContrast: hasRing ? colorContrast(cv, colorB, mask, ring) : 0,
-              captureContrast: hasRing ? colorContrast(cv, colorC, mask, ring) : 0,
+              baselineContrast: Math.hypot(...relationB),
+              captureContrast: Math.hypot(...relationC),
             },
             params.displacementThresholdPx,
           );
@@ -428,20 +597,14 @@ function diffTier(
           const y0 = Math.min(...group.map((f) => f.rect.y));
           const x1 = Math.max(...group.map((f) => f.rect.x + f.rect.width));
           const y1 = Math.max(...group.map((f) => f.rect.y + f.rect.height));
-          const captureRect = toCapture({
-            x: tierOffset.x + x0,
-            y: tierOffset.y + y0,
-            width: x1 - x0,
-            height: y1 - y0,
-          });
+          const captureRect = toCapture({ x: x0, y: y0, width: x1 - x0, height: y1 - y0 });
           const bbox = pixelRectToNormalized(captureRect, frameSize.width, frameSize.height);
           candidates.push({
             area,
             anomaly: {
-              id: stableAnomalyId(tierIndex, bbox),
-              rowIndex: tierIndex,
+              id: stableAnomalyId(bbox),
               type,
-              title: type === 'MISSING' ? `Tier ${tierIndex + 1} missing` : `Tier ${tierIndex + 1} moved`,
+              title: type === 'MISSING' ? 'Missing' : 'Moved',
               score: Math.min(1, area / (minArea * 4)),
               boundingBox: bbox,
               dismissed: false,
@@ -458,22 +621,22 @@ function diffTier(
     }
 
     candidates.sort((a, b) => b.area - a.area);
-    return candidates.slice(0, MAX_ANOMALIES_PER_TIER).map((c) => c.anomaly);
+    return candidates.slice(0, MAX_ANOMALIES).map((c) => c.anomaly);
   } finally {
     binary.delete();
     cleaned.delete();
-    contours.delete();
-    hierarchy.delete();
+    fragLabels.delete();
+    fragStats.delete();
+    fragCentroids.delete();
     openKernel.delete();
     closeKernel.delete();
   }
 }
 
-function analyzeAllTiers(
+function analyzeFrame(
   cv: CV,
   captureFrame: RasterFrame,
   baselineFrame: RasterFrame,
-  splitYPercentages: [number, number, number, number],
   frameSize: { width: number; height: number },
   toleranceValue: number,
 ): InspectionAnalysisResult {
@@ -488,7 +651,9 @@ function analyzeAllTiers(
   let diff: Mat | null = null;
   let texB: Mat | null = null;
   let texC: Mat | null = null;
-  let planes: { base: Mat[]; cap: Mat[] } | null = null;
+  let planes: ReturnType<typeof alignedColorPlanes> | null = null;
+  let objectsB: ObjectMap | null = null;
+  let objectsC: ObjectMap | null = null;
 
   try {
     cv.cvtColor(baselineMat, rawB, cv.COLOR_RGBA2GRAY);
@@ -497,54 +662,40 @@ function analyzeAllTiers(
     const blur = new cv.Size(5, 5);
     cv.GaussianBlur(rawB, grayB, blur, 0);
     cv.GaussianBlur(alignment.alignedGray, grayC, blur, 0);
+    matchIllumination(cv, grayB, grayC, alignment.valid);
     const minDim = Math.min(frameSize.width, frameSize.height);
     planes = alignedColorPlanes(cv, baselineMat, captureMat, alignment);
-    diff = colorTolerantDiff(cv, planes.base, planes.cap, oddKernel(minDim * 0.012));
+    diff = colorTolerantDiff(cv, planes.baseLit, planes.cap, oddKernel(minDim * 0.012));
     texB = textureMap(cv, grayB);
     texC = textureMap(cv, grayC);
     const inverse = alignment.inverse;
-    const toCapture = (rect: { x: number; y: number; width: number; height: number }) =>
-      mapRectToCapture(inverse, rect, frameSize);
+    const toCapture = (rect: Rect) => mapRectToCapture(inverse, rect, frameSize);
 
-    let standardCount = 0;
-    const anomalies: DetectedAnomaly[] = [];
+    const lookup = backdropLookup(backdropPalette(planes.base));
+    objectsB = labelObjects(cv, objectMask(cv, planes.base, lookup));
+    const captureObjects = objectMask(cv, planes.cap, lookup);
+    cv.bitwise_and(captureObjects, alignment.valid, captureObjects);
+    objectsC = labelObjects(cv, captureObjects);
 
-    for (let tierIndex = 0; tierIndex < 4; tierIndex += 1) {
-      const bounds = tierBoundsFromSplits(
-        splitYPercentages,
-        frameSize,
-        tierIndex as 0 | 1 | 2 | 3,
-      );
-      const tier: TierInputs = {
-        grayB: cropMat(cv, grayB, bounds),
-        grayC: cropMat(cv, grayC, bounds),
-        diff: cropMat(cv, diff, bounds),
-        texB: cropMat(cv, texB, bounds),
-        texC: cropMat(cv, texC, bounds),
-        valid: cropMat(cv, alignment.valid, bounds),
-        colorB: planes.base.map((m) => cropMat(cv, m, bounds)),
-        colorC: planes.cap.map((m) => cropMat(cv, m, bounds)),
-      };
-      try {
-        standardCount += countTierProducts(cv, tier.colorB, frameSize.width);
-        anomalies.push(
-          ...diffTier(
-            cv,
-            tier,
-            tierIndex as 0 | 1 | 2 | 3,
-            { x: bounds.x, y: bounds.y },
-            frameSize,
-            params,
-            toCapture,
-          ),
-        );
-      } finally {
-        [tier.grayB, tier.grayC, tier.diff, tier.texB, tier.texC, tier.valid, ...tier.colorB, ...tier.colorC].forEach((m) =>
-          m.delete(),
-        );
-      }
-    }
-
+    const anomalies = diffRegions(
+      cv,
+      {
+        grayB,
+        grayC,
+        diff,
+        texB,
+        texC,
+        valid: alignment.valid,
+        colorB: planes.baseLit,
+        colorC: planes.cap,
+        objectsB: objectsB.labels,
+        objectsC: objectsC.labels,
+      },
+      frameSize,
+      params,
+      toCapture,
+    );
+    let standardCount = objectsB.productCount;
     if (standardCount <= 0) standardCount = STANDARD_COUNT_FALLBACK;
 
     const stats = computeComplianceStats(anomalies, standardCount);
@@ -571,7 +722,10 @@ function analyzeAllTiers(
     alignment?.inverse?.delete();
     alignment?.forward?.delete();
     planes?.base.forEach((m) => m.delete());
+    planes?.baseLit.forEach((m) => m.delete());
     planes?.cap.forEach((m) => m.delete());
+    objectsB?.labels.delete();
+    objectsC?.labels.delete();
   }
 }
 
@@ -582,7 +736,6 @@ export type VisionWorkerRequest =
       type: 'analyze';
       captureBitmap: ImageBitmap;
       baselineBitmap: ImageBitmap;
-      splitYPercentages: [number, number, number, number];
       toleranceValue: number;
     };
 
@@ -633,14 +786,7 @@ if (typeof self !== 'undefined' && 'onmessage' in self) {
       ]);
 
       const frameSize = { width: captureFrame.width, height: captureFrame.height };
-      const result = analyzeAllTiers(
-        cv,
-        captureFrame,
-        baselineFrame,
-        data.splitYPercentages,
-        frameSize,
-        data.toleranceValue,
-      );
+      const result = analyzeFrame(cv, captureFrame, baselineFrame, frameSize, data.toleranceValue);
 
       data.captureBitmap.close();
       data.baselineBitmap.close();
@@ -661,4 +807,4 @@ if (typeof self !== 'undefined' && 'onmessage' in self) {
   };
 }
 
-export { analyzeAllTiers, getCv, validateAnalyzePayload };
+export { analyzeFrame, getCv, validateAnalyzePayload };

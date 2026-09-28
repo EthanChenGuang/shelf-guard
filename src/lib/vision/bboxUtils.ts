@@ -26,8 +26,8 @@ export function pixelRectToNormalized(
   };
 }
 
-/** Deterministic anomaly id from tier index and normalized bbox. */
-export function stableAnomalyId(tierIndex: number, bbox: NormalizedRect): string {
-  const hash = `${tierIndex}-${bbox.x.toFixed(3)}-${bbox.y.toFixed(3)}-${bbox.width.toFixed(3)}-${bbox.height.toFixed(3)}`;
+/** Deterministic anomaly id from its normalized bbox. */
+export function stableAnomalyId(bbox: NormalizedRect): string {
+  const hash = `${bbox.x.toFixed(3)}-${bbox.y.toFixed(3)}-${bbox.width.toFixed(3)}-${bbox.height.toFixed(3)}`;
   return `anomaly-${hash}`;
 }

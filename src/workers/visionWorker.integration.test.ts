@@ -6,17 +6,17 @@ import path from 'node:path';
 import { decode } from 'jpeg-js';
 import { ImageData } from '@napi-rs/canvas';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SPLIT_Y } from '../lib/constants';
 import { rasterFromRgba } from '../lib/vision/rasterFrame';
-import { analyzeAllTiers, getCv } from './visionWorker';
+import { analyzeFrame, getCv } from './visionWorker';
 
 globalThis.ImageData = ImageData as unknown as typeof globalThis.ImageData;
 
 const FIXTURE_DIR = path.join(process.cwd(), 'public/test-fixtures');
+const HANDHELD_DIR = path.join(process.cwd(), 'scripts/fixtures');
 const IMAGE_DIMS = { width: 1080, height: 1920 };
 
-function loadFixtureRaster(name: string) {
-  const buffer = readFileSync(path.join(FIXTURE_DIR, name));
+function loadFixtureRaster(name: string, dir = FIXTURE_DIR) {
+  const buffer = readFileSync(path.join(dir, name));
   const decoded = decode(buffer, { useTArray: true });
   const channels = decoded.data.length / (decoded.width * decoded.height);
   if (channels === 4) {
@@ -46,14 +46,7 @@ async function analyzeFixtures(baselineName: string, captureName: string, tolera
   const cv = await getCv();
   const baselineFrame = loadFixtureRaster(baselineName);
   const captureFrame = loadFixtureRaster(captureName);
-  return analyzeAllTiers(
-    cv,
-    captureFrame,
-    baselineFrame,
-    DEFAULT_SPLIT_Y,
-    IMAGE_DIMS,
-    toleranceValue,
-  );
+  return analyzeFrame(cv, captureFrame, baselineFrame, IMAGE_DIMS, toleranceValue);
 }
 
 describe('visionWorker OpenCV pipeline', () => {
@@ -73,6 +66,46 @@ describe('visionWorker OpenCV pipeline', () => {
     const result = await analyzeFixtures('baseline-aligned.jpg', 'baseline-aligned.jpg');
     const active = result.anomalies.filter((a) => !a.dismissed);
     expect(active.length).toBe(0);
+  }, 120_000);
+});
+
+/** A 1600x1200 hand-held photo, shrunk to the 1080x810 the app analyzes it at. */
+async function loadHandheld(name: string) {
+  const cv = await getCv();
+  const full = loadFixtureRaster(name, HANDHELD_DIR);
+  const src = cv.matFromImageData(new ImageData(new Uint8ClampedArray(full.data), full.width, full.height));
+  const dst = new cv.Mat();
+  try {
+    cv.resize(src, dst, new cv.Size(1080, 810), 0, 0, cv.INTER_AREA);
+    return rasterFromRgba(1080, 810, new Uint8ClampedArray(dst.data));
+  } finally {
+    src.delete();
+    dst.delete();
+  }
+}
+
+describe('hand-held re-shoot fixtures', () => {
+  const frame = { width: 1080, height: 810 };
+
+  it('finds exactly the two products removed between shots', async () => {
+    const cv = await getCv();
+    const result = analyzeFrame(cv, await loadHandheld('handheld-removed2.jpg'), await loadHandheld('handheld-baseline.jpg'), frame, 50);
+    const centers = result.anomalies.map((a) => ({
+      x: a.boundingBox.x + a.boundingBox.width / 2,
+      y: a.boundingBox.y + a.boundingBox.height / 2,
+    }));
+    expect(result.missingCount).toBe(2);
+    expect(result.displacedCount).toBe(0);
+    // The gap left in the second row, and the emptied first slot of the third row.
+    expect(centers.some((c) => c.x > 0.53 && c.x < 0.67 && c.y > 0.3 && c.y < 0.42)).toBe(true);
+    expect(centers.some((c) => c.x < 0.23 && c.y > 0.49 && c.y < 0.6)).toBe(true);
+    expect(result.standardCount).toBe(25);
+  }, 120_000);
+
+  it('reports nothing for an unchanged re-shoot', async () => {
+    const cv = await getCv();
+    const result = analyzeFrame(cv, await loadHandheld('handheld-same.jpg'), await loadHandheld('handheld-baseline.jpg'), frame, 50);
+    expect(result.anomalies).toEqual([]);
   }, 120_000);
 });
 
