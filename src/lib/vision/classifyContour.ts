@@ -1,77 +1,99 @@
+import type { DetectedAnomaly } from '../../types';
+
 export interface ContourRegionStats {
-  baselineMean: number;
-  captureMean: number;
-  baselineCentroid: { x: number; y: number };
-  captureCentroid: { x: number; y: number };
   /** Mean gradient magnitude in the region — how much product detail is present. */
-  baselineTexture?: number;
-  captureTexture?: number;
+  baselineTexture: number;
+  captureTexture: number;
   /** |region mean - surrounding ring mean| — how much the region stands out from the shelf. */
-  baselineContrast?: number;
-  captureContrast?: number;
+  baselineContrast: number;
+  captureContrast: number;
 }
 
-const VOID_DELTA_THRESHOLD = 12;
-const FOREGROUND_MIN = 35;
 const TEXTURE_RATIO = 1.6;
 const TEXTURE_MIN_DELTA = 4;
 const CONTRAST_RATIO = 1.5;
 const CONTRAST_MIN_DELTA = 12;
+/** Decisive tier: a strong cue in one direction outweighs a marginal cue in the other. */
+const DECISIVE_RATIO_FACTOR = 1.25;
+const DECISIVE_DELTA_FACTOR = 2;
 
-/** Classify a diff contour as MISSING, MOVED, or unclassified (D-07, D-08). */
-export function classifyContourType(
-  stats: ContourRegionStats,
-  displacementThresholdPx: number,
-): 'MISSING' | 'MOVED' | null {
-  const voidDelta = stats.baselineMean - stats.captureMean;
-  const dx = stats.captureCentroid.x - stats.baselineCentroid.x;
-  const dy = stats.captureCentroid.y - stats.baselineCentroid.y;
-  const displacement = Math.hypot(dx, dy);
-  const bothForeground =
-    stats.baselineMean > FOREGROUND_MIN && stats.captureMean > FOREGROUND_MIN;
+/** Photo `a` shows clearly more detail or stands out clearly more than photo `b` in the region. */
+function clearlyExceeds(texA: number, texB: number, conA: number, conB: number, ratio = 1, delta = 1): boolean {
+  return (
+    (texA > texB * TEXTURE_RATIO * ratio && texA - texB > TEXTURE_MIN_DELTA * delta) ||
+    (conA > conB * CONTRAST_RATIO * ratio && conA - conB > CONTRAST_MIN_DELTA * delta)
+  );
+}
 
-  if (
-    voidDelta > VOID_DELTA_THRESHOLD &&
-    stats.baselineMean > FOREGROUND_MIN &&
-    stats.captureMean < stats.baselineMean - VOID_DELTA_THRESHOLD / 2
-  ) {
-    return 'MISSING';
+/**
+ * Symmetric in the two photos, with no brightness-polarity assumption: something that vanished is
+ * MISSING, something that appeared is ADDED, and anything present in both photos or changed in
+ * place is MOVED.
+ */
+export function classifyContourType(stats: ContourRegionStats): DetectedAnomaly['type'] {
+  const { baselineTexture: texB, captureTexture: texC, baselineContrast: conB, captureContrast: conC } = stats;
+  for (const [ratio, delta] of [
+    [DECISIVE_RATIO_FACTOR, DECISIVE_DELTA_FACTOR],
+    [1, 1],
+  ]) {
+    const vanished = clearlyExceeds(texB, texC, conB, conC, ratio, delta);
+    const appeared = clearlyExceeds(texC, texB, conC, conB, ratio, delta);
+    if (vanished && !appeared) return 'MISSING';
+    if (appeared && !vanished) return 'ADDED';
+    if (vanished && appeared) return 'MOVED';
   }
+  return 'MOVED';
+}
 
-  const texB = stats.baselineTexture;
-  const texC = stats.captureTexture;
-  const hasTexture = texB !== undefined && texC !== undefined;
-  // A removed product leaves plain shelf back: detail drops regardless of back-panel brightness.
-  if (hasTexture && texB > texC * TEXTURE_RATIO && texB - texC > TEXTURE_MIN_DELTA) {
-    return 'MISSING';
-  }
+const MOVE_PAIR_MAX_AREA_RATIO = 2;
+const MOVE_PAIR_MAX_COLOR_DISTANCE = 35;
+const MOVE_PAIR_MAX_DISTANCE_SIZES = 4;
 
-  const conB = stats.baselineContrast;
-  const conC = stats.captureContrast;
-  const hasContrast = conB !== undefined && conC !== undefined;
-  // The region stood out from the shelf before and now blends into it: the product is gone.
-  if (hasContrast && conB > conC * CONTRAST_RATIO && conB - conC > CONTRAST_MIN_DELTA) {
-    return 'MISSING';
-  }
+export interface PairableRegion {
+  type: DetectedAnomaly['type'];
+  area: number;
+  center: { x: number; y: number };
+  /** Longer side of the region's bounding box. */
+  size: number;
+  /** Mean RGB inside the region in each photo. */
+  baselineColor: number[];
+  captureColor: number[];
+}
 
-  // D-08: both bands keep foreground but it shifted
-  if (bothForeground && displacement > displacementThresholdPx) {
-    return 'MOVED';
+/**
+ * An object moved between shots leaves a MISSING region where it was and an ADDED one where it
+ * went. Pair them one-to-one, nearest first, and report both ends as MOVED. Returns the final
+ * types in input order.
+ */
+export function pairMovedRegions(regions: PairableRegion[]): Array<DetectedAnomaly['type']> {
+  const types = regions.map((r) => r.type);
+  const pairs: Array<{ i: number; j: number; distance: number }> = [];
+  regions.forEach((gone, i) => {
+    if (gone.type !== 'MISSING') return;
+    regions.forEach((came, j) => {
+      if (came.type !== 'ADDED') return;
+      const areaRatio = Math.max(gone.area, came.area) / Math.max(1, Math.min(gone.area, came.area));
+      const colorDistance = Math.hypot(...gone.baselineColor.map((v, ch) => v - (came.captureColor[ch] ?? 0)));
+      const distance = Math.hypot(gone.center.x - came.center.x, gone.center.y - came.center.y);
+      if (
+        areaRatio <= MOVE_PAIR_MAX_AREA_RATIO &&
+        colorDistance < MOVE_PAIR_MAX_COLOR_DISTANCE &&
+        distance <= MOVE_PAIR_MAX_DISTANCE_SIZES * Math.max(gone.size, came.size)
+      ) {
+        pairs.push({ i, j, distance });
+      }
+    });
+  });
+  pairs.sort((a, b) => a.distance - b.distance);
+  const used = new Set<number>();
+  for (const { i, j } of pairs) {
+    if (used.has(i) || used.has(j)) continue;
+    used.add(i);
+    used.add(j);
+    types[i] = 'MOVED';
+    types[j] = 'MOVED';
   }
-
-  // Detail appeared where the baseline had none: an item placed out of position.
-  if (hasTexture && texC > texB * TEXTURE_RATIO && texC - texB > TEXTURE_MIN_DELTA) {
-    return 'MOVED';
-  }
-  if (hasContrast && conC > conB * CONTRAST_RATIO && conC - conB > CONTRAST_MIN_DELTA) {
-    return 'MOVED';
-  }
-  // Region already passed the aligned change detector: report it rather than drop it.
-  if (hasContrast) {
-    return conB >= conC ? 'MISSING' : 'MOVED';
-  }
-
-  return null;
+  return types;
 }
 
 const WEAK_DIFF_FACTOR = 1.5;
@@ -100,14 +122,4 @@ export function isLightingShift(
   if (meanDiff >= diffThreshold * WEAK_DIFF_FACTOR) return false;
   const scaled = relationB.map((v) => v * gain);
   return Math.min(mismatch(relationB, relationC), mismatch(scaled, relationC)) < MAX_LIGHTING_MISMATCH;
-}
-
-/** Prefer MISSING when both heuristics could apply (D-09). */
-export function dedupeAnomalyTypes(
-  missingCandidate: boolean,
-  movedCandidate: boolean,
-): 'MISSING' | 'MOVED' | null {
-  if (missingCandidate) return 'MISSING';
-  if (movedCandidate) return 'MOVED';
-  return null;
 }

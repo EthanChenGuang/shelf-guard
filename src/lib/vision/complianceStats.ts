@@ -6,6 +6,7 @@ export interface ComplianceStats {
   actualCount: number;
   missingCount: number;
   displacedCount: number;
+  addedCount: number;
 }
 
 /** Shared compliance formula for worker output and the App's threshold-aware counts. */
@@ -17,7 +18,11 @@ export function computeComplianceStats(
   const counted = anomalies.filter((a) => !a.dismissed && meetsMinConfidence(a, minConfidence));
   const missingCount = counted.filter((a) => a.type === 'MISSING').length;
   const displacedCount = counted.filter((a) => a.type === 'MOVED').length;
-  const actualCount = standardCount - missingCount;
-  const complianceRate = Math.max(70, Math.min(100, 100 - missingCount * 4 - displacedCount * 2));
-  return { complianceRate, actualCount, missingCount, displacedCount };
+  const addedCount = counted.filter((a) => a.type === 'ADDED').length;
+  const actualCount = standardCount - missingCount + addedCount;
+  const complianceRate = Math.max(
+    70,
+    Math.min(100, 100 - missingCount * 4 - displacedCount * 2 - addedCount * 2),
+  );
+  return { complianceRate, actualCount, missingCount, displacedCount, addedCount };
 }

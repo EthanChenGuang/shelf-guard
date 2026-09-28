@@ -1,7 +1,7 @@
 import type { CV } from '@techstark/opencv-js/dist/src/types/opencv';
 import { DetectedAnomaly } from '../types';
 import { pixelRectToNormalized, stableAnomalyId } from '../lib/vision/bboxUtils';
-import { classifyContourType, isLightingShift } from '../lib/vision/classifyContour';
+import { classifyContourType, isLightingShift, pairMovedRegions, type PairableRegion } from '../lib/vision/classifyContour';
 import { computeComplianceStats } from '../lib/vision/complianceStats';
 import { anomalyConfidence } from '../lib/vision/confidence';
 import { toleranceToDiffParams } from '../lib/vision/toleranceParams';
@@ -45,30 +45,6 @@ function rasterToMat(cv: CV, frame: RasterFrame): InstanceType<CV['Mat']> {
   const data = new Uint8ClampedArray(frame.data);
   const imageData = new ImageData(data, frame.width, frame.height);
   return cv.matFromImageData(imageData);
-}
-
-const FOREGROUND_MIN = 35;
-
-/** Centroid of foreground pixels within a contour mask. */
-function foregroundCentroidFromMask(
-  cv: CV,
-  gray: InstanceType<CV['Mat']>,
-  mask: InstanceType<CV['Mat']>,
-): { x: number; y: number } {
-  const binary = new cv.Mat();
-  const masked = new cv.Mat();
-  try {
-    cv.threshold(gray, binary, FOREGROUND_MIN, 255, cv.THRESH_BINARY);
-    cv.bitwise_and(binary, mask, masked);
-    const moments = cv.moments(masked, true);
-    if (moments.m00 <= 0) {
-      return { x: 0, y: 0 };
-    }
-    return { x: moments.m10 / moments.m00, y: moments.m01 / moments.m00 };
-  } finally {
-    binary.delete();
-    masked.delete();
-  }
 }
 
 const BACKDROP_DISTANCE = 45;
@@ -225,6 +201,8 @@ function labelObjects(cv: CV, mask: Mat): ObjectMap {
 }
 
 type Mat = InstanceType<CV['Mat']>;
+
+const TITLES: Record<DetectedAnomaly['type'], string> = { MISSING: 'Missing', MOVED: 'Moved', ADDED: 'Added' };
 
 const REFERENCE_AREA = 1080 * 1920;
 /** Smallest reportable change, as a fraction of the frame (half of a small object moved aside). */
@@ -423,8 +401,6 @@ function regionStats(cv: CV, grayB: Mat, grayC: Mat, mask: Mat) {
   return {
     baselineMean: cv.mean(grayB, mask)[0] ?? 0,
     captureMean: cv.mean(grayC, mask)[0] ?? 0,
-    baselineCentroid: foregroundCentroidFromMask(cv, grayB, mask),
-    captureCentroid: foregroundCentroidFromMask(cv, grayC, mask),
   };
 }
 
@@ -548,7 +524,7 @@ function diffRegions(
       });
     }
 
-    const candidates: Array<{ area: number; anomaly: DetectedAnomaly }> = [];
+    const candidates: Array<{ area: number; region: PairableRegion; anomaly: Omit<DetectedAnomaly, 'type' | 'title'> }> = [];
     const ringKernel = cv.getStructuringElement(
       cv.MORPH_RECT,
       new cv.Size(oddKernel(minDim * 0.03), oddKernel(minDim * 0.03)),
@@ -583,17 +559,12 @@ function diffRegions(
           if (hasRing && isLightingShift(relationB, relationC, gain, meanDiff, params.diffThreshold)) {
             continue;
           }
-          const type = classifyContourType(
-            {
-              ...region,
-              baselineTexture: cv.mean(texB, mask)[0] ?? 0,
-              captureTexture: cv.mean(texC, mask)[0] ?? 0,
-              baselineContrast: Math.hypot(...relationB),
-              captureContrast: Math.hypot(...relationC),
-            },
-            params.displacementThresholdPx,
-          );
-          if (!type) continue;
+          const type = classifyContourType({
+            baselineTexture: cv.mean(texB, mask)[0] ?? 0,
+            captureTexture: cv.mean(texC, mask)[0] ?? 0,
+            baselineContrast: Math.hypot(...relationB),
+            captureContrast: Math.hypot(...relationC),
+          });
           const confidence = anomalyConfidence(area / frameArea, meanDiff / params.diffThreshold);
 
           const x0 = Math.min(...group.map((f) => f.rect.x));
@@ -604,15 +575,20 @@ function diffRegions(
           const bbox = pixelRectToNormalized(captureRect, frameSize.width, frameSize.height);
           candidates.push({
             area,
+            region: {
+              type,
+              area,
+              center: { x: (x0 + x1) / 2, y: (y0 + y1) / 2 },
+              size: Math.max(x1 - x0, y1 - y0),
+              baselineColor: colorB.map((p) => cv.mean(p, mask)[0] ?? 0),
+              captureColor: colorC.map((p) => cv.mean(p, mask)[0] ?? 0),
+            },
             anomaly: {
               id: stableAnomalyId(bbox),
-              type,
-              title: type === 'MISSING' ? 'Missing' : 'Moved',
               score: confidence,
               confidence,
               boundingBox: bbox,
               dismissed: false,
-              ...(type === 'MOVED' ? { displacementNote: 'detected shift' } : {}),
             },
           });
         } finally {
@@ -624,8 +600,13 @@ function diffRegions(
       ringKernel.delete();
     }
 
-    candidates.sort((a, b) => b.area - a.area);
-    return candidates.slice(0, MAX_ANOMALIES).map((c) => c.anomaly);
+    const types = pairMovedRegions(candidates.map((c) => c.region));
+    const typed = candidates.map((c, i) => {
+      const anomaly: DetectedAnomaly = { ...c.anomaly, type: types[i], title: TITLES[types[i]] };
+      return { area: c.area, anomaly };
+    });
+    typed.sort((a, b) => b.area - a.area);
+    return typed.slice(0, MAX_ANOMALIES).map((c) => c.anomaly);
   } finally {
     binary.delete();
     cleaned.delete();
@@ -710,6 +691,7 @@ function analyzeFrame(
       actualCount: stats.actualCount,
       displacedCount: stats.displacedCount,
       missingCount: stats.missingCount,
+      addedCount: stats.addedCount,
     };
   } finally {
     baselineMat.delete();

@@ -25,6 +25,7 @@ describe('computeComplianceStats', () => {
     expect(computeComplianceStats(list, 24)).toEqual({
       missingCount: 2,
       displacedCount: 1,
+      addedCount: 0,
       actualCount: 22,
       complianceRate: 90,
     });
@@ -34,8 +35,19 @@ describe('computeComplianceStats', () => {
     expect(computeComplianceStats(list, 24, 85)).toEqual({
       missingCount: 1,
       displacedCount: 1,
+      addedCount: 0,
       actualCount: 23,
       complianceRate: 94,
+    });
+  });
+
+  it('counts added items on the shelf and charges them like a moved item', () => {
+    expect(computeComplianceStats([...list, anomaly('e', 'ADDED', 0.9)], 24)).toEqual({
+      missingCount: 2,
+      displacedCount: 1,
+      addedCount: 1,
+      actualCount: 23,
+      complianceRate: 88,
     });
   });
 });

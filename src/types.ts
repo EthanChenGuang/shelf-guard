@@ -20,7 +20,7 @@ export interface ShelfCalibration {
 
 export interface DetectedAnomaly {
   id: string;
-  type: 'MISSING' | 'MOVED';
+  type: 'MISSING' | 'MOVED' | 'ADDED';
   title: string;
   expectedCount?: number;
   confidence?: number;
