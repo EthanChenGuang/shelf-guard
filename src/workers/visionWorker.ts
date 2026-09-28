@@ -3,6 +3,7 @@ import { DetectedAnomaly } from '../types';
 import { pixelRectToNormalized, stableAnomalyId } from '../lib/vision/bboxUtils';
 import { classifyContourType, isLightingShift } from '../lib/vision/classifyContour';
 import { computeComplianceStats } from '../lib/vision/complianceStats';
+import { anomalyConfidence } from '../lib/vision/confidence';
 import { toleranceToDiffParams } from '../lib/vision/toleranceParams';
 import { rasterFromImageBitmap, type RasterFrame } from '../lib/vision/rasterFrame';
 import type { InspectionAnalysisResult } from '../lib/vision/resultTypes';
@@ -578,7 +579,8 @@ function diffRegions(
           const relationC = hasRing ? colorRelation(cv, colorC, mask, ring) : [0, 0, 0];
           const region = regionStats(cv, grayB, grayC, mask);
           const gain = (region.captureMean + ILLUM_OFFSET) / (region.baselineMean + ILLUM_OFFSET);
-          if (hasRing && isLightingShift(relationB, relationC, gain, cv.mean(diff, mask)[0] ?? 0, params.diffThreshold)) {
+          const meanDiff = cv.mean(diff, mask)[0] ?? 0;
+          if (hasRing && isLightingShift(relationB, relationC, gain, meanDiff, params.diffThreshold)) {
             continue;
           }
           const type = classifyContourType(
@@ -592,6 +594,7 @@ function diffRegions(
             params.displacementThresholdPx,
           );
           if (!type) continue;
+          const confidence = anomalyConfidence(area / frameArea, meanDiff / params.diffThreshold);
 
           const x0 = Math.min(...group.map((f) => f.rect.x));
           const y0 = Math.min(...group.map((f) => f.rect.y));
@@ -605,7 +608,8 @@ function diffRegions(
               id: stableAnomalyId(bbox),
               type,
               title: type === 'MISSING' ? 'Missing' : 'Moved',
-              score: Math.min(1, area / (minArea * 4)),
+              score: confidence,
+              confidence,
               boundingBox: bbox,
               dismissed: false,
               ...(type === 'MOVED' ? { displacementNote: 'detected shift' } : {}),

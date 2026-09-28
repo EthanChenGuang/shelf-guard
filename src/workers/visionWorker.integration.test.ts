@@ -6,6 +6,7 @@ import path from 'node:path';
 import { decode } from 'jpeg-js';
 import { ImageData } from '@napi-rs/canvas';
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_MIN_CONFIDENCE, meetsMinConfidence } from '../lib/vision/confidence';
 import { rasterFromRgba } from '../lib/vision/rasterFrame';
 import { analyzeFrame, getCv } from './visionWorker';
 
@@ -100,6 +101,7 @@ describe('hand-held re-shoot fixtures', () => {
     expect(centers.some((c) => c.x > 0.53 && c.x < 0.67 && c.y > 0.3 && c.y < 0.42)).toBe(true);
     expect(centers.some((c) => c.x < 0.23 && c.y > 0.49 && c.y < 0.6)).toBe(true);
     expect(result.standardCount).toBe(25);
+    expect(result.anomalies.every((a) => a.confidence === a.score && meetsMinConfidence(a, DEFAULT_MIN_CONFIDENCE))).toBe(true);
   }, 120_000);
 
   it('reports nothing for an unchanged re-shoot', async () => {
