@@ -5,10 +5,10 @@ current_phase_name: PRD UI & Multi-Shelf Experience
 current_plan: 7
 status: verifying
 stopped_at: "Completed quick task 260925-r3s: tap-to-focus camera control"
-last_updated: "2026-09-28T10:05:08.451Z"
+last_updated: "2026-09-28T12:12:30.787Z"
 last_activity: 2026-09-23
 last_activity_desc: Phase 05 execution started
-state_head: ea45f13b0b3136daa96d915d99ccc0635f1b85ed
+state_head: 5cb324a63549fbbb123aecd92789ffd1fa77544c
 progress:
   total_phases: 5
   completed_phases: 4
@@ -151,6 +151,7 @@ None yet.
 | 260925-gdb | 加一个基于 MediaTrackConstraints zoom capability 的 4 档变焦选择器 | 2026-09-25 | 62d8ca5 | [260925-gdb-4-mediatrackconstraints-zoom-capability](./quick/260925-gdb-4-mediatrackconstraints-zoom-capability/) |
 | 260925-r3s | 基于 focusMode/focusDistance capability 增加点触对焦手势和绿色对焦框，与现有的展架滑动手势独立共存 | 2026-09-25 | c86b0a6 | [260925-r3s-github](./quick/260925-r3s-github/) |
 | 7 | Inspection shutter uses system camera when baseline came from it; reject lens/framing mismatch | 2026-09-28 | ea45f13 | — |
+| 8 | Remove ROI grid and shelf-board guide overlay from camera view | 2026-09-28 | 5cb324a | — |
 
 ## Deferred Items
 
