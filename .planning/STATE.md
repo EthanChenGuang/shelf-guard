@@ -5,10 +5,10 @@ current_phase_name: PRD UI & Multi-Shelf Experience
 current_plan: 7
 status: verifying
 stopped_at: "Completed quick task 260925-r3s: tap-to-focus camera control"
-last_updated: "2026-09-28T14:56:44.423Z"
+last_updated: "2026-09-28T15:34:27.264Z"
 last_activity: 2026-09-23
 last_activity_desc: Phase 05 execution started
-state_head: 52a9edb5fb32bf4b226e82a30fb57a00c050f2f1
+state_head: 46f49927a81ff525e9d96f13a3b36a9a5d11fa0e
 progress:
   total_phases: 5
   completed_phases: 4
@@ -153,6 +153,7 @@ None yet.
 | 7 | Inspection shutter uses system camera when baseline came from it; reject lens/framing mismatch | 2026-09-28 | ea45f13 | — |
 | 8 | Remove ROI grid and shelf-board guide overlay from camera view | 2026-09-28 | 5cb324a | — |
 | 9 | 横屏拍摄的照片被转成竖屏：实时拍照改为按画面方向输出，分析尺寸上限改按长短边 | 2026-09-28 | 52a9edb | — |
+| 260928-nv2 | 差异确认度 + 可调阈值（默认 85%，50–99%）：只显示并统计确认度不低于阈值的差异 | 2026-09-28 | 46f4992 | [260928-nv2-diff-score-threshold](./quick/260928-nv2-diff-score-threshold/) |
 
 ## Deferred Items
 
@@ -166,4 +167,4 @@ Last session: 2026-09-25T17:51:01.597Z
 Stopped at: Completed quick task 260925-r3s: tap-to-focus camera control
 Resume file: None
 
-Last activity: 2026-09-25 - Completed quick task 260925-gdb: MediaTrackConstraints zoom capability — 4-level zoom selector
+Last activity: 2026-09-28 - Completed quick task 260928-nv2: 差异确认度 + 可调阈值（默认 85%）
