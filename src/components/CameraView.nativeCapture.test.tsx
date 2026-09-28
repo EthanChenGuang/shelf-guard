@@ -61,6 +61,18 @@ describe('CameraView native capture mode', () => {
     expect(screen.queryByTestId('gallery-input')).toBeNull();
   });
 
+  it('shows a lens switch only when the browser exposes several back lenses', () => {
+    const onCycleLens = vi.fn();
+    const {rerender} = render(
+      <CameraView {...baseProps} onShutterClick={vi.fn()} lens={{index: 1, count: 3}} onCycleLens={onCycleLens} />,
+    );
+    fireEvent.click(screen.getByRole('button', {name: I18N.cn.switchLens}));
+    expect(onCycleLens).toHaveBeenCalledOnce();
+    expect(screen.getByTestId('cycle-lens-button')).toHaveTextContent('1/3');
+    rerender(<CameraView {...baseProps} onShutterClick={vi.fn()} lens={{index: 1, count: 1}} onCycleLens={onCycleLens} />);
+    expect(screen.queryByTestId('cycle-lens-button')).toBeNull();
+  });
+
   it('keeps the live shutter when not in native mode', () => {
     const onShutterClick = vi.fn();
     render(<CameraView {...baseProps} onShutterClick={onShutterClick} />);

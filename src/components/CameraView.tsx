@@ -5,6 +5,7 @@ import {
   Flashlight,
   FlashlightOff,
   Images,
+  Aperture,
   Layers,
   RotateCcw,
   ScanLine,
@@ -19,6 +20,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Language, ShelfCalibration, AuditRecord } from '../types';
 import { I18N } from '../lib/constants';
 import { attachShelfSwipe } from '../lib/shelfSwipe';
+import { ghostMatrix, toCssMatrix3d } from '../lib/ghostFit';
+import { useGhostFit } from '../hooks/useGhostFit';
 import { nextShelfIndex, prevShelfIndex, clampShelfIndex } from '../lib/shelfIndex';
 import { ShelfCarousel } from './ShelfCarousel';
 
@@ -70,6 +73,9 @@ interface CameraViewProps {
   hasSensor?: boolean;
   hasMultipleCameras?: boolean;
   onSwitchCamera?: () => void;
+  /** Back lenses the browser exposes; the switch only shows when there is more than one. */
+  lens?: { index: number; count: number } | null;
+  onCycleLens?: () => void;
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -114,6 +120,8 @@ export const CameraView: React.FC<CameraViewProps> = ({
   hasSensor = false,
   hasMultipleCameras = false,
   onSwitchCamera,
+  lens = null,
+  onCycleLens,
 }) => {
   const t = I18N[lang];
   const [flashVisible, setFlashVisible] = useState(false);
@@ -121,6 +129,27 @@ export const CameraView: React.FC<CameraViewProps> = ({
   const nativeInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const showGhost = hasPersistedBaseline && !!baseline.imageDataUrl;
+  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
+  const attachVideo = useCallback(
+    (node: HTMLVideoElement | null) => {
+      setVideoEl(node);
+      if (typeof videoRef === 'function') videoRef(node);
+      else if (videoRef) (videoRef as React.MutableRefObject<HTMLVideoElement | null>).current = node;
+    },
+    [videoRef],
+  );
+  const ghostFit = useGhostFit(videoEl, baseline.imageDataUrl, showGhost);
+  const ghostTransform =
+    ghostFit && videoEl && videoEl.videoWidth > 0 && videoEl.clientWidth > 0
+      ? toCssMatrix3d(
+          ghostMatrix(
+            ghostFit,
+            baseline.imageDimensions,
+            { width: videoEl.videoWidth, height: videoEl.videoHeight },
+            { width: videoEl.clientWidth, height: videoEl.clientHeight },
+          ),
+        )
+      : null;
   const ghostSliderRef = useRef<HTMLDivElement>(null);
   const ghostValueTrackRef = useRef<HTMLDivElement>(null);
   const ghostDragRef = useRef(false);
@@ -263,7 +292,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
             transition={feedTransition}
           >
             <video
-              ref={videoRef}
+              ref={attachVideo}
               autoPlay
               playsInline
               muted
@@ -273,14 +302,30 @@ export const CameraView: React.FC<CameraViewProps> = ({
             {showGhost && (
               <div
                 data-testid="ghost-overlay"
-                className="absolute inset-0 w-full h-full pointer-events-none mix-blend-screen transition-opacity duration-150"
+                data-fit={ghostTransform ? 'matched' : 'full-frame'}
+                className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none mix-blend-screen transition-opacity duration-150"
                 style={{ opacity: ghostOpacity / 100 }}
               >
-                <img
-                  src={baseline.imageDataUrl}
-                  alt={t.baselineGhostAlt}
-                  className="w-full h-full object-cover object-center filter contrast-125 brightness-110"
-                />
+                {ghostTransform ? (
+                  // Placed where the baseline appears in the live view, whatever lens the preview uses.
+                  <img
+                    src={baseline.imageDataUrl}
+                    alt={t.baselineGhostAlt}
+                    className="absolute left-0 top-0 max-w-none filter contrast-125 brightness-110 transition-transform duration-300"
+                    style={{
+                      width: baseline.imageDimensions.width,
+                      height: baseline.imageDimensions.height,
+                      transformOrigin: '0 0',
+                      transform: ghostTransform,
+                    }}
+                  />
+                ) : (
+                  <img
+                    src={baseline.imageDataUrl}
+                    alt={t.baselineGhostAlt}
+                    className="w-full h-full object-cover object-center filter contrast-125 brightness-110"
+                  />
+                )}
                 <div className="absolute inset-0 bg-emerald-500/10 mix-blend-overlay" />
               </div>
             )}
@@ -565,6 +610,11 @@ export const CameraView: React.FC<CameraViewProps> = ({
           <span className="font-mono-numbers text-[8px] text-slate-400 uppercase tracking-tighter block">
             {t.ghost}
           </span>
+          {ghostTransform && (
+            <span data-testid="ghost-matched" className="mt-0.5 block text-[8px] font-semibold text-[#006C49]">
+              {t.ghostMatched}
+            </span>
+          )}
         </div>
       </div>
       )}
@@ -742,6 +792,21 @@ export const CameraView: React.FC<CameraViewProps> = ({
                   }}
                 />
               </>
+            )}
+            {lens && lens.count > 1 && onCycleLens && (
+              <button
+                type="button"
+                data-testid="cycle-lens-button"
+                onClick={onCycleLens}
+                aria-label={t.switchLens}
+                title={t.switchLens}
+                className="relative w-10 h-10 rounded-full bg-white/80 hover:bg-white backdrop-blur-xl shadow-md flex items-center justify-center text-[#0F172A] transition-all active:scale-95 border border-slate-200"
+              >
+                <Aperture className="w-4 h-4 text-slate-700" />
+                <span className="absolute -bottom-1 -right-1 rounded-full bg-[#0F172A] px-1 font-mono-numbers text-[8px] leading-4 text-white">
+                  {lens.index}/{lens.count}
+                </span>
+              </button>
             )}
             {hasMultipleCameras && onSwitchCamera && (
               <button

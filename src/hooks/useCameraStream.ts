@@ -460,6 +460,19 @@ export function useCameraStream() {
     }
   }, [acquireStream]);
 
+  const backLenses = cameraDevices.filter((d) => !isLikelyFrontCamera(d));
+  const activeLensIndex = backLenses.findIndex((d) => d.deviceId === activeDeviceId);
+
+  /** Step through the back lenses the browser exposes (e.g. main → ultra-wide → tele). */
+  const cycleLens = useCallback(async () => {
+    if (backLenses.length < 2) return;
+    const next = backLenses[(activeLensIndex + 1) % backLenses.length];
+    await acquireStream(
+      { deviceId: { exact: next.deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      { skipWideDeviceRetry: true, preferWideLens: false },
+    );
+  }, [acquireStream, backLenses, activeLensIndex]);
+
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
@@ -572,6 +585,10 @@ export function useCameraStream() {
     /** Show flip control whenever the camera is live (flip uses facingMode, not lens cycling). */
     hasMultipleCameras: cameraDevices.length > 0 && !cameraError,
     switchCamera,
+    /** Only phones whose browser exposes more than one back lens can pick one in-app. */
+    hasMultipleLenses: facingMode === 'environment' && backLenses.length > 1 && !cameraError,
+    lens: activeLensIndex >= 0 ? { index: activeLensIndex + 1, count: backLenses.length } : null,
+    cycleLens,
     clearCameraError,
     captureFrame,
   };

@@ -7,7 +7,7 @@ import { anomalyConfidence } from '../lib/vision/confidence';
 import { toleranceToDiffParams } from '../lib/vision/toleranceParams';
 import { rasterFromImageBitmap, type RasterFrame } from '../lib/vision/rasterFrame';
 import type { InspectionAnalysisResult } from '../lib/vision/resultTypes';
-import { alignCapture, CLIPPED, mapRectToCapture, matchIllumination, matchPhotometry, warpToBaseline } from './alignment';
+import { alignCapture, CLIPPED, fitGhostHomography, mapRectToCapture, matchIllumination, matchPhotometry, warpToBaseline } from './alignment';
 
 const MAX_ANOMALIES = 32;
 /** Same offset the illumination model uses, so dark regions do not produce wild gains. */
@@ -723,7 +723,28 @@ export type VisionWorkerRequest =
       captureBitmap: ImageBitmap;
       baselineBitmap: ImageBitmap;
       toleranceValue: number;
-    };
+    }
+  | { requestId?: number; type: 'fitGhost'; baselineBitmap: ImageBitmap; frameBitmap: ImageBitmap };
+
+const MAX_GHOST_EDGE = 640;
+
+/** Baseline-to-frame homography in normalized coordinates (see fitGhostHomography), or null. */
+function fitGhost(cv: CV, baselineFrame: RasterFrame, liveFrame: RasterFrame): number[] | null {
+  const baseRgba = rasterToMat(cv, baselineFrame);
+  const liveRgba = rasterToMat(cv, liveFrame);
+  const baseGray = new cv.Mat();
+  const liveGray = new cv.Mat();
+  try {
+    cv.cvtColor(baseRgba, baseGray, cv.COLOR_RGBA2GRAY);
+    cv.cvtColor(liveRgba, liveGray, cv.COLOR_RGBA2GRAY);
+    return fitGhostHomography(cv, baseGray, liveGray);
+  } finally {
+    baseRgba.delete();
+    liveRgba.delete();
+    baseGray.delete();
+    liveGray.delete();
+  }
+}
 
 if (typeof self !== 'undefined' && 'onmessage' in self) {
   self.onmessage = async (event: MessageEvent<VisionWorkerRequest>) => {
@@ -739,6 +760,23 @@ if (typeof self !== 'undefined' && 'onmessage' in self) {
           type: 'error',
           message: err instanceof Error ? err.message : String(err),
         });
+      }
+      return;
+    }
+    if (data?.type === 'fitGhost') {
+      try {
+        const bitmaps = [data.baselineBitmap, data.frameBitmap];
+        if (bitmaps.some((b) => !(b instanceof ImageBitmap) || Math.max(b.width, b.height) > MAX_GHOST_EDGE)) {
+          throw new Error(`fitGhost expects ImageBitmaps no larger than ${MAX_GHOST_EDGE}px`);
+        }
+        const cv = await getCv();
+        const [baselineFrame, liveFrame] = await Promise.all(bitmaps.map((b) => rasterFromImageBitmap(b)));
+        self.postMessage({ requestId, type: 'result', payload: { homography: fitGhost(cv, baselineFrame, liveFrame) } });
+      } catch (err) {
+        self.postMessage({ requestId, type: 'error', message: err instanceof Error ? err.message : String(err) });
+      } finally {
+        data.baselineBitmap?.close?.();
+        data.frameBitmap?.close?.();
       }
       return;
     }
@@ -793,4 +831,4 @@ if (typeof self !== 'undefined' && 'onmessage' in self) {
   };
 }
 
-export { analyzeFrame, getCv, validateAnalyzePayload };
+export { analyzeFrame, fitGhost, getCv, validateAnalyzePayload };

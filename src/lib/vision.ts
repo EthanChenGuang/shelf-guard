@@ -162,6 +162,20 @@ function validateBeforeAnalyze(
   return fitAnalysisSize(width, height);
 }
 
+/** Where the baseline sits in a live preview frame (normalized homography), or null if they don't match. */
+export async function fitGhostToFrame(
+  baselineBitmap: ImageBitmap,
+  frameBitmap: ImageBitmap,
+): Promise<number[] | null> {
+  await prewarmVisionWorker();
+  const result = await postWorker<{ homography: number[] | null }>(
+    getWorker(),
+    { type: 'fitGhost', baselineBitmap, frameBitmap },
+    [baselineBitmap, frameBitmap],
+  );
+  return result.homography;
+}
+
 /** Compare the whole capture against the baseline in the vision Web Worker. */
 export async function analyzeShelfCapture(
   capturedDataUrl: string,
