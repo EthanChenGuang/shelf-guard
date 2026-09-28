@@ -132,7 +132,7 @@ async function run(deviceName) {
     const baselineJpeg = insertExifFocal35(fixture('baseline'), ULTRA_WIDE);
     await page.getByTestId('baseline-status-pill').click({ force: true });
     await assertNoTierUi(page);
-    await page.locator('input[type=file]').first().setInputFiles({
+    await page.locator('label:has-text("上传/拍照替换基准图") input[type=file]').setInputFiles({
       name: 'baseline.jpg', mimeType: 'image/jpeg', buffer: baselineJpeg,
     });
     await nativeHint.waitFor({ timeout: 20_000 });
