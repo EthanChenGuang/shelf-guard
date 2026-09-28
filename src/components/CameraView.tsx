@@ -59,7 +59,11 @@ interface CameraViewProps {
   quotaError?: boolean;
   onDismissQuotaError?: () => void;
   analysisError?: boolean;
+  analysisErrorMessage?: string;
   onDismissAnalysisError?: () => void;
+  /** Shutter opens the OS camera instead of grabbing a live frame (baseline came from the OS camera). */
+  nativeCaptureMode?: boolean;
+  onNativePhoto?: (file: File) => void;
   orientationDenied?: boolean;
   onRetryOrientation?: () => void;
   onDismissOrientationError?: () => void;
@@ -100,7 +104,10 @@ export const CameraView: React.FC<CameraViewProps> = ({
   quotaError,
   onDismissQuotaError,
   analysisError = false,
+  analysisErrorMessage,
   onDismissAnalysisError,
+  nativeCaptureMode = false,
+  onNativePhoto,
   orientationDenied = false,
   onRetryOrientation,
   onDismissOrientationError,
@@ -112,6 +119,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
   const [showRoiGuides, setShowRoiGuides] = useState(false);
   const [flashVisible, setFlashVisible] = useState(false);
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nativeInputRef = useRef<HTMLInputElement>(null);
   const showGhost = hasPersistedBaseline && !!baseline.imageDataUrl;
   const ghostSliderRef = useRef<HTMLDivElement>(null);
   const ghostValueTrackRef = useRef<HTMLDivElement>(null);
@@ -161,6 +169,11 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
   const handleShutterClick = () => {
     if (isShutterLocked) return;
+    if (nativeCaptureMode && onNativePhoto) {
+      // Must run synchronously inside the click gesture or mobile browsers block the picker.
+      nativeInputRef.current?.click();
+      return;
+    }
     if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
     setFlashVisible(true);
     flashTimeoutRef.current = setTimeout(() => setFlashVisible(false), 150);
@@ -627,7 +640,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
             <div className="flex items-start gap-2">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold">{t.analysisFailed}</p>
+                <p className="text-sm font-semibold">{analysisErrorMessage ?? t.analysisFailed}</p>
               </div>
               {onDismissAnalysisError && (
                 <button
@@ -719,9 +732,25 @@ export const CameraView: React.FC<CameraViewProps> = ({
         <div className="mb-4 px-3 py-1 rounded-full bg-[#0F172A]/75 backdrop-blur-md shadow-sm border border-white/10">
           <p className="text-xs text-white/95 flex items-center gap-1.5 font-medium">
             <ScanLine className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            <span>{t.tapShutterToScan}</span>
+            <span>{nativeCaptureMode ? t.nativeCaptureHint : t.tapShutterToScan}</span>
           </p>
         </div>
+
+        {nativeCaptureMode && (
+          <input
+            ref={nativeInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            data-testid="native-capture-input"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) onNativePhoto?.(file);
+            }}
+          />
+        )}
 
         <div className="w-full flex items-center justify-between max-w-sm px-2">
           <div className="flex items-center gap-2">

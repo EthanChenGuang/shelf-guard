@@ -17,6 +17,8 @@ export interface ShelfCalibration {
   imageDimensions: { width: number; height: number };
   splitYPercentages: [number, number, number, number]; // 4条水平线垂直百分比 (0.0 - 1.0)
   tierLabels: [string, string, string, string];
+  /** EXIF focal length of an OS-camera baseline; used to reject shots taken with another lens. */
+  lensFocalLength?: number | null;
 }
 
 export interface DetectedAnomaly {

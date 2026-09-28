@@ -8,6 +8,7 @@ export interface PersistedBaseline {
   imageDimensions: {width: number; height: number};
   splitYPercentages: [number, number, number, number];
   tierLabels: [string, string, string, string];
+  lensFocalLength?: number | null;
 }
 
 /** IndexedDB audit record — thumbnail stored as Blob, not data URL (D-08). */

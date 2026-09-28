@@ -36,6 +36,7 @@ export function toViewBaseline(
     imageDimensions: persisted.imageDimensions,
     splitYPercentages: persisted.splitYPercentages,
     tierLabels: persisted.tierLabels,
+    lensFocalLength: persisted.lensFocalLength ?? null,
   };
 }
 
@@ -77,6 +78,7 @@ async function viewToPersistedBaseline(
     imageDimensions: view.imageDimensions,
     splitYPercentages: view.splitYPercentages,
     tierLabels: view.tierLabels,
+    lensFocalLength: view.lensFocalLength ?? null,
   };
 }
 

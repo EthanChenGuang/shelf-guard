@@ -7,7 +7,7 @@ import {
   ShelfCalibration,
   ToleranceValue,
 } from './types';
-import { DEFAULT_CALIBRATION } from './lib/constants';
+import { DEFAULT_CALIBRATION, I18N } from './lib/constants';
 import {
   loadSavedLanguage,
   loadSavedTolerance,
@@ -33,6 +33,12 @@ import { analyzeShelfCapture, prewarmVisionWorker } from './lib/vision';
 import { computeComplianceStats } from './lib/vision/complianceStats';
 import { isCaptureLocked } from './lib/captureLock';
 import { loadImageDimensions } from './lib/imageDimensions';
+import {
+  isFramingCompatible,
+  isNativeCameraBaseline,
+  isSameLens,
+  normalizeNativePhoto,
+} from './lib/nativeCapture';
 import { useCameraStream } from './hooks/useCameraStream';
 import { useDeviceOrientation } from './hooks/useDeviceOrientation';
 import { usePWAInstall } from './hooks/usePWAInstall';
@@ -100,6 +106,7 @@ export default function App() {
   const workerPrewarmedRef = useRef(false);
   const [isShutterLocked, setIsShutterLocked] = useState(false);
   const [showAnalysisError, setShowAnalysisError] = useState(false);
+  const [captureRejection, setCaptureRejection] = useState<'framing' | 'lens' | null>(null);
 
   const {
     videoRef,
@@ -239,17 +246,35 @@ export default function App() {
   };
 
   // Shutter action: snaps frame, runs 0.8s scanning beam animation, then shows inspect view
-  const handleShutterClick = async () => {
+  const runCapture = async (
+    acquire: () => Promise<
+      { dataUrl: string; width: number; height: number; focalLength: number | null } | string
+    >,
+  ) => {
     if (isCaptureLocked(appMode, captureLockRef.current)) return;
 
     captureLockRef.current = true;
     setIsShutterLocked(true);
     setShowAnalysisError(false);
+    setCaptureRejection(null);
 
     try {
       let frame: string;
       try {
-        frame = await captureFrame();
+        const acquired = await acquire();
+        if (typeof acquired === 'string') {
+          frame = acquired;
+        } else {
+          frame = acquired.dataUrl;
+          if (hasPersistedBaseline && !isFramingCompatible(acquired, baseline.imageDimensions)) {
+            setCaptureRejection('framing');
+            return;
+          }
+          if (hasPersistedBaseline && !isSameLens(acquired.focalLength, baseline.lensFocalLength)) {
+            setCaptureRejection('lens');
+            return;
+          }
+        }
       } catch {
         setShowAnalysisError(true);
         return;
@@ -262,6 +287,7 @@ export default function App() {
           ...prev,
           imageDataUrl: frame,
           imageDimensions: dimensions,
+          lensFocalLength: null,
         }));
         setAppMode('ROI_CONFIG');
         return;
@@ -317,6 +343,10 @@ export default function App() {
       setIsShutterLocked(false);
     }
   };
+
+  const handleShutterClick = () => runCapture(captureFrame);
+  const handleNativePhoto = (file: File) => runCapture(() => normalizeNativePhoto(file));
+  const nativeCaptureMode = hasPersistedBaseline && isNativeCameraBaseline(baseline);
 
   // Anomaly tap-to-dismiss handler
   const handleDismissAnomaly = (id: string) => {
@@ -443,37 +473,40 @@ export default function App() {
   // Upload custom photo as new baseline
   const handleUploadCustomBaseline = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
-        const dataUrl = ev.target?.result as string;
-        if (dataUrl) {
-          const dimensions = await loadImageDimensions(dataUrl);
-          const newCalibration: ShelfCalibration = {
-            ...baseline,
-            id: `custom-baseline-${Date.now()}`,
-            imageDataUrl: dataUrl,
-            imageDimensions: dimensions,
-            createdAt: Date.now(),
-          };
-          const result = await saveBaseline(activeShelfId, newCalibration);
-          if (!result.ok) {
-            setQuotaError(true);
-            return;
-          }
-          const registry = urlRegistryRef.current;
-          registry.revoke(`baseline:${activeShelfId}`);
-          const blob = await fetch(dataUrl).then((r) => r.blob());
-          const displayUrl = registry.set(`baseline:${activeShelfId}`, blob);
-          setHasPersistedBaseline(true);
-          setBaseline({ ...newCalibration, imageDataUrl: displayUrl });
-          setShowResetModal(false);
-          // Prompt user to check ROI dividers
-          setAppMode('ROI_CONFIG');
-        }
+    e.target.value = '';
+    if (!file) return;
+    void (async () => {
+      let photo: Awaited<ReturnType<typeof normalizeNativePhoto>>;
+      try {
+        photo = await normalizeNativePhoto(file);
+      } catch {
+        setShowResetModal(false);
+        setShowAnalysisError(true);
+        return;
+      }
+      const newCalibration: ShelfCalibration = {
+        ...baseline,
+        id: `custom-baseline-${Date.now()}`,
+        imageDataUrl: photo.dataUrl,
+        imageDimensions: { width: photo.width, height: photo.height },
+        lensFocalLength: photo.focalLength,
+        createdAt: Date.now(),
       };
-      reader.readAsDataURL(file);
-    }
+      const result = await saveBaseline(activeShelfId, newCalibration);
+      if (!result.ok) {
+        setQuotaError(true);
+        return;
+      }
+      const registry = urlRegistryRef.current;
+      registry.revoke(`baseline:${activeShelfId}`);
+      const blob = await fetch(photo.dataUrl).then((r) => r.blob());
+      const displayUrl = registry.set(`baseline:${activeShelfId}`, blob);
+      setHasPersistedBaseline(true);
+      setBaseline({ ...newCalibration, imageDataUrl: displayUrl });
+      setShowResetModal(false);
+      // Prompt user to check ROI dividers
+      setAppMode('ROI_CONFIG');
+    })();
   };
 
   const orientationRequestedRef = useRef(false);
@@ -534,8 +567,20 @@ export default function App() {
           cameraError={cameraError}
           onRetryCamera={startCamera}
           onDismissCameraError={clearCameraError}
-          analysisError={showAnalysisError}
-          onDismissAnalysisError={() => setShowAnalysisError(false)}
+          analysisError={showAnalysisError || captureRejection !== null}
+          analysisErrorMessage={
+            captureRejection === 'framing'
+              ? I18N[lang].framingMismatch
+              : captureRejection === 'lens'
+                ? I18N[lang].lensMismatch
+                : undefined
+          }
+          onDismissAnalysisError={() => {
+            setShowAnalysisError(false);
+            setCaptureRejection(null);
+          }}
+          nativeCaptureMode={nativeCaptureMode}
+          onNativePhoto={handleNativePhoto}
           orientationDenied={orientationPermission === 'denied' && !orientationDismissed}
           onRetryOrientation={handleRetryOrientation}
           onDismissOrientationError={() => setOrientationDismissed(true)}

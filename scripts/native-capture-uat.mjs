@@ -1,0 +1,181 @@
+/**
+ * System-camera (native) capture UAT: baseline uploaded via OS camera -> inspection shutter
+ * must also use the OS camera, and mismatched framing must be rejected instead of diffed.
+ * Usage: PREVIEW_URL=http://127.0.0.1:4173 node scripts/native-capture-uat.mjs
+ */
+import { chromium, devices } from 'playwright';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const baseUrl = process.env.PREVIEW_URL || 'http://127.0.0.1:4173';
+const outDir = process.env.ARTIFACT_DIR || './.uat-artifacts/native-capture';
+mkdirSync(outDir, { recursive: true });
+
+// Synthetic shelf on a dark back panel, products placed inside the default tier bands.
+// `missing` lists [tier, slot] cells to leave empty; `focal35` embeds an EXIF lens focal length.
+async function makeShelfJpeg(page, width, height, { missing = [], focal35 = null } = {}) {
+  const b64 = await page.evaluate(
+    async ({ width, height, missing }) => {
+      const c = new OffscreenCanvas(width, height);
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#1b1b20';
+      ctx.fillRect(0, 0, width, height);
+      const bands = [0, 0.295, 0.455, 0.618, 0.782];
+      const colors = ['#f5b7b1', '#aed6f1', '#abebc6', '#f9e79f', '#d7bde2'];
+      for (let tier = 0; tier < 4; tier += 1) {
+        const y0 = bands[tier] * height;
+        const bh = (bands[tier + 1] - bands[tier]) * height;
+        for (let slot = 0; slot < 5; slot += 1) {
+          if (missing.some(([t, s]) => t === tier && s === slot)) continue;
+          ctx.fillStyle = colors[slot];
+          const w = width / 5;
+          ctx.fillRect(slot * w + w * 0.15, y0 + bh * 0.15, w * 0.7, bh * 0.7);
+        }
+      }
+      const blob = await c.convertToBlob({ type: 'image/jpeg', quality: 0.95 });
+      const buf = new Uint8Array(await blob.arrayBuffer());
+      let s = '';
+      for (const byte of buf) s += String.fromCharCode(byte);
+      return btoa(s);
+    },
+    { width, height, missing },
+  );
+  const jpeg = Buffer.from(b64, 'base64');
+  return focal35 ? insertExifFocal35(jpeg, focal35) : jpeg;
+}
+
+// Splice a little-endian APP1/Exif segment carrying FocalLengthIn35mmFilm right after SOI.
+function insertExifFocal35(jpeg, focal35) {
+  const tiff = Buffer.alloc(8 + 18 + 18);
+  tiff.write('II', 0, 'latin1');
+  tiff.writeUInt16LE(42, 2);
+  tiff.writeUInt32LE(8, 4);
+  tiff.writeUInt16LE(1, 8);
+  tiff.writeUInt16LE(0x8769, 10);
+  tiff.writeUInt16LE(4, 12);
+  tiff.writeUInt32LE(1, 14);
+  tiff.writeUInt32LE(26, 18);
+  tiff.writeUInt32LE(0, 22);
+  tiff.writeUInt16LE(1, 26);
+  tiff.writeUInt16LE(0xa405, 28);
+  tiff.writeUInt16LE(3, 30);
+  tiff.writeUInt32LE(1, 32);
+  tiff.writeUInt16LE(focal35, 36);
+  tiff.writeUInt32LE(0, 40);
+  const payload = Buffer.concat([Buffer.from('Exif\0\0', 'latin1'), tiff]);
+  const header = Buffer.from([0xff, 0xe1, 0, 0]);
+  header.writeUInt16BE(payload.length + 2, 2);
+  return Buffer.concat([jpeg.subarray(0, 2), header, payload, jpeg.subarray(2)]);
+}
+
+async function shootWithOsCamera(page, buffer, name) {
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser', { timeout: 10_000 }),
+    page.locator('#shutter-trigger').click({ force: true }),
+  ]);
+  const capture = await chooser.element().getAttribute('capture');
+  if (capture !== 'environment') throw new Error(`capture attr = ${capture}`);
+  await chooser.setFiles({ name, mimeType: 'image/jpeg', buffer });
+}
+
+async function backToCamera(page) {
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('#shutter-trigger', { timeout: 25_000 });
+}
+
+async function run(deviceName) {
+  const device = devices[deviceName];
+  const dir = join(outDir, deviceName.replace(/\s+/g, '-').toLowerCase());
+  mkdirSync(dir, { recursive: true });
+  const steps = [];
+  const log = (step, extra = {}) => {
+    steps.push({ step, ...extra });
+    console.log(`[${deviceName}] ${step}`, extra);
+  };
+
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
+  });
+  const context = await browser.newContext({ ...device, permissions: ['camera'] });
+  const page = await context.newPage();
+  let ok = true;
+
+  try {
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+    await page.waitForSelector('#shutter-trigger', { timeout: 25_000 });
+
+    // 1. Establish a live baseline so the reset modal is reachable.
+    await page.locator('#shutter-trigger').click({ force: true });
+    await page.getByRole('button', { name: '确认并保存基准' }).click({ timeout: 30_000 });
+    await page.getByText('基准图 (已建立)').waitFor({ timeout: 20_000 });
+    log('live-baseline-saved');
+
+    const nativeHint = page.getByText(/基准图由系统相机拍摄/);
+    if (await nativeHint.count()) throw new Error('Native hint shown for a live baseline');
+    log('live-baseline-keeps-live-shutter');
+
+    // 2. Replace baseline with a landscape 4:3 ultra-wide (13mm-eq) system-camera photo.
+    const ULTRA_WIDE = 13;
+    const MAIN_1X = 27;
+    const baselineJpeg = await makeShelfJpeg(page, 4000, 3000, { focal35: ULTRA_WIDE });
+    await page.getByTestId('baseline-status-pill').click({ force: true });
+    await page.locator('input[type=file]').first().setInputFiles({
+      name: 'baseline.jpg', mimeType: 'image/jpeg', buffer: baselineJpeg,
+    });
+    await page.getByRole('button', { name: '确认并保存基准' }).click({ timeout: 30_000 });
+    await nativeHint.waitFor({ timeout: 20_000 });
+    log('native-baseline-saved-hint-visible');
+    await page.screenshot({ path: join(dir, '01-native-mode.png') });
+
+    // 3. Same lens, nothing removed -> zero missing (the old path reported many false misses).
+    await shootWithOsCamera(page, await makeShelfJpeg(page, 4000, 3000, { focal35: ULTRA_WIDE }), 'same.jpg');
+    await page.getByText('合规度').waitFor({ timeout: 90_000 });
+    if (!(await page.getByText('无缺失').count())) throw new Error('Identical shelf reported missing items');
+    log('same-lens-identical-shelf-zero-missing');
+    await backToCamera(page);
+
+    // 4. Same lens, two products removed -> exactly those reported missing.
+    await nativeHint.waitFor({ timeout: 10_000 });
+    log('native-mode-persists-after-reload');
+    const removed = await makeShelfJpeg(page, 4000, 3000, {
+      missing: [[1, 2], [3, 0]], focal35: ULTRA_WIDE,
+    });
+    await shootWithOsCamera(page, removed, 'removed.jpg');
+    await page.getByText('合规度').waitFor({ timeout: 90_000 });
+    const missingText = await page.getByText(/^\d+ 处缺失/).first().innerText().catch(() => '');
+    const missingN = Number(missingText.match(/\d+/)?.[0] ?? 0);
+    if (missingN < 2) throw new Error(`Expected >=2 missing, got "${missingText}"`);
+    log('same-lens-removed-items-detected', { missingText });
+    await page.screenshot({ path: join(dir, '02-result.png') });
+    await backToCamera(page);
+
+    // 5. Different lens (1x main camera) -> rejected, not diffed.
+    await shootWithOsCamera(page, await makeShelfJpeg(page, 4000, 3000, { focal35: MAIN_1X }), '1x.jpg');
+    await page.getByText(/使用的镜头不同/).waitFor({ timeout: 20_000 });
+    if (await page.getByText('合规度').count()) throw new Error('Wrong-lens photo was diffed');
+    log('wrong-lens-rejected');
+    await page.screenshot({ path: join(dir, '03-lens-mismatch.png') });
+
+    // 6. Portrait photo against landscape baseline -> rejected, not diffed.
+    await shootWithOsCamera(page, await makeShelfJpeg(page, 1080, 1920, { focal35: ULTRA_WIDE }), 'portrait.jpg');
+    await page.getByText(/方向\/比例不一致/).waitFor({ timeout: 20_000 });
+    if (await page.getByText('合规度').count()) throw new Error('Mismatched photo was diffed');
+    log('portrait-photo-rejected');
+    await page.screenshot({ path: join(dir, '04-framing-mismatch.png') });
+  } catch (err) {
+    ok = false;
+    log('exception', { message: err.message });
+    await page.screenshot({ path: join(dir, 'error.png'), fullPage: true }).catch(() => {});
+  }
+
+  await browser.close();
+  return { deviceName, ok, steps };
+}
+
+const results = [];
+for (const name of ['Pixel 7', 'iPhone 14 Pro']) results.push(await run(name));
+const passed = results.every((r) => r.ok);
+writeFileSync(join(outDir, 'report.json'), JSON.stringify({ baseUrl, passed, results }, null, 2));
+console.log('\n=== SUMMARY ===', passed ? 'PASS' : 'FAIL');
+process.exit(passed ? 0 : 1);
