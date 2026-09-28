@@ -85,6 +85,20 @@ describe('useCameraStream live capture helpers', () => {
     expect(frame).toMatch(/^data:image\/jpeg/);
   });
 
+  it.each([
+    ['landscape', 1920, 1080, {width: 1920, height: 1080}],
+    ['portrait', 1080, 1920, {width: 1080, height: 1920}],
+  ])('keeps a %s camera frame in its own orientation', async (_label, videoWidth, videoHeight, expected) => {
+    let size = {width: 0, height: 0};
+    HTMLCanvasElement.prototype.toDataURL = vi.fn(function (this: HTMLCanvasElement) {
+      size = {width: this.width, height: this.height};
+      return 'data:image/jpeg;base64,live-frame';
+    });
+    const video = makeVideoStub({videoWidth, videoHeight, readyState: HTMLMediaElement.HAVE_CURRENT_DATA});
+    await captureVideoFrame(video);
+    expect(size).toEqual(expected);
+  });
+
   it('captureVideoFrame retries when the first canvas sample is black', async () => {
     let attempts = 0;
     HTMLCanvasElement.prototype.getContext = vi.fn(() => ({

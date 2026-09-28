@@ -11,8 +11,8 @@ import { alignCapture, CLIPPED, mapRectToCapture, matchIllumination, matchPhotom
 const MAX_ANOMALIES = 32;
 /** Same offset the illumination model uses, so dark regions do not produce wild gains. */
 const ILLUM_OFFSET = 10;
-const MAX_BITMAP_WIDTH = 1080;
-const MAX_BITMAP_HEIGHT = 1920;
+const MAX_SHORT_EDGE = 1080;
+const MAX_LONG_EDGE = 1920;
 const STANDARD_COUNT_FALLBACK = 24;
 
 let cvInstance: CV | null = null;
@@ -773,8 +773,8 @@ if (typeof self !== 'undefined' && 'onmessage' in self) {
         );
       }
       if (
-        data.captureBitmap.width > MAX_BITMAP_WIDTH ||
-        data.captureBitmap.height > MAX_BITMAP_HEIGHT
+        Math.max(data.captureBitmap.width, data.captureBitmap.height) > MAX_LONG_EDGE ||
+        Math.min(data.captureBitmap.width, data.captureBitmap.height) > MAX_SHORT_EDGE
       ) {
         throw new Error('ImageBitmap dimensions exceed allowed maximum');
       }

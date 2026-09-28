@@ -5,8 +5,8 @@ import { legacyToleranceToNumber } from './vision/toleranceParams';
 export type { InspectionAnalysisResult } from './vision/resultTypes';
 import type { InspectionAnalysisResult } from './vision/resultTypes';
 
-const MAX_BITMAP_WIDTH = 1080;
-const MAX_BITMAP_HEIGHT = 1920;
+const MAX_SHORT_EDGE = 1080;
+const MAX_LONG_EDGE = 1920;
 
 let worker: Worker | null = null;
 let cvReadyPromise: Promise<void> | null = null;
@@ -141,9 +141,10 @@ function normalizeTolerance(tolerance: ToleranceLevel | number): number {
 
 function fitAnalysisSize(width: number, height: number): { width: number; height: number } {
   if (width <= 0 || height <= 0) {
-    throw new Error(`imageDimensions must be within 1..${MAX_BITMAP_WIDTH}x${MAX_BITMAP_HEIGHT}`);
+    throw new Error('imageDimensions must be positive');
   }
-  const scale = Math.min(1, MAX_BITMAP_WIDTH / width, MAX_BITMAP_HEIGHT / height);
+  // Cap the long and short edge, whichever way the photo is oriented.
+  const scale = Math.min(1, MAX_LONG_EDGE / Math.max(width, height), MAX_SHORT_EDGE / Math.min(width, height));
   return {
     width: Math.max(1, Math.round(width * scale)),
     height: Math.max(1, Math.round(height * scale)),

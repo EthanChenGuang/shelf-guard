@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { drawImageCover } from '../lib/canvasCover';
 
-const OUTPUT_WIDTH = 1080;
-const OUTPUT_HEIGHT = 1920;
+const OUTPUT_SHORT = 1080;
+const OUTPUT_LONG = 1920;
+
+/** Canonical capture size in the source's own orientation (a landscape shot stays landscape). */
+function outputSize(sourceWidth: number, sourceHeight: number): { width: number; height: number } {
+  return sourceWidth > sourceHeight
+    ? { width: OUTPUT_LONG, height: OUTPUT_SHORT }
+    : { width: OUTPUT_SHORT, height: OUTPUT_LONG };
+}
 const CAPTURE_RETRY_MS = 120;
 const MAX_CAPTURE_ATTEMPTS = 8;
 
@@ -144,17 +151,18 @@ async function normalizeCaptureDataUrl(
   try {
     const bitmap =
       source instanceof Blob ? await createImageBitmap(source) : await loadBitmapFromDataUrl(source);
+    const { width, height } = outputSize(bitmap.width, bitmap.height);
     const canvas = document.createElement('canvas');
-    canvas.width = OUTPUT_WIDTH;
-    canvas.height = OUTPUT_HEIGHT;
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (!ctx) {
       bitmap.close();
       return null;
     }
-    drawImageCover(ctx, bitmap, bitmap.width, bitmap.height, OUTPUT_WIDTH, OUTPUT_HEIGHT);
+    drawImageCover(ctx, bitmap, bitmap.width, bitmap.height, width, height);
     bitmap.close();
-    if (isCanvasMostlyBlack(ctx, OUTPUT_WIDTH, OUTPUT_HEIGHT)) return null;
+    if (isCanvasMostlyBlack(ctx, width, height)) return null;
     return canvas.toDataURL('image/jpeg', 0.92);
   } catch {
     return null;
@@ -193,17 +201,14 @@ async function captureWithImageCapture(track: MediaStreamTrack): Promise<string 
   }
 }
 
-function drawVideoToCanvas(
-  video: HTMLVideoElement,
-  width = OUTPUT_WIDTH,
-  height = OUTPUT_HEIGHT,
-): string | null {
+function drawVideoToCanvas(video: HTMLVideoElement): string | null {
+  if (video.videoWidth <= 0 || video.videoHeight <= 0) return null;
+  const { width, height } = outputSize(video.videoWidth, video.videoHeight);
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
-  if (video.videoWidth <= 0 || video.videoHeight <= 0) return null;
   drawImageCover(ctx, video, video.videoWidth, video.videoHeight, width, height);
   if (isCanvasMostlyBlack(ctx, width, height)) return null;
   return canvas.toDataURL('image/jpeg', 0.92);
