@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AuditRecord,
   AppMode,
@@ -31,6 +31,7 @@ import {
 import { createDisplayUrlRegistry } from './lib/objectUrlRegistry';
 import { analyzeShelfCapture, prewarmVisionWorker } from './lib/vision';
 import { computeComplianceStats } from './lib/vision/complianceStats';
+import { DEFAULT_MIN_CONFIDENCE } from './lib/vision/confidence';
 import { isCaptureLocked } from './lib/captureLock';
 import { loadImageDimensions } from './lib/imageDimensions';
 import {
@@ -74,11 +75,12 @@ export default function App() {
 
   // Analysis results
   const [anomalies, setAnomalies] = useState<DetectedAnomaly[]>([]);
-  const [complianceRate, setComplianceRate] = useState<number>(94);
   const [standardCount, setStandardCount] = useState<number>(24);
-  const [actualCount, setActualCount] = useState<number>(23);
-  const [displacedCount, setDisplacedCount] = useState<number>(2);
-  const [missingCount, setMissingCount] = useState<number>(1);
+  const [minConfidence, setMinConfidence] = useState<number>(DEFAULT_MIN_CONFIDENCE);
+  const stats = useMemo(
+    () => computeComplianceStats(anomalies, standardCount, minConfidence),
+    [anomalies, standardCount, minConfidence],
+  );
 
   // History logs
   const [auditHistory, setAuditHistory] = useState<AuditRecord[]>([]);
@@ -199,11 +201,7 @@ export default function App() {
           if (seq !== toleranceRequestSeqRef.current) return;
           if (appModeRef.current !== 'RESULT_INSPECT') return;
           setAnomalies(result.anomalies);
-          setComplianceRate(result.complianceRate);
           setStandardCount(result.standardCount);
-          setActualCount(result.actualCount);
-          setDisplacedCount(result.displacedCount);
-          setMissingCount(result.missingCount);
         } catch {
           if (seq !== toleranceRequestSeqRef.current) return;
           setShowAnalysisError(true);
@@ -333,11 +331,7 @@ export default function App() {
       try {
         const result = await analysisPromise;
         setAnomalies(result.anomalies);
-        setComplianceRate(result.complianceRate);
         setStandardCount(result.standardCount);
-        setActualCount(result.actualCount);
-        setDisplacedCount(result.displacedCount);
-        setMissingCount(result.missingCount);
 
         if (scanTimerRef.current) {
           clearTimeout(scanTimerRef.current);
@@ -364,16 +358,12 @@ export default function App() {
 
   // Anomaly tap-to-dismiss handler
   const handleDismissAnomaly = (id: string) => {
-    setAnomalies((prev) => {
-      const next = prev.map((a) => (a.id === id ? { ...a, dismissed: true } : a));
-      const stats = computeComplianceStats(next, standardCount);
-      setMissingCount(stats.missingCount);
-      setDisplacedCount(stats.displacedCount);
-      setActualCount(stats.actualCount);
-      setComplianceRate(stats.complianceRate);
-      return next;
-    });
+    setAnomalies((prev) => prev.map((a) => (a.id === id ? { ...a, dismissed: true } : a)));
   };
+
+  const handleMinConfidenceChange = useCallback((value: number) => {
+    setMinConfidence(value);
+  }, []);
 
   // Complete audit and archive to IndexedDB
   const handleCompleteAudit = async () => {
@@ -385,11 +375,11 @@ export default function App() {
       timeStr: `${String(now.getHours()).padStart(2, '0')}:${String(
         now.getMinutes()
       ).padStart(2, '0')}`,
-      complianceRate,
+      complianceRate: stats.complianceRate,
       standardCount,
-      actualCount,
-      missingCount,
-      displacedCount,
+      actualCount: stats.actualCount,
+      missingCount: stats.missingCount,
+      displacedCount: stats.displacedCount,
       thumbnailUrl: capturedFrame,
       anomalies,
       tolerance,
@@ -561,13 +551,15 @@ export default function App() {
           currentCaptureUrl={capturedFrame}
           baseline={baseline}
           anomalies={anomalies}
-          complianceRate={complianceRate}
+          complianceRate={stats.complianceRate}
           standardCount={standardCount}
-          actualCount={actualCount}
-          displacedCount={displacedCount}
-          missingCount={missingCount}
+          actualCount={stats.actualCount}
+          displacedCount={stats.displacedCount}
+          missingCount={stats.missingCount}
           tolerance={tolerance}
           onToleranceChange={handleToleranceChange}
+          minConfidence={minConfidence}
+          onMinConfidenceChange={handleMinConfidenceChange}
           onDismissAnomaly={handleDismissAnomaly}
           onCompleteAudit={handleCompleteAudit}
           onBackToCamera={() => setAppMode('CAMERA_IDLE')}

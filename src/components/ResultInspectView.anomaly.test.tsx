@@ -13,6 +13,8 @@ const baseProps = {
   missingCount: 1,
   tolerance: 50,
   onToleranceChange: vi.fn(),
+  minConfidence: 85,
+  onMinConfidenceChange: vi.fn(),
   onDismissAnomaly: vi.fn(),
   onCompleteAudit: vi.fn(),
   onBackToCamera: vi.fn(),

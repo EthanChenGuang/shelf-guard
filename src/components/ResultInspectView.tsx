@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  Gauge,
   Layers,
   RotateCw,
   Share2,
@@ -20,6 +21,7 @@ import confetti from 'canvas-confetti';
 import { DetectedAnomaly, Language, ShelfCalibration, ToleranceValue } from '../types';
 import { I18N } from '../lib/constants';
 import { frameBoxStyle } from '../lib/frameBox';
+import { MIN_CONFIDENCE_CEIL, MIN_CONFIDENCE_FLOOR, meetsMinConfidence } from '../lib/vision/confidence';
 
 interface ResultInspectViewProps {
   currentCaptureUrl: string;
@@ -32,6 +34,8 @@ interface ResultInspectViewProps {
   missingCount: number;
   tolerance: ToleranceValue;
   onToleranceChange: (tol: ToleranceValue) => void;
+  minConfidence: number;
+  onMinConfidenceChange: (value: number) => void;
   onDismissAnomaly: (id: string) => void;
   onCompleteAudit: () => void;
   onBackToCamera: () => void;
@@ -49,6 +53,8 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   missingCount,
   tolerance,
   onToleranceChange,
+  minConfidence,
+  onMinConfidenceChange,
   onDismissAnomaly,
   onCompleteAudit,
   onBackToCamera,
@@ -70,6 +76,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   const activeAnomalies = anomalies.filter(
     (a) =>
       !a.dismissed &&
+      meetsMinConfidence(a, minConfidence) &&
       !animatingDismissIds.includes(a.id) &&
       (filterType === 'ALL' || a.type === filterType)
   );
@@ -329,6 +336,33 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
               <span className="text-center">{t.tolerancePresetNormal}</span>
               <span className="text-right">{t.tolerancePresetLoose}</span>
             </div>
+          </div>
+        </div>
+
+        {/* Confidence Threshold Control */}
+        <div className="glass-panel flex flex-col gap-1.5 p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-sg-primary">
+              <Gauge className="w-4 h-4 text-[#006C49]" />
+              <span>{t.confidenceThreshold}</span>
+            </div>
+            <span className="font-mono-numbers text-xs font-bold text-[#006C49] bg-emerald-100/80 px-2 py-0.5 rounded-full">
+              {`${minConfidence}%`}
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-1.5 pt-1">
+            <input
+              type="range"
+              min={MIN_CONFIDENCE_FLOOR}
+              max={MIN_CONFIDENCE_CEIL}
+              step={1}
+              value={minConfidence}
+              aria-label={t.confidenceThreshold}
+              onChange={(e) => onMinConfidenceChange(Number(e.target.value))}
+              className="w-full h-2 rounded-full appearance-none cursor-pointer bg-slate-200 accent-[#006C49] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#006C49] [&::-webkit-slider-thumb]:shadow-md"
+            />
+            <span className="text-[10px] text-sg-secondary">{t.confidenceThresholdHint}</span>
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { ResultInspectView } from './ResultInspectView';
-import { DEFAULT_CALIBRATION } from '../lib/constants';
+import { DEFAULT_CALIBRATION, I18N } from '../lib/constants';
 
 const baselineWithImage = {
   ...DEFAULT_CALIBRATION,
@@ -19,6 +19,8 @@ const baseProps = {
   missingCount: 0,
   tolerance: 50,
   onToleranceChange: vi.fn(),
+  minConfidence: 85,
+  onMinConfidenceChange: vi.fn(),
   onDismissAnomaly: vi.fn(),
   onCompleteAudit: vi.fn(),
   onBackToCamera: vi.fn(),
@@ -29,7 +31,7 @@ describe('ResultInspectView tolerance slider (RSLT-05, D-11–D-14)', () => {
   it('renders continuous range slider instead of discrete tolerance buttons', () => {
     render(<ResultInspectView {...baseProps} />);
 
-    expect(screen.getByRole('slider')).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: I18N.en.toleranceSensitivity })).toBeInTheDocument();
     expect(screen.queryByText('High (Strict)')).not.toBeInTheDocument();
     expect(screen.queryByText('Medium (Normal)')).not.toBeInTheDocument();
     expect(screen.queryByText('Low (Loose)')).not.toBeInTheDocument();
@@ -47,7 +49,7 @@ describe('ResultInspectView tolerance slider (RSLT-05, D-11–D-14)', () => {
     const onToleranceChange = vi.fn();
     render(<ResultInspectView {...baseProps} onToleranceChange={onToleranceChange} />);
 
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '75' } });
+    fireEvent.change(screen.getByRole('slider', { name: I18N.en.toleranceSensitivity }), { target: { value: '75' } });
 
     expect(onToleranceChange).toHaveBeenCalledWith(75);
   });

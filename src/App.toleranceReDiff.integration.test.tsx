@@ -108,11 +108,11 @@ describe('App tolerance re-diff integration (VIS-03, D-13)', () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByRole('slider')).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: I18N.en.toleranceSensitivity })).toBeInTheDocument();
     expect(analyzeShelfCapture).toHaveBeenCalledTimes(1);
     expect(analyzeShelfCapture.mock.calls[0][2]).toBe(50);
 
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '75' } });
+    fireEvent.change(screen.getByRole('slider', { name: I18N.en.toleranceSensitivity }), { target: { value: '75' } });
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(150);
