@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   Flashlight,
   FlashlightOff,
-  Grid3X3,
   Layers,
   RotateCcw,
   ScanLine,
@@ -116,7 +115,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onSwitchCamera,
 }) => {
   const t = I18N[lang];
-  const [showRoiGuides, setShowRoiGuides] = useState(false);
   const [flashVisible, setFlashVisible] = useState(false);
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nativeInputRef = useRef<HTMLInputElement>(null);
@@ -286,42 +284,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
             )}
 
             <div className="absolute inset-0 bg-gradient-to-b from-[#0F172A]/70 via-transparent to-[#0F172A]/85 pointer-events-none" />
-
-            {showRoiGuides && (
-              <div className="absolute inset-x-5 inset-y-16 pointer-events-none transition-all duration-300">
-                <svg
-                  className="w-full h-full text-white/75 drop-shadow-sm"
-                  fill="none"
-                  preserveAspectRatio="none"
-                  viewBox="0 0 100 100"
-                >
-                  <path d="M 0 10 L 0 0 L 10 0" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                  <path d="M 90 0 L 100 0 L 100 10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                  <path d="M 100 90 L 100 100 L 90 100" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                  <path d="M 10 100 L 0 100 L 0 90" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-
-                  {baseline.splitYPercentages.map((percent, index) => (
-                    <line
-                      key={index}
-                      x1="2"
-                      x2="98"
-                      y1={percent * 100}
-                      y2={percent * 100}
-                      stroke="rgba(255,255,255,0.35)"
-                      strokeWidth="0.8"
-                      strokeDasharray="2 3"
-                    />
-                  ))}
-                </svg>
-
-                <div className="absolute -top-3 left-4 bg-[#0F172A]/80 backdrop-blur-md px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-sm border border-white/10">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                  <span className="font-mono-numbers text-[10px] text-white uppercase tracking-wider font-medium">
-                    {t.roiZone}
-                  </span>
-                </div>
-              </div>
-            )}
           </motion.div>
         </AnimatePresence>
 
@@ -754,18 +716,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
         <div className="w-full flex items-center justify-between max-w-sm px-2">
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowRoiGuides(!showRoiGuides)}
-              className={`w-12 h-12 rounded-full backdrop-blur-xl shadow-md flex items-center justify-center transition-all active:scale-95 border ${
-                showRoiGuides
-                  ? 'bg-white text-[#0F172A] border-slate-200'
-                  : 'bg-white/50 text-slate-500 border-white/20'
-              }`}
-              title={t.toggleRoiGrid}
-            >
-              <Grid3X3 className="w-5 h-5" />
-            </button>
-
             <button
               onClick={onOpenRoiConfig}
               className="w-10 h-10 rounded-full bg-white/80 hover:bg-white backdrop-blur-xl shadow-md flex items-center justify-center text-[#0F172A] transition-all active:scale-95 border border-slate-200"
