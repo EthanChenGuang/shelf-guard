@@ -5,10 +5,10 @@ current_phase_name: PRD UI & Multi-Shelf Experience
 current_plan: 7
 status: verifying
 stopped_at: "Completed quick task 260925-r3s: tap-to-focus camera control"
-last_updated: "2026-09-28T15:34:27.264Z"
+last_updated: "2026-09-28T20:57:42.512Z"
 last_activity: 2026-09-23
 last_activity_desc: Phase 05 execution started
-state_head: 46f49927a81ff525e9d96f13a3b36a9a5d11fa0e
+state_head: 9f9390b45b0319997399c28c88fb8c30349efd5b
 progress:
   total_phases: 5
   completed_phases: 4
@@ -154,6 +154,7 @@ None yet.
 | 8 | Remove ROI grid and shelf-board guide overlay from camera view | 2026-09-28 | 5cb324a | — |
 | 9 | 横屏拍摄的照片被转成竖屏：实时拍照改为按画面方向输出，分析尺寸上限改按长短边 | 2026-09-28 | 52a9edb | — |
 | 260928-nv2 | 差异确认度 + 可调阈值（默认 85%，50–99%）：只显示并统计确认度不低于阈值的差异 | 2026-09-28 | 46f4992 | [260928-nv2-diff-score-threshold](./quick/260928-nv2-diff-score-threshold/) |
+| 260928-p4l | 新增物品标为「新增」（对称分类 + 移动配对）；局部视差对齐未达验收标准，未上线 | 2026-09-28 | 9f9390b | [260928-p4l-align-then-diff-report-added-items](./quick/260928-p4l-align-then-diff-report-added-items/) |
 
 ## Deferred Items
 
@@ -167,4 +168,4 @@ Last session: 2026-09-25T17:51:01.597Z
 Stopped at: Completed quick task 260925-r3s: tap-to-focus camera control
 Resume file: None
 
-Last activity: 2026-09-28 - Completed quick task 260928-nv2: 差异确认度 + 可调阈值（默认 85%）
+Last activity: 2026-09-28 - Completed quick task 260928-p4l: 新增物品标为新增；局部对齐未上线
