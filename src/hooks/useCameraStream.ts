@@ -242,6 +242,15 @@ export async function captureVideoFrame(
 
 export function useCameraStream() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  // CameraView (and its sole <video> element) unmounts/remounts on every appMode transition
+  // away from and back to CAMERA_IDLE (ROI_CONFIG, SCANNING_ANIM, PROCESSING, RESULT_INSPECT).
+  // Track the live node in state so effects can react to a freshly-mounted element, not just
+  // to `stream` changing identity (a plain useRef mutation is invisible to effect deps).
+  const [videoNode, setVideoNode] = useState<HTMLVideoElement | null>(null);
+  const setVideoNodeRef = useCallback((node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    setVideoNode(node);
+  }, []);
   const streamRef = useRef<MediaStream | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -519,12 +528,14 @@ export function useCameraStream() {
     };
   }, [startCamera, stopCamera]);
 
+  // Depend on `videoNode` (not just `stream`) so this re-attaches whenever CameraView
+  // remounts a fresh <video> element — otherwise a remounted element is left permanently
+  // detached (videoWidth=0) whenever `stream` itself hasn't changed identity.
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !stream) return;
-    video.srcObject = stream;
-    void video.play().catch(() => {});
-  }, [stream]);
+    if (!videoNode || !stream) return;
+    videoNode.srcObject = stream;
+    void videoNode.play().catch(() => {});
+  }, [stream, videoNode]);
 
   const captureFrame = useCallback(async (): Promise<string> => {
     const video = videoRef.current;
@@ -540,7 +551,7 @@ export function useCameraStream() {
   }, [stream]);
 
   return {
-    videoRef,
+    videoRef: setVideoNodeRef,
     stream,
     cameraError,
     isTorchOn,

@@ -45,7 +45,7 @@ interface CameraViewProps {
   focusPoint?: { x: number; y: number } | null;
   onFocusPointChange?: (x: number, y: number) => void;
   isShutterLocked?: boolean;
-  videoRef: React.RefObject<HTMLVideoElement | null>;
+  videoRef: React.Ref<HTMLVideoElement | null>;
   ghostOpacity: number;
   onGhostOpacityChange: (val: number) => void;
   onInstallPwa?: () => void;
