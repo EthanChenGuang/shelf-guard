@@ -12,6 +12,7 @@ vi.mock('idb-keyval', async (importOriginal) => {
 import {clear, get, set, setMany} from 'idb-keyval';
 import {DEFAULT_CALIBRATION} from './constants';
 import type {AuditRecord, ShelfCalibration} from '../types';
+import type {PersistedAuditRecord} from '../types/persisted';
 import {
   appendAuditRecord,
   loadActiveShelfId,
@@ -20,6 +21,7 @@ import {
   runSchemaMigrationIfNeeded,
   saveActiveShelfId,
   saveBaseline,
+  toViewAuditRecord,
 } from './shelfStorage';
 
 class MockImage {
@@ -305,5 +307,19 @@ describe('active shelf (SHLF-04)', () => {
 
     await set('shelfguard_active_shelf', -5);
     expect(await loadActiveShelfId()).toBe(0);
+  });
+});
+
+describe('added item counts in audit history', () => {
+  it('loads a record saved before added items were counted with addedCount 0', () => {
+    const {thumbnailUrl: _thumb, ...rest} = makeAuditRecord('legacy-added');
+    const persisted: PersistedAuditRecord = {...rest, thumbnailBlob: new Blob(['jpeg'])};
+    expect(toViewAuditRecord(persisted, 'blob:thumb').addedCount).toBe(0);
+  });
+
+  it('round-trips addedCount through appendAuditRecord', async () => {
+    await appendAuditRecord(0, {...makeAuditRecord('with-added'), addedCount: 2});
+    const [stored] = await loadAuditHistoryRaw(0);
+    expect(toViewAuditRecord(stored!, 'blob:thumb').addedCount).toBe(2);
   });
 });

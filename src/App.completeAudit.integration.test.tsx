@@ -191,6 +191,7 @@ describe('App complete audit integration (RSLT-06, D-26)', () => {
     expect(record.anomalies.map((a) => a.id)).not.toContain('anomaly-faint');
     expect(record.missingCount).toBe(0);
     expect(record.displacedCount).toBe(1);
+    expect(record.addedCount).toBe(0);
 
     await waitFor(() => {
       expect(screen.getByTestId('camera-view')).toBeInTheDocument();

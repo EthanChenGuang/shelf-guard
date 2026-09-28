@@ -20,6 +20,8 @@ export interface PersistedAuditRecord {
   actualCount: number;
   missingCount: number;
   displacedCount: number;
+  /** Absent on records saved before added items were counted. */
+  addedCount?: number;
   thumbnailBlob: Blob;
   anomalies: DetectedAnomaly[];
   tolerance: ToleranceValue | ToleranceLevel;

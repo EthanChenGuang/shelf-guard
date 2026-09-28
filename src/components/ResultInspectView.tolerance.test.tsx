@@ -17,6 +17,7 @@ const baseProps = {
   actualCount: 23,
   displacedCount: 0,
   missingCount: 0,
+  addedCount: 0,
   tolerance: 50,
   onToleranceChange: vi.fn(),
   minConfidence: 85,

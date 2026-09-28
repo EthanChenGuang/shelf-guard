@@ -74,7 +74,7 @@ export const AuditHistoryModal: React.FC<AuditHistoryModalProps> = ({
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-1.5 pt-1 text-center">
+                  <div className="grid grid-cols-4 gap-1.5 pt-1 text-center">
                     <div className="bg-slate-50 rounded p-1">
                       <span className="text-[10px] text-slate-500 block">{t.actualOnShelf}</span>
                       <span className="font-mono-numbers text-xs font-bold text-slate-800">
@@ -91,6 +91,12 @@ export const AuditHistoryModal: React.FC<AuditHistoryModalProps> = ({
                       <span className="text-[10px] text-amber-600 block">{t.displacedCount}</span>
                       <span className="font-mono-numbers text-xs font-bold text-[#D97706]">
                         {rec.displacedCount}
+                      </span>
+                    </div>
+                    <div className="bg-sg-scan/10 rounded p-1">
+                      <span className="text-[10px] text-sg-scan block">{t.addedCount}</span>
+                      <span className="font-mono-numbers text-xs font-bold text-sg-scan">
+                        {rec.addedCount ?? 0}
                       </span>
                     </div>
                   </div>

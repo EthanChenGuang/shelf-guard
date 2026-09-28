@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { ResultInspectView } from './ResultInspectView';
 import { DEFAULT_CALIBRATION } from '../lib/constants';
 
@@ -11,6 +11,7 @@ const baseProps = {
   actualCount: 22,
   displacedCount: 1,
   missingCount: 1,
+  addedCount: 0,
   tolerance: 50,
   onToleranceChange: vi.fn(),
   minConfidence: 85,
@@ -72,5 +73,80 @@ describe('ResultInspectView anomaly colors (DSGN-02, D-16)', () => {
 
     const dot = missingChip?.querySelector('.bg-sg-danger');
     expect(dot).toBeTruthy();
+  });
+});
+
+describe('ResultInspectView added items and confidence badges', () => {
+  const addedProps = {
+    ...baseProps,
+    missingCount: 0,
+    displacedCount: 1,
+    addedCount: 1,
+    anomalies: [
+      {
+        id: 'added-1',
+        type: 'ADDED' as const,
+        title: 'New item',
+        score: 0.92,
+        boundingBox: { x: 0.1, y: 0.15, width: 0.2, height: 0.12 },
+        dismissed: false,
+      },
+      {
+        id: 'moved-1',
+        type: 'MOVED' as const,
+        title: 'Displaced item',
+        score: 0.85,
+        displacementNote: 'detected shift',
+        boundingBox: { x: 0.5, y: 0.45, width: 0.18, height: 0.1 },
+        dismissed: false,
+      },
+    ],
+  };
+
+  it('renders an ADDED box in the sg-scan colour with a confidence badge', () => {
+    render(<ResultInspectView {...addedProps} />);
+
+    const addedBox = document.querySelectorAll('.ar-box')[0];
+    expect(addedBox.className).toContain('border-sg-scan');
+    expect(addedBox.className).toContain('bg-sg-scan/15');
+    expect(screen.getByText('Added · 92%')).toBeInTheDocument();
+  });
+
+  it('shows a localized label and confidence on the MOVED badge instead of the shift note', () => {
+    render(<ResultInspectView {...addedProps} />);
+
+    expect(screen.getByText('Moved · 85%')).toBeInTheDocument();
+    expect(screen.queryByText(/detected shift/)).not.toBeInTheDocument();
+  });
+
+  it('localizes ADDED and MOVED badges in Chinese', () => {
+    render(<ResultInspectView {...addedProps} lang="cn" />);
+
+    expect(screen.getByText('新增 · 92%')).toBeInTheDocument();
+    expect(screen.getByText('移位 · 85%')).toBeInTheDocument();
+    expect(screen.getByText('1 处新增')).toBeInTheDocument();
+  });
+
+  it('filters to ADDED boxes with the added chip and back to all on a second click', () => {
+    render(<ResultInspectView {...addedProps} />);
+
+    const chip = screen.getByText('1 Added').closest('button')!;
+    fireEvent.click(chip);
+    const boxes = document.querySelectorAll('.ar-box');
+    expect(boxes).toHaveLength(1);
+    expect(boxes[0].className).toContain('border-sg-scan');
+
+    fireEvent.click(chip);
+    expect(document.querySelectorAll('.ar-box')).toHaveLength(2);
+  });
+
+  it('reads Zero Added when nothing was added', () => {
+    render(<ResultInspectView {...addedProps} addedCount={0} />);
+    expect(screen.getByText('Zero Added')).toBeInTheDocument();
+  });
+
+  it('reads 无新增 in Chinese when nothing was added', () => {
+    render(<ResultInspectView {...addedProps} addedCount={0} lang="cn" />);
+    expect(screen.getByText('无新增')).toBeInTheDocument();
   });
 });

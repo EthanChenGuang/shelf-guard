@@ -23,6 +23,13 @@ import { I18N } from '../lib/constants';
 import { frameBoxStyle } from '../lib/frameBox';
 import { MIN_CONFIDENCE_CEIL, MIN_CONFIDENCE_FLOOR, meetsMinConfidence } from '../lib/vision/confidence';
 
+/** Complete class strings per anomaly type, so Tailwind sees every one of them. */
+const TYPE_STYLES: Record<DetectedAnomaly['type'], { box: string; badge: string }> = {
+  MISSING: { box: 'border-2 border-sg-danger bg-sg-danger/15', badge: 'bg-sg-danger' },
+  MOVED: { box: 'border-2 border-sg-warning bg-sg-warning/15', badge: 'bg-sg-warning' },
+  ADDED: { box: 'border-2 border-sg-scan bg-sg-scan/15', badge: 'bg-sg-scan' },
+};
+
 interface ResultInspectViewProps {
   currentCaptureUrl: string;
   baseline: ShelfCalibration;
@@ -32,6 +39,7 @@ interface ResultInspectViewProps {
   actualCount: number;
   displacedCount: number;
   missingCount: number;
+  addedCount: number;
   tolerance: ToleranceValue;
   onToleranceChange: (tol: ToleranceValue) => void;
   minConfidence: number;
@@ -51,6 +59,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   actualCount,
   displacedCount,
   missingCount,
+  addedCount,
   tolerance,
   onToleranceChange,
   minConfidence,
@@ -64,8 +73,13 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
 
   // State for Blink Compare (long-press to show baseline)
   const [isBlinkingBaseline, setIsBlinkingBaseline] = useState(false);
-  // State for filtering by anomaly type (null = show all, 'MISSING', 'MOVED')
-  const [filterType, setFilterType] = useState<'ALL' | 'MISSING' | 'MOVED'>('ALL');
+  // State for filtering by anomaly type ('ALL' = show all)
+  const [filterType, setFilterType] = useState<'ALL' | DetectedAnomaly['type']>('ALL');
+  const badgeLabels: Record<DetectedAnomaly['type'], string> = {
+    MISSING: t.missingBadgeShort,
+    MOVED: t.movedBadgeShort,
+    ADDED: t.addedBadgeShort,
+  };
   // State for toggling AR overlay bounding boxes visibility
   const [showArLayers, setShowArLayers] = useState(true);
   // Dismissed IDs for local smooth shrink animation before state update
@@ -172,6 +186,23 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
               {displacedCount > 0 ? `${displacedCount} ${t.displacedCount}` : t.noDisplaced}
             </span>
           </button>
+
+          {/* Filter: Added */}
+          <button
+            onClick={() => setFilterType(filterType === 'ADDED' ? 'ALL' : 'ADDED')}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-full shadow-sm text-xs font-mono-numbers font-semibold active:scale-95 transition-all ${
+              addedCount === 0
+                ? 'bg-sg-surface text-sg-secondary'
+                : filterType === 'ADDED'
+                ? 'bg-sg-scan text-white ring-2 ring-sg-scan/40'
+                : 'bg-sg-scan/10 text-sg-scan border border-sg-scan/30'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-sg-scan" />
+            <span>
+              {addedCount > 0 ? `${addedCount} ${t.addedCount}` : t.noAdded}
+            </span>
+          </button>
         </div>
 
         {/* Layer Visibility Toggle Button */}
@@ -225,7 +256,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
         {!isBlinkingBaseline && showArLayers && (
           <>
             {activeAnomalies.map((item) => {
-              const isMissing = item.type === 'MISSING';
+              const styles = TYPE_STYLES[item.type];
               const top = item.boundingBox.y * 100;
               const left = item.boundingBox.x * 100;
               const width = item.boundingBox.width * 100;
@@ -234,11 +265,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
               return (
                 <div
                   key={item.id}
-                  className={`ar-box absolute rounded-xl transition-all duration-200 ${
-                    isMissing
-                      ? 'border-2 border-sg-danger bg-sg-danger/15'
-                      : 'border-2 border-sg-warning bg-sg-warning/15'
-                  }`}
+                  className={`ar-box absolute rounded-xl transition-all duration-200 ${styles.box}`}
                   style={{
                     top: `${top}%`,
                     left: `${left}%`,
@@ -249,16 +276,12 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
                 >
                   {/* Floating Badge above bounding box */}
                   <div
-                    className={`absolute -top-7 left-0 flex items-center gap-1 text-white px-2 py-0.5 rounded-full shadow-md font-mono-numbers text-[11px] font-bold ${
-                      isMissing ? 'bg-sg-danger' : 'bg-sg-warning'
-                    }`}
+                    className={`absolute -top-7 left-0 flex items-center gap-1 text-white px-2 py-0.5 rounded-full shadow-md font-mono-numbers text-[11px] font-bold ${styles.badge}`}
                   >
                     <span>
-                      {isMissing
-                        ? `${t.missingBadgeShort} · ${(
-                            ((item.score ?? item.confidence ?? 0) * 100)
-                          ).toFixed(0)}%`
-                        : `${item.displacementNote || t.displacedCount}`}
+                      {`${badgeLabels[item.type]} · ${(
+                        ((item.score ?? item.confidence ?? 0) * 100)
+                      ).toFixed(0)}%`}
                     </span>
                     <button
                       onClick={(e) => handleDismiss(item.id, e)}
@@ -270,7 +293,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
 
                   {/* Inside Bounding Box Label Content */}
                   <div className="w-full h-full flex flex-col items-center justify-center p-1 pointer-events-none">
-                    {isMissing ? (
+                    {item.type === 'MISSING' ? (
                       <div className="flex flex-col items-center justify-center gap-0.5">
                         <span className="w-5 h-5 rounded-full border border-dashed border-sg-danger flex items-center justify-center text-sg-danger animate-pulse">
                           +
@@ -279,6 +302,10 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
                           {item.title}
                         </span>
                       </div>
+                    ) : item.type === 'ADDED' ? (
+                      <span className="font-mono-numbers text-[9px] font-bold text-sg-scan bg-sg-white/90 px-1.5 py-0.2 rounded shadow-xs">
+                        {item.title}
+                      </span>
                     ) : (
                       <div className="flex items-center justify-between w-full px-1">
                         <span className="text-sg-warning font-bold text-xs">«</span>

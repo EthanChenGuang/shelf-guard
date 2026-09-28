@@ -45,6 +45,8 @@ export interface AuditRecord {
   actualCount: number; // e.g. 23
   missingCount: number;
   displacedCount: number;
+  /** Absent on records saved before added items were counted. */
+  addedCount?: number;
   thumbnailUrl: string;
   anomalies: DetectedAnomaly[];
   tolerance: ToleranceValue | ToleranceLevel;

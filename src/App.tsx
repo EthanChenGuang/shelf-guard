@@ -385,6 +385,7 @@ export default function App() {
       actualCount: stats.actualCount,
       missingCount: stats.missingCount,
       displacedCount: stats.displacedCount,
+      addedCount: stats.addedCount,
       thumbnailUrl: capturedFrame,
       anomalies: anomalies.filter((a) => meetsMinConfidence(a, minConfidence)),
       tolerance,
@@ -561,6 +562,7 @@ export default function App() {
           actualCount={stats.actualCount}
           displacedCount={stats.displacedCount}
           missingCount={stats.missingCount}
+          addedCount={stats.addedCount}
           tolerance={tolerance}
           onToleranceChange={handleToleranceChange}
           minConfidence={minConfidence}
