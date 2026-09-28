@@ -62,6 +62,8 @@ vi.mock('./lib/storage', () => ({
   saveLanguage: vi.fn(),
   loadSavedTolerance: vi.fn(async () => 50),
   saveTolerance: vi.fn(),
+  loadSavedMinConfidence: vi.fn(async () => 85),
+  saveMinConfidence: vi.fn(),
 }));
 
 const persistedBaseline = {

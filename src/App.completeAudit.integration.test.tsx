@@ -28,6 +28,14 @@ const mockAnomalies: DetectedAnomaly[] = [
     score: 0.85,
     dismissed: false,
   },
+  {
+    id: 'anomaly-faint',
+    type: 'MISSING',
+    title: 'Faint shadow',
+    boundingBox: {x: 0.6, y: 0.6, width: 0.1, height: 0.06},
+    score: 0.4,
+    dismissed: false,
+  },
 ];
 
 const {analyzeShelfCapture, appendAuditRecord} = vi.hoisted(() => ({
@@ -91,6 +99,8 @@ vi.mock('./lib/storage', () => ({
   saveLanguage: vi.fn(),
   loadSavedTolerance: vi.fn(async () => 50),
   saveTolerance: vi.fn(),
+  loadSavedMinConfidence: vi.fn(async () => 85),
+  saveMinConfidence: vi.fn(),
 }));
 
 const persistedBaseline = {
@@ -151,6 +161,7 @@ describe('App complete audit integration (RSLT-06, D-26)', () => {
     });
 
     expect(screen.getByText('确认并完成巡检')).toBeInTheDocument();
+    expect(screen.queryByText('Faint shadow')).toBeNull();
 
     const dismissTarget = screen
       .getByText('SKU-A Missing')
@@ -177,6 +188,9 @@ describe('App complete audit integration (RSLT-06, D-26)', () => {
         expect.objectContaining({id: 'anomaly-keep', dismissed: false}),
       ]),
     );
+    expect(record.anomalies.map((a) => a.id)).not.toContain('anomaly-faint');
+    expect(record.missingCount).toBe(0);
+    expect(record.displacedCount).toBe(1);
 
     await waitFor(() => {
       expect(screen.getByTestId('camera-view')).toBeInTheDocument();

@@ -11,6 +11,8 @@ import { DEFAULT_CALIBRATION, I18N } from './lib/constants';
 import {
   loadSavedLanguage,
   loadSavedTolerance,
+  loadSavedMinConfidence,
+  saveMinConfidence,
   saveLanguage,
   saveTolerance,
 } from './lib/storage';
@@ -31,7 +33,7 @@ import {
 import { createDisplayUrlRegistry } from './lib/objectUrlRegistry';
 import { analyzeShelfCapture, prewarmVisionWorker } from './lib/vision';
 import { computeComplianceStats } from './lib/vision/complianceStats';
-import { DEFAULT_MIN_CONFIDENCE } from './lib/vision/confidence';
+import { DEFAULT_MIN_CONFIDENCE, meetsMinConfidence } from './lib/vision/confidence';
 import { isCaptureLocked } from './lib/captureLock';
 import { loadImageDimensions } from './lib/imageDimensions';
 import {
@@ -158,12 +160,14 @@ export default function App() {
       const shelfId = await loadActiveShelfId();
       setActiveShelfId(shelfId);
 
-      const [savedLang, savedTol] = await Promise.all([
+      const [savedLang, savedTol, savedMinConfidence] = await Promise.all([
         loadSavedLanguage(),
         loadSavedTolerance(),
+        loadSavedMinConfidence(),
       ]);
       setLang(savedLang);
       setTolerance(savedTol);
+      setMinConfidence(savedMinConfidence);
 
       await loadShelfData(shelfId);
     }
@@ -363,6 +367,7 @@ export default function App() {
 
   const handleMinConfidenceChange = useCallback((value: number) => {
     setMinConfidence(value);
+    void saveMinConfidence(value);
   }, []);
 
   // Complete audit and archive to IndexedDB
@@ -381,7 +386,7 @@ export default function App() {
       missingCount: stats.missingCount,
       displacedCount: stats.displacedCount,
       thumbnailUrl: capturedFrame,
-      anomalies,
+      anomalies: anomalies.filter((a) => meetsMinConfidence(a, minConfidence)),
       tolerance,
     };
 
