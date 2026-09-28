@@ -183,8 +183,10 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
 
       {/* Main Viewport: Shelf Image & Interactive AR Canvas */}
       <div
-        className="relative mx-auto overflow-hidden bg-slate-900 cursor-pointer select-none"
+        className="relative mx-auto overflow-hidden bg-slate-900 cursor-pointer select-none [-webkit-touch-callout:none]"
         style={frameBoxStyle(baseline.imageDimensions, '72vh')}
+        // Long-press is the compare gesture; the browser's image menu must not take it over.
+        onContextMenu={(e) => e.preventDefault()}
         onMouseDown={() => setIsBlinkingBaseline(true)}
         onMouseUp={() => setIsBlinkingBaseline(false)}
         onMouseLeave={() => setIsBlinkingBaseline(false)}
@@ -196,7 +198,8 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
         <img
           src={isBlinkingBaseline ? baseline.imageDataUrl : currentCaptureUrl}
           alt="Shelf Inspection Display"
-          className={`w-full h-full object-fill transition-all duration-150 ${
+          draggable={false}
+          className={`w-full h-full object-fill pointer-events-none transition-all duration-150 ${
             isBlinkingBaseline ? 'filter contrast-110 brightness-105' : ''
           }`}
         />

@@ -100,4 +100,24 @@ describe('ResultInspectView blink compare (RSLT-02, D-24)', () => {
     expect(img.src).toContain('capture');
   });
 
+  it('keeps the browser image menu from hijacking the long-press', () => {
+    render(<ResultInspectView {...anomalyProps} />);
+
+    const viewport = screen.getByAltText('Shelf Inspection Display').closest('div')!;
+    const img = screen.getByAltText('Shelf Inspection Display') as HTMLImageElement;
+
+    // Android fires contextmenu on long-press; preventing it suppresses the copy/download menu.
+    expect(fireEvent.contextMenu(img)).toBe(false);
+    expect(fireEvent.contextMenu(viewport)).toBe(false);
+    // The photo itself is never the touch target, so no image callout / drag starts from it.
+    expect(img).toHaveClass('pointer-events-none');
+    expect(img.draggable).toBe(false);
+    expect(viewport).toHaveClass('[-webkit-touch-callout:none]');
+
+    fireEvent.touchStart(viewport);
+    expect(fireEvent.contextMenu(viewport)).toBe(false);
+    expect(img.src).toContain('persisted-baseline');
+    fireEvent.touchEnd(viewport);
+    expect(img.src).toContain('capture');
+  });
 });
