@@ -5,10 +5,10 @@ current_phase_name: PRD UI & Multi-Shelf Experience
 current_plan: 7
 status: verifying
 stopped_at: "Completed quick task 260925-r3s: tap-to-focus camera control"
-last_updated: "2026-09-28T21:10:44.537Z"
+last_updated: "2026-09-28T21:24:09.534Z"
 last_activity: 2026-09-23
 last_activity_desc: Phase 05 execution started
-state_head: 91d37254968bab5147e3c6ed3c2ab9c6c00d494d
+state_head: 00e3ca6d3ae55b66613148b6d42d60ecdd23cf5e
 progress:
   total_phases: 5
   completed_phases: 4
@@ -156,6 +156,7 @@ None yet.
 | 260928-nv2 | 差异确认度 + 可调阈值（默认 85%，50–99%）：只显示并统计确认度不低于阈值的差异 | 2026-09-28 | 46f4992 | [260928-nv2-diff-score-threshold](./quick/260928-nv2-diff-score-threshold/) |
 | 260928-p4l | 新增物品标为「新增」（对称分类 + 移动配对）；局部视差对齐未达验收标准，未上线 | 2026-09-28 | 9f9390b | [260928-p4l-align-then-diff-report-added-items](./quick/260928-p4l-align-then-diff-report-added-items/) |
 | 12 | 巡检照片可从相册选择（同方向时按基准比例居中裁剪） | 2026-09-28 | 91d3725 | — |
+| 13 | 幽灵覆盖层按实时画面自动对齐（镜头不同也可用）；可在浏览器暴露的后置镜头间切换 | 2026-09-28 | 00e3ca6 | — |
 
 ## Deferred Items
 
