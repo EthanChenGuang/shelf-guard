@@ -3,6 +3,7 @@
  */
 import {describe, expect, it} from 'vitest';
 import {
+  cropToAspect,
   isFramingCompatible,
   isNativeCameraBaseline,
   isSameLens,
@@ -94,5 +95,23 @@ describe('isNativeCameraBaseline', () => {
   it('treats in-app captured baselines as live', () => {
     expect(isNativeCameraBaseline({...DEFAULT_CALIBRATION, id: 'baseline-0-1727'})).toBe(false);
     expect(isNativeCameraBaseline(DEFAULT_CALIBRATION)).toBe(false);
+  });
+});
+
+describe('cropToAspect', () => {
+  it('center-crops a 4:3 portrait photo to a 9:16 baseline', () => {
+    expect(cropToAspect(3000, 4000, {width: 1080, height: 1920})).toEqual({x: 375, y: 0, width: 2250, height: 4000});
+  });
+
+  it('center-crops a 4:3 landscape photo to a 16:9 baseline', () => {
+    expect(cropToAspect(4000, 3000, {width: 1920, height: 1080})).toEqual({x: 0, y: 375, width: 4000, height: 2250});
+  });
+
+  it('leaves a photo in the other orientation alone so the framing check can reject it', () => {
+    expect(cropToAspect(4000, 3000, {width: 1080, height: 1920})).toEqual({x: 0, y: 0, width: 4000, height: 3000});
+  });
+
+  it('leaves a photo that already matches alone', () => {
+    expect(cropToAspect(1200, 1600, {width: 1200, height: 1600})).toEqual({x: 0, y: 0, width: 1200, height: 1600});
   });
 });

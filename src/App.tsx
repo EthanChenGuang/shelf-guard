@@ -358,6 +358,7 @@ export default function App() {
 
   const handleShutterClick = () => runCapture(captureFrame);
   const handleNativePhoto = (file: File) => runCapture(() => normalizeNativePhoto(file));
+  const handlePickPhoto = (file: File) => runCapture(() => normalizeNativePhoto(file, baseline.imageDimensions));
   const nativeCaptureMode = hasPersistedBaseline && isNativeCameraBaseline(baseline);
 
   // Anomaly tap-to-dismiss handler
@@ -530,6 +531,7 @@ export default function App() {
           }}
           nativeCaptureMode={nativeCaptureMode}
           onNativePhoto={handleNativePhoto}
+          onPickPhoto={handlePickPhoto}
           orientationDenied={orientationPermission === 'denied' && !orientationDismissed}
           onRetryOrientation={handleRetryOrientation}
           onDismissOrientationError={() => setOrientationDismissed(true)}

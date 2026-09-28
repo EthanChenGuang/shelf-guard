@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   Flashlight,
   FlashlightOff,
+  Images,
   Layers,
   RotateCcw,
   ScanLine,
@@ -61,6 +62,8 @@ interface CameraViewProps {
   /** Shutter opens the OS camera instead of grabbing a live frame (baseline came from the OS camera). */
   nativeCaptureMode?: boolean;
   onNativePhoto?: (file: File) => void;
+  /** Inspection photo chosen from the photo library instead of shot now. */
+  onPickPhoto?: (file: File) => void;
   orientationDenied?: boolean;
   onRetryOrientation?: () => void;
   onDismissOrientationError?: () => void;
@@ -104,6 +107,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onDismissAnalysisError,
   nativeCaptureMode = false,
   onNativePhoto,
+  onPickPhoto,
   orientationDenied = false,
   onRetryOrientation,
   onDismissOrientationError,
@@ -115,6 +119,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
   const [flashVisible, setFlashVisible] = useState(false);
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nativeInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const showGhost = hasPersistedBaseline && !!baseline.imageDataUrl;
   const ghostSliderRef = useRef<HTMLDivElement>(null);
   const ghostValueTrackRef = useRef<HTMLDivElement>(null);
@@ -712,7 +717,32 @@ export const CameraView: React.FC<CameraViewProps> = ({
         )}
 
         <div className="w-full flex items-center justify-between max-w-sm px-2">
-          <div className="flex min-w-12 items-center gap-2">
+          <div className="flex flex-1 items-center gap-2">
+            {hasPersistedBaseline && onPickPhoto && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => galleryInputRef.current?.click()}
+                  aria-label={t.pickFromGallery}
+                  title={t.pickFromGallery}
+                  className="w-10 h-10 rounded-full bg-white/80 hover:bg-white backdrop-blur-xl shadow-md flex items-center justify-center text-[#0F172A] transition-all active:scale-95 border border-slate-200"
+                >
+                  <Images className="w-4 h-4 text-slate-700" />
+                </button>
+                <input
+                  ref={galleryInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  data-testid="gallery-input"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (file) onPickPhoto(file);
+                  }}
+                />
+              </>
+            )}
             {hasMultipleCameras && onSwitchCamera && (
               <button
                 type="button"
@@ -758,6 +788,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
             </button>
           </div>
 
+          <div className="flex flex-1 justify-end">
           <div className="relative flex flex-col items-center">
             <button
               type="button"
@@ -775,6 +806,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
             <span className="absolute -bottom-2 bg-[#0F172A]/85 text-white font-mono-numbers text-[9px] px-1.5 py-0.2 rounded-full font-medium shadow-sm border border-white/10">
               {lastAudit ? lastAudit.timeStr : '14:20'}
             </span>
+          </div>
           </div>
         </div>
       </div>

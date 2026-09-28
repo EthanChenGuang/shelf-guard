@@ -45,6 +45,22 @@ describe('CameraView native capture mode', () => {
     expect(onNativePhoto).toHaveBeenCalledWith(file);
   });
 
+  it('offers a photo-library picker for the inspection shot once a baseline exists', () => {
+    const onPickPhoto = vi.fn();
+    render(<CameraView {...baseProps} onShutterClick={vi.fn()} hasPersistedBaseline onPickPhoto={onPickPhoto} />);
+    const input = screen.getByTestId('gallery-input');
+    expect(input).not.toHaveAttribute('capture');
+    expect(screen.getByRole('button', {name: I18N.cn.pickFromGallery})).toBeInTheDocument();
+    const file = new File(['x'], 'library.jpg', {type: 'image/jpeg'});
+    fireEvent.change(input, {target: {files: [file]}});
+    expect(onPickPhoto).toHaveBeenCalledWith(file);
+  });
+
+  it('hides the photo-library picker before a baseline exists', () => {
+    render(<CameraView {...baseProps} onShutterClick={vi.fn()} onPickPhoto={vi.fn()} />);
+    expect(screen.queryByTestId('gallery-input')).toBeNull();
+  });
+
   it('keeps the live shutter when not in native mode', () => {
     const onShutterClick = vi.fn();
     render(<CameraView {...baseProps} onShutterClick={onShutterClick} />);

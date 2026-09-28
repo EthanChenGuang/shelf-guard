@@ -9,21 +9,43 @@ export function isNativeCameraBaseline(baseline: ShelfCalibration): boolean {
 }
 
 /** Decode a system-camera photo with EXIF orientation applied, downscaled to a 1920px long edge. */
+/**
+ * Centered crop of a `width`x`height` photo to `target`'s aspect ratio — the same cover crop live
+ * captures get. A photo in the other orientation is left whole so the framing check rejects it.
+ */
+export function cropToAspect(
+  width: number,
+  height: number,
+  target: { width: number; height: number },
+): { x: number; y: number; width: number; height: number } {
+  const whole = { x: 0, y: 0, width, height };
+  if (width > height !== target.width > target.height) return whole;
+  const targetAspect = target.width / target.height;
+  if (width / height > targetAspect) {
+    const w = Math.round(height * targetAspect);
+    return { x: Math.round((width - w) / 2), y: 0, width: w, height };
+  }
+  const h = Math.round(width / targetAspect);
+  return { x: 0, y: Math.round((height - h) / 2), width, height: h };
+}
+
 export async function normalizeNativePhoto(
   file: Blob,
+  fitTo?: { width: number; height: number },
 ): Promise<{ dataUrl: string; width: number; height: number; focalLength: number | null }> {
   const focalLength = await readExifFocalLength(file);
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
   try {
-    const scale = Math.min(1, MAX_LONG_EDGE / Math.max(bitmap.width, bitmap.height));
-    const width = Math.max(1, Math.round(bitmap.width * scale));
-    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const crop = fitTo ? cropToAspect(bitmap.width, bitmap.height, fitTo) : { x: 0, y: 0, width: bitmap.width, height: bitmap.height };
+    const scale = Math.min(1, MAX_LONG_EDGE / Math.max(crop.width, crop.height));
+    const width = Math.max(1, Math.round(crop.width * scale));
+    const height = Math.max(1, Math.round(crop.height * scale));
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas 2D context unavailable');
-    ctx.drawImage(bitmap, 0, 0, width, height);
+    ctx.drawImage(bitmap, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height);
     return { dataUrl: canvas.toDataURL('image/jpeg', 0.92), width, height, focalLength };
   } finally {
     bitmap.close();
