@@ -53,6 +53,9 @@ import { ResetBaselineModal } from './components/ResetBaselineModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { isCarouselEnabled } from './lib/carouselEnabled';
 
+/** The language button cycles through the UI languages in this order. */
+const NEXT_LANGUAGE: Record<Language, Language> = { it: 'en', en: 'cn', cn: 'it' };
+
 export default function App() {
   // State machine
   const [appMode, setAppMode] = useState<AppMode>('CAMERA_IDLE');
@@ -183,12 +186,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    document.documentElement.lang = lang;
+    document.documentElement.lang = lang === 'cn' ? 'zh' : lang;
   }, [lang]);
 
   // Language toggle handler
   const handleLanguageToggle = async () => {
-    const nextLang: Language = lang === 'it' ? 'en' : 'it';
+    const nextLang = NEXT_LANGUAGE[lang];
     setLang(nextLang);
     await saveLanguage(nextLang);
   };
@@ -437,32 +440,38 @@ export default function App() {
     setAppMode('CAMERA_IDLE');
   };
 
+  /**
+   * Save a photo taken with the OS camera or picked from the library as the baseline. Its lens
+   * is recorded, so later inspections know to open the OS camera on the same lens.
+   */
+  const saveBaselinePhoto = async (file: File) => {
+    let photo: Awaited<ReturnType<typeof normalizeNativePhoto>>;
+    try {
+      photo = await normalizeNativePhoto(file);
+    } catch {
+      setShowResetModal(false);
+      setShowAnalysisError(true);
+      return;
+    }
+    const saved = await persistBaseline({
+      ...baseline,
+      id: `custom-baseline-${Date.now()}`,
+      imageDataUrl: photo.dataUrl,
+      imageDimensions: { width: photo.width, height: photo.height },
+      lensFocalLength: photo.focalLength,
+      createdAt: Date.now(),
+    });
+    if (!saved) return;
+    setShowResetModal(false);
+    setAppMode('CAMERA_IDLE');
+  };
+
   // Upload custom photo as new baseline
   const handleUploadCustomBaseline = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    void (async () => {
-      let photo: Awaited<ReturnType<typeof normalizeNativePhoto>>;
-      try {
-        photo = await normalizeNativePhoto(file);
-      } catch {
-        setShowResetModal(false);
-        setShowAnalysisError(true);
-        return;
-      }
-      const saved = await persistBaseline({
-        ...baseline,
-        id: `custom-baseline-${Date.now()}`,
-        imageDataUrl: photo.dataUrl,
-        imageDimensions: { width: photo.width, height: photo.height },
-        lensFocalLength: photo.focalLength,
-        createdAt: Date.now(),
-      });
-      if (!saved) return;
-      setShowResetModal(false);
-      setAppMode('CAMERA_IDLE');
-    })();
+    void saveBaselinePhoto(file);
   };
 
   const orientationRequestedRef = useRef(false);
@@ -539,6 +548,7 @@ export default function App() {
           nativeCaptureMode={nativeCaptureMode}
           onNativePhoto={handleNativePhoto}
           onPickPhoto={handlePickPhoto}
+          onBaselinePhoto={(file) => void saveBaselinePhoto(file)}
           orientationDenied={orientationPermission === 'denied' && !orientationDismissed}
           onRetryOrientation={handleRetryOrientation}
           onDismissOrientationError={() => setOrientationDismissed(true)}

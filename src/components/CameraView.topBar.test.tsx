@@ -49,6 +49,13 @@ describe('CameraView PRD top bar (CAM-04)', () => {
 
     expect(screen.getByTestId('language-toggle')).toHaveTextContent('EN');
   });
+
+  it('renders 中 on language toggle when lang is cn', () => {
+    render(<CameraView {...baseProps} lang="cn" />);
+
+    expect(screen.getByTestId('language-toggle')).toHaveTextContent('中');
+    expect(screen.getByTestId('baseline-status-pill')).toHaveTextContent(I18N.cn.baselineNotSet);
+  });
 });
 
 describe('CameraView last-audit thumbnail', () => {

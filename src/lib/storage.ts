@@ -19,9 +19,7 @@ function migrateLegacyTolerance(tol: ToleranceLevel): ToleranceValue {
 export async function loadSavedLanguage(): Promise<Language> {
   try {
     const lang = await get<string>(KEY_LANG);
-    if (lang === 'it' || lang === 'en') return lang;
-    // Chinese was replaced by Italian: a saved Chinese preference means "not English".
-    if (lang === 'cn') return 'it';
+    if (lang === 'it' || lang === 'en' || lang === 'cn') return lang;
   } catch (err) {
     console.warn('Failed to load language setting:', err);
   }

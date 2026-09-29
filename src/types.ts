@@ -52,4 +52,4 @@ export interface AuditRecord {
   tolerance: ToleranceValue | ToleranceLevel;
 }
 
-export type Language = 'it' | 'en';
+export type Language = 'it' | 'en' | 'cn';

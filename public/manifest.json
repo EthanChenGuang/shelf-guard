@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "ShelfGuard PWA",
-  "short_name": "ShelfGuard",
+  "name": "Online Market",
+  "short_name": "Online Market",
   "description": "Ispezione istantanea degli scaffali - Instant Retail Shelf & Planogram Inspection PWA",
   "start_url": "/",
   "scope": "/",

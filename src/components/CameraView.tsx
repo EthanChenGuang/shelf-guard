@@ -26,6 +26,7 @@ import { ShelfCarousel } from './ShelfCarousel';
 import { useFullscreen } from '../hooks/useFullscreen';
 
 const FOCUS_TAP_MAX_MOVE_PX = 12;
+const LANGUAGE_BADGE: Record<Language, string> = { it: 'IT', en: 'EN', cn: '中' };
 
 interface CameraViewProps {
   baseline: ShelfCalibration;
@@ -65,6 +66,11 @@ interface CameraViewProps {
   onNativePhoto?: (file: File) => void;
   /** Inspection photo chosen from the photo library instead of shot now. */
   onPickPhoto?: (file: File) => void;
+  /**
+   * First baseline: the shutter lets the user take it with the OS camera (where the lens, e.g.
+   * ultra-wide, can be chosen) or pick it from the library, instead of grabbing a live frame.
+   */
+  onBaselinePhoto?: (file: File) => void;
   orientationDenied?: boolean;
   onRetryOrientation?: () => void;
   onDismissOrientationError?: () => void;
@@ -110,6 +116,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
   nativeCaptureMode = false,
   onNativePhoto,
   onPickPhoto,
+  onBaselinePhoto,
   orientationDenied = false,
   onRetryOrientation,
   onDismissOrientationError,
@@ -126,6 +133,8 @@ export const CameraView: React.FC<CameraViewProps> = ({
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nativeInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const baselineInputRef = useRef<HTMLInputElement>(null);
+  const choosesBaselinePhoto = !hasPersistedBaseline && !!onBaselinePhoto;
   const displayTilt = orientationDenied ? 0 : tilt;
   const displayIsLevel = orientationDenied ? false : isLevel;
   const showSimulateToggle =
@@ -137,8 +146,12 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
   const handleShutterClick = () => {
     if (isShutterLocked) return;
+    // Pickers must open synchronously inside the click gesture or mobile browsers block them.
+    if (choosesBaselinePhoto) {
+      baselineInputRef.current?.click();
+      return;
+    }
     if (nativeCaptureMode && onNativePhoto) {
-      // Must run synchronously inside the click gesture or mobile browsers block the picker.
       nativeInputRef.current?.click();
       return;
     }
@@ -426,7 +439,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
             onClick={onLanguageToggle}
             className="flex h-7 items-center justify-center rounded-full bg-sg-surface px-2.5 font-mono-numbers text-[11px] font-bold text-sg-success transition-colors hover:bg-sg-border/40"
           >
-            {lang === 'it' ? 'IT' : 'EN'}
+            {LANGUAGE_BADGE[lang]}
           </button>
         </div>
       </div>
@@ -573,9 +586,31 @@ export const CameraView: React.FC<CameraViewProps> = ({
         <div className="mb-4 px-3 py-1 rounded-full bg-[#0F172A]/75 backdrop-blur-md shadow-sm border border-white/10">
           <p className="text-xs text-white/95 flex items-center gap-1.5 font-medium">
             <ScanLine className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            <span>{nativeCaptureMode ? t.nativeCaptureHint : t.tapShutterToScan}</span>
+            <span>
+              {choosesBaselinePhoto
+                ? t.firstBaselineHint
+                : nativeCaptureMode
+                  ? t.nativeCaptureHint
+                  : t.tapShutterToScan}
+            </span>
           </p>
         </div>
+
+        {choosesBaselinePhoto && (
+          // No `capture`: the phone offers both its camera and the photo library.
+          <input
+            ref={baselineInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            data-testid="baseline-photo-input"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) onBaselinePhoto?.(file);
+            }}
+          />
+        )}
 
         {nativeCaptureMode && (
           <input

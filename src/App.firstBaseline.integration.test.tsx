@@ -5,10 +5,17 @@ import App from './App';
 import {I18N} from './lib/constants';
 import {saveBaseline} from './lib/shelfStorage';
 
-const {analyzeShelfCapture, FIRST_FRAME} = vi.hoisted(() => ({
+const {analyzeShelfCapture, captureFrame, normalizeNativePhoto, FIRST_FRAME} = vi.hoisted(() => ({
   analyzeShelfCapture: vi.fn(),
+  captureFrame: vi.fn(),
+  normalizeNativePhoto: vi.fn(),
   FIRST_FRAME: 'data:image/jpeg;base64,Zmlyc3QtYmFzZWxpbmU=',
 }));
+
+vi.mock('./lib/nativeCapture', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./lib/nativeCapture')>();
+  return {...actual, normalizeNativePhoto};
+});
 
 vi.mock('./lib/vision', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./lib/vision')>();
@@ -25,7 +32,7 @@ vi.mock('./hooks/useCameraStream', () => ({
     isTorchOn: false,
     hasTorch: false,
     cameraError: null,
-    captureFrame: vi.fn(async () => FIRST_FRAME),
+    captureFrame,
     startCamera: vi.fn(),
     stopCamera: vi.fn(),
     toggleTorch: vi.fn(),
@@ -92,13 +99,16 @@ vi.mock('./lib/shelfStorage', () => ({
 describe('App first-baseline integration (D-01)', () => {
   beforeEach(() => {
     analyzeShelfCapture.mockClear();
+    captureFrame.mockReset();
+    normalizeNativePhoto.mockReset();
+    normalizeNativePhoto.mockResolvedValue({dataUrl: FIRST_FRAME, width: 1080, height: 1920, focalLength: 2.2});
     vi.mocked(saveBaseline).mockClear();
     vi.stubGlobal('Image', MockImage);
     vi.stubGlobal('URL', Object.assign(URL, {createObjectURL: vi.fn(() => 'blob:baseline'), revokeObjectURL: vi.fn()}));
     vi.useFakeTimers({shouldAdvanceTime: true});
   });
 
-  it('saves the first shutter photo as the baseline with no calibration step', async () => {
+  it('lets the first shutter take the baseline with the OS camera or pick it from the library', async () => {
     const user = userEvent.setup({advanceTimers: vi.advanceTimersByTimeAsync});
     render(<App />);
 
@@ -106,18 +116,30 @@ describe('App first-baseline integration (D-01)', () => {
       await Promise.resolve();
     });
     expect(screen.getByText(I18N.it.baselineNotSet)).toBeInTheDocument();
+    expect(screen.getByText(I18N.it.firstBaselineHint)).toBeInTheDocument();
 
+    // The shutter opens the phone's camera-or-library chooser instead of grabbing a live frame.
+    const picker = screen.getByTestId('baseline-photo-input') as HTMLInputElement;
+    expect(picker).not.toHaveAttribute('capture');
+    const openPicker = vi.spyOn(picker, 'click');
     await user.click(screen.getByLabelText(I18N.it.captureScan));
+    expect(openPicker).toHaveBeenCalledTimes(1);
+    expect(captureFrame).not.toHaveBeenCalled();
+
+    const photo = new File(['jpeg'], 'baseline.jpg', {type: 'image/jpeg'});
+    await user.upload(picker, photo);
 
     await waitFor(() => {
       expect(screen.getByText(I18N.it.baselineEstablished)).toBeInTheDocument();
     });
+    expect(normalizeNativePhoto).toHaveBeenCalledWith(photo);
     expect(saveBaseline).toHaveBeenCalledTimes(1);
     const [shelfId, saved] = vi.mocked(saveBaseline).mock.calls[0];
     expect(shelfId).toBe(0);
     expect(saved).toMatchObject({
       imageDataUrl: FIRST_FRAME,
       imageDimensions: {width: 1080, height: 1920},
+      lensFocalLength: 2.2,
     });
     expect(saved).not.toHaveProperty('splitYPercentages');
     expect(screen.getByLabelText(I18N.it.captureScan)).toBeInTheDocument();

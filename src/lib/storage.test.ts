@@ -36,8 +36,13 @@ describe('language persistence', () => {
     await expect(loadSavedLanguage()).resolves.toBe('en');
   });
 
-  it('turns a saved Chinese preference into Italian, which replaced it', async () => {
-    await set('shelfguard_lang', 'cn');
+  it.each(['it', 'en', 'cn'] as const)('round-trips %s', async (lang) => {
+    await saveLanguage(lang);
+    await expect(loadSavedLanguage()).resolves.toBe(lang);
+  });
+
+  it('falls back to Italian for an unknown stored value', async () => {
+    await set('shelfguard_lang', 'fr');
     await expect(loadSavedLanguage()).resolves.toBe('it');
   });
 });

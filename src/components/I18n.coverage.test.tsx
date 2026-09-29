@@ -28,4 +28,10 @@ describe('Phase 5 I18N coverage (D-29, D-31, I18N-01, I18N-02)', () => {
     expect(I18N.it.baselineNotSet).toMatch(/riferimento/i);
     expect(I18N.en.baselineNotSet).toMatch(/Empty|Not set/i);
   });
+
+  it('Italian, English and Chinese dictionaries have the same entries', () => {
+    const keys = (lang: keyof typeof I18N) => Object.keys(I18N[lang]).sort();
+    expect(keys('it')).toEqual(keys('en'));
+    expect(keys('cn')).toEqual(keys('en'));
+  });
 });
