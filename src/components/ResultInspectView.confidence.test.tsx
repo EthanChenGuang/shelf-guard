@@ -47,8 +47,8 @@ describe('ResultInspectView confidence threshold', () => {
     render(<ResultInspectView {...baseProps} />);
 
     expect(document.querySelectorAll('.ar-box')).toHaveLength(1);
-    expect(screen.queryByText('Faint shadow')).toBeNull();
-    expect(screen.getByText('Removed product')).toBeInTheDocument();
+    expect(screen.queryByTitle('Faint shadow')).toBeNull();
+    expect(screen.getByTitle('Removed product')).toBeInTheDocument();
   });
 
   it('shows the weaker difference once the threshold is lowered', () => {
@@ -56,7 +56,7 @@ describe('ResultInspectView confidence threshold', () => {
     rerender(<ResultInspectView {...baseProps} minConfidence={50} />);
 
     expect(document.querySelectorAll('.ar-box')).toHaveLength(2);
-    expect(screen.getByText('Faint shadow')).toBeInTheDocument();
+    expect(screen.getByTitle('Faint shadow')).toBeInTheDocument();
   });
 
   it('renders a 50–99 slider with the current value', () => {

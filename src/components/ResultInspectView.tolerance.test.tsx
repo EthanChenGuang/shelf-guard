@@ -83,11 +83,13 @@ describe('ResultInspectView blink compare (RSLT-02, D-24)', () => {
     fireEvent.mouseDown(viewport);
     expect(img.src).toContain('persisted-baseline');
     expect(document.querySelector('.ar-box')).toBeNull();
-    expect(screen.getByText('Golden Standard Baseline')).toBeInTheDocument();
+    // The state shows in the hint line below the photo, never on top of it.
+    expect(viewport.contains(screen.getByText('Showing the baseline photo'))).toBe(false);
 
     fireEvent.mouseUp(viewport);
     expect(img.src).toContain('capture');
     expect(document.querySelector('.ar-box')).toBeTruthy();
+    expect(viewport.contains(screen.getByText('Press & hold to compare baseline'))).toBe(false);
   });
 
   it('handles touch press and release for blink compare', () => {

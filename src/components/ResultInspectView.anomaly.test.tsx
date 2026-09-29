@@ -45,24 +45,24 @@ describe('ResultInspectView anomaly colors (DSGN-02, D-16)', () => {
     ],
   };
 
-  it('renders MISSING anomaly box with sg-danger border and fill classes', () => {
+  it('renders MISSING anomaly box as an sg-danger outline with no fill', () => {
     render(<ResultInspectView {...anomalyProps} />);
 
     const boxes = document.querySelectorAll('.ar-box');
     const missingBox = boxes[0];
 
     expect(missingBox.className).toContain('border-sg-danger');
-    expect(missingBox.className).toContain('bg-sg-danger/15');
+    expect(missingBox.className).not.toMatch(/\bbg-/);
   });
 
-  it('renders MOVED anomaly box with sg-warning border and fill classes', () => {
+  it('renders MOVED anomaly box as an sg-warning outline with no fill', () => {
     render(<ResultInspectView {...anomalyProps} />);
 
     const boxes = document.querySelectorAll('.ar-box');
     const movedBox = boxes[1];
 
     expect(movedBox.className).toContain('border-sg-warning');
-    expect(movedBox.className).toContain('bg-sg-warning/15');
+    expect(movedBox.className).not.toMatch(/\bbg-/);
   });
 
   it('uses sg-danger hue on missing stat capsule chip when count > 0', () => {
@@ -103,12 +103,12 @@ describe('ResultInspectView added items and confidence badges', () => {
     ],
   };
 
-  it('renders an ADDED box in the sg-scan colour with a confidence badge', () => {
+  it('renders an ADDED box as an sg-scan outline with no fill, plus a confidence label', () => {
     render(<ResultInspectView {...addedProps} />);
 
     const addedBox = document.querySelectorAll('.ar-box')[0];
     expect(addedBox.className).toContain('border-sg-scan');
-    expect(addedBox.className).toContain('bg-sg-scan/15');
+    expect(addedBox.className).not.toMatch(/\bbg-/);
     expect(screen.getByText('Added · 92%')).toBeInTheDocument();
   });
 

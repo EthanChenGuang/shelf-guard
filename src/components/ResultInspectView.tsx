@@ -23,12 +23,18 @@ import { I18N } from '../lib/constants';
 import { frameBoxStyle } from '../lib/frameBox';
 import { MIN_CONFIDENCE_CEIL, MIN_CONFIDENCE_FLOOR, meetsMinConfidence } from '../lib/vision/confidence';
 
-/** Complete class strings per anomaly type, so Tailwind sees every one of them. */
+/**
+ * Complete class strings per anomaly type, so Tailwind sees every one of them. Outline and text
+ * only: a fill or label chip would hide the very object the box points at.
+ */
 const TYPE_STYLES: Record<DetectedAnomaly['type'], { box: string; badge: string }> = {
-  MISSING: { box: 'border-2 border-sg-danger bg-sg-danger/15', badge: 'bg-sg-danger' },
-  MOVED: { box: 'border-2 border-sg-warning bg-sg-warning/15', badge: 'bg-sg-warning' },
-  ADDED: { box: 'border-2 border-sg-scan bg-sg-scan/15', badge: 'bg-sg-scan' },
+  MISSING: { box: 'border-2 border-sg-danger', badge: 'text-sg-danger' },
+  MOVED: { box: 'border-2 border-sg-warning', badge: 'text-sg-warning' },
+  ADDED: { box: 'border-2 border-sg-scan', badge: 'text-sg-scan' },
 };
+
+/** Dark halo that keeps colored label text legible on both light and dark photo areas. */
+const LABEL_HALO = { textShadow: '0 0 2px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.6)' };
 
 interface ResultInspectViewProps {
   currentCaptureUrl: string;
@@ -237,20 +243,8 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
           src={isBlinkingBaseline ? baseline.imageDataUrl : currentCaptureUrl}
           alt="Shelf Inspection Display"
           draggable={false}
-          className={`w-full h-full object-fill pointer-events-none transition-all duration-150 ${
-            isBlinkingBaseline ? 'filter contrast-110 brightness-105' : ''
-          }`}
+          className="w-full h-full object-fill pointer-events-none"
         />
-
-        {/* Golden Baseline Overlay Indicator (Visible during long press) */}
-        {isBlinkingBaseline && (
-          <div className="absolute inset-0 bg-emerald-950/20 backdrop-blur-[1px] flex flex-col items-center justify-center pointer-events-none animate-fadeIn">
-            <div className="bg-white/95 text-[#0F172A] px-4 py-2 rounded-2xl shadow-xl flex items-center gap-2 border border-emerald-300">
-              <CheckCircle2 className="w-5 h-5 text-[#10B981]" />
-              <span className="text-sm font-bold">{t.goldenBaseline}</span>
-            </div>
-          </div>
-        )}
 
         {/* AR Bounding Boxes (Hidden during Blink Compare or if layers toggled off) */}
         {!isBlinkingBaseline && showArLayers && (
@@ -274,9 +268,11 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
                   }}
                   onClick={(e) => handleDismiss(item.id, e)}
                 >
-                  {/* Floating Badge above bounding box */}
+                  {/* Label above the box: colored text only */}
                   <div
-                    className={`absolute -top-7 left-0 flex items-center gap-1 text-white px-2 py-0.5 rounded-full shadow-md font-mono-numbers text-[11px] font-bold ${styles.badge}`}
+                    className={`absolute -top-5 left-0 flex items-center gap-1 whitespace-nowrap font-mono-numbers text-[11px] font-bold ${styles.badge}`}
+                    style={LABEL_HALO}
+                    title={item.title}
                   >
                     <span>
                       {`${badgeLabels[item.type]} · ${(
@@ -285,36 +281,10 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
                     </span>
                     <button
                       onClick={(e) => handleDismiss(item.id, e)}
-                      className="hover:opacity-80 ml-0.5"
+                      className="hover:opacity-80"
                     >
                       <X className="w-3 h-3" />
                     </button>
-                  </div>
-
-                  {/* Inside Bounding Box Label Content */}
-                  <div className="w-full h-full flex flex-col items-center justify-center p-1 pointer-events-none">
-                    {item.type === 'MISSING' ? (
-                      <div className="flex flex-col items-center justify-center gap-0.5">
-                        <span className="w-5 h-5 rounded-full border border-dashed border-sg-danger flex items-center justify-center text-sg-danger animate-pulse">
-                          +
-                        </span>
-                        <span className="font-mono-numbers text-[9px] font-bold text-sg-danger bg-sg-white/90 px-1.5 py-0.2 rounded shadow-xs">
-                          {item.title}
-                        </span>
-                      </div>
-                    ) : item.type === 'ADDED' ? (
-                      <span className="font-mono-numbers text-[9px] font-bold text-sg-scan bg-sg-white/90 px-1.5 py-0.2 rounded shadow-xs">
-                        {item.title}
-                      </span>
-                    ) : (
-                      <div className="flex items-center justify-between w-full px-1">
-                        <span className="text-sg-warning font-bold text-xs">«</span>
-                        <span className="font-mono-numbers text-[9px] font-semibold text-sg-primary bg-sg-white/90 px-1 py-0.2 rounded shadow-xs">
-                          {item.title}
-                        </span>
-                        <span className="text-sg-warning font-bold text-xs">»</span>
-                      </div>
-                    )}
                   </div>
                 </div>
               );
@@ -322,15 +292,20 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
           </>
         )}
 
-        {/* Center Bottom Long-Press Hint Badge */}
-        <div
-          className={`absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/85 backdrop-blur-md shadow-md text-[#0F172A] border border-slate-200/60 pointer-events-none transition-transform duration-150 ${
-            isBlinkingBaseline ? 'scale-95 bg-emerald-50 text-emerald-800' : ''
-          }`}
-        >
+      </div>
+
+      {/* Compare hint below the photo, so nothing covers it; shows the baseline state while held */}
+      <div
+        className={`flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold transition-colors ${
+          isBlinkingBaseline ? 'text-[#006C49]' : 'text-sg-secondary'
+        }`}
+      >
+        {isBlinkingBaseline ? (
+          <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />
+        ) : (
           <Eye className="w-3.5 h-3.5 text-[#006C49]" />
-          <span className="text-xs font-semibold">{t.pressHoldCompare}</span>
-        </div>
+        )}
+        <span>{isBlinkingBaseline ? t.goldenBaseline : t.pressHoldCompare}</span>
       </div>
 
       {/* Bottom Floating Control Drawer */}

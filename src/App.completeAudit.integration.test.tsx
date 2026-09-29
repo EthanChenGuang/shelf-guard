@@ -164,7 +164,7 @@ describe('App complete audit integration (RSLT-06, D-26)', () => {
     expect(screen.queryByText('Faint shadow')).toBeNull();
 
     const dismissTarget = screen
-      .getByText('SKU-A Missing')
+      .getByTitle('SKU-A Missing')
       .closest('.ar-box') as HTMLElement;
     fireEvent.click(dismissTarget);
 
