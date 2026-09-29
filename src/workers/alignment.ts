@@ -17,6 +17,8 @@ export interface Alignment {
   forward: Mat | null;
   /** Maps baseline-frame points back to capture-frame points (null = identity). */
   inverse: Mat | null;
+  /** Per-pixel remap (CV_32F) applied after `forward` to undo parallax, or null. */
+  parallax: { mapX: Mat; mapY: Mat } | null;
   method: 'homography' | 'identity';
 }
 
@@ -360,12 +362,112 @@ function meanAbsDiff(cv: CV, a: Mat, b: Mat, mask: Mat): number {
   }
 }
 
+const FLOW_LONG_EDGE = 960;
+/**
+ * Median window over the flow field, as a fraction of the short edge. Wider than twice an object,
+ * so a moved or removed object is voted down by the scene around it and cannot be explained away
+ * as parallax, while the large depth steps of a real scene (desk vs. wall) survive the median.
+ */
+const FLOW_MEDIAN_FRACTION = 0.2;
+/** Largest parallax shift absorbed, as a fraction of the short edge. */
+const FLOW_MAX_FRACTION = 0.05;
+
+/**
+ * A single homography only aligns one plane. A hand-held re-shoot of a scene with depth leaves
+ * near and far surfaces shifted against each other (parallax), which shows up as change along
+ * every depth edge. Estimate the residual dense flow from the baseline to the aligned capture,
+ * keep only its large-scale structure, and return remap tables that pull the capture onto the
+ * baseline.
+ */
+function parallaxMaps(cv: CV, baseGray: Mat, alignedGray: Mat): { mapX: Mat; mapY: Mat } {
+  const { rows, cols } = baseGray;
+  const scale = Math.min(1, FLOW_LONG_EDGE / Math.max(rows, cols));
+  const smallSize = new cv.Size(Math.round(cols * scale), Math.round(rows * scale));
+  const smallB = new cv.Mat();
+  const smallC = new cv.Mat();
+  const flow = new cv.Mat();
+  const parts = new cv.MatVector();
+  const q = new cv.Mat();
+  const component = new cv.Mat();
+  try {
+    cv.resize(baseGray, smallB, smallSize, 0, 0, cv.INTER_AREA);
+    cv.resize(alignedGray, smallC, smallSize, 0, 0, cv.INTER_AREA);
+    const shortSmall = Math.min(smallSize.width, smallSize.height);
+    cv.calcOpticalFlowFarneback(smallB, smallC, flow, 0.5, 4, oddKernel(shortSmall * 0.05), 3, 7, 1.5, 0);
+    cv.split(flow, parts);
+
+    const maxShift = Math.max(1, shortSmall * FLOW_MAX_FRACTION);
+    // medianBlur only takes large windows on 8-bit input: quantize the flow to ±127 levels.
+    const levels = 127 / maxShift;
+    const medianKernel = oddKernel(shortSmall * FLOW_MEDIAN_FRACTION);
+    const maps: Mat[] = [];
+    for (let axis = 0; axis < 2; axis += 1) {
+      parts.get(axis).convertTo(q, cv.CV_8U, levels, 128);
+      cv.medianBlur(q, q, medianKernel);
+      q.convertTo(component, cv.CV_32F, 1 / (levels * scale), -128 / (levels * scale));
+      const map = new cv.Mat();
+      cv.resize(component, map, new cv.Size(cols, rows), 0, 0, cv.INTER_LINEAR);
+      const m = map.data32F;
+      for (let y = 0, i = 0; y < rows; y += 1) {
+        for (let x = 0; x < cols; x += 1, i += 1) m[i] += axis === 0 ? x : y;
+      }
+      maps.push(map);
+    }
+    return { mapX: maps[0], mapY: maps[1] };
+  } finally {
+    smallB.delete();
+    smallC.delete();
+    flow.delete();
+    parts.delete();
+    q.delete();
+    component.delete();
+  }
+}
+
+function oddKernel(n: number): number {
+  const k = Math.max(3, Math.round(n));
+  return k % 2 === 0 ? k + 1 : k;
+}
+
+function remapInPlace(cv: CV, image: Mat, maps: { mapX: Mat; mapY: Mat }, interpolation: number): void {
+  const out = new cv.Mat();
+  try {
+    cv.remap(image, out, maps.mapX, maps.mapY, interpolation, cv.BORDER_CONSTANT, new cv.Scalar(0));
+    out.copyTo(image);
+  } finally {
+    out.delete();
+  }
+}
+
+/** Undo parallax left over after `warped` was registered, if that explains the scene better. */
+function refineParallax(cv: CV, baseGray: Mat, warped: Mat, valid: Mat): { mapX: Mat; mapY: Mat } | null {
+  const maps = parallaxMaps(cv, baseGray, warped);
+  const refined = warped.mat_clone();
+  const refinedValid = valid.mat_clone();
+  try {
+    remapInPlace(cv, refined, maps, cv.INTER_LINEAR);
+    remapInPlace(cv, refinedValid, maps, cv.INTER_NEAREST);
+    cv.bitwise_and(refinedValid, valid, refinedValid);
+    if (meanAbsDiff(cv, baseGray, refined, refinedValid) >= meanAbsDiff(cv, baseGray, warped, refinedValid)) {
+      maps.mapX.delete();
+      maps.mapY.delete();
+      return null;
+    }
+    refined.copyTo(warped);
+    refinedValid.copyTo(valid);
+    return maps;
+  } finally {
+    refined.delete();
+    refinedValid.delete();
+  }
+}
+
 /** Register the capture onto the baseline (same pixel size) and match exposure. */
 export function alignCapture(cv: CV, baseGray: Mat, capGray: Mat): Alignment {
   const size = new cv.Size(baseGray.cols, baseGray.rows);
   const full = new cv.Mat(baseGray.rows, baseGray.cols, cv.CV_8UC1, new cv.Scalar(255));
 
-  const identityGray = capGray.clone();
+  const identityGray = capGray.mat_clone();
   matchPhotometry(cv, baseGray, identityGray, full);
 
   const H = estimateHomography(cv, baseGray, capGray);
@@ -386,29 +488,35 @@ export function alignCapture(cv: CV, baseGray: Mat, capGray: Mat): Alignment {
         cv.invert(H, inverse, cv.DECOMP_SVD);
         identityGray.delete();
         full.delete();
-        return { alignedGray: warped, valid, forward: H, inverse, method: 'homography' };
+        const parallax = refineParallax(cv, baseGray, warped, valid);
+        return { alignedGray: warped, valid, forward: H, inverse, parallax, method: 'homography' };
       }
     }
     warped.delete();
     valid.delete();
     H.delete();
   }
-  return { alignedGray: identityGray, valid: full, forward: null, inverse: null, method: 'identity' };
+  const parallax = refineParallax(cv, baseGray, identityGray, full);
+  return { alignedGray: identityGray, valid: full, forward: null, inverse: null, parallax, method: 'identity' };
 }
 
 /** Warp any capture-frame image (e.g. a color channel) into the baseline frame. */
 export function warpToBaseline(cv: CV, image: Mat, alignment: Alignment): Mat {
-  if (!alignment.forward) return image.clone();
   const out = new cv.Mat();
-  cv.warpPerspective(
-    image,
-    out,
-    alignment.forward,
-    new cv.Size(alignment.valid.cols, alignment.valid.rows),
-    cv.INTER_LINEAR,
-    cv.BORDER_CONSTANT,
-    new cv.Scalar(0),
-  );
+  if (alignment.forward) {
+    cv.warpPerspective(
+      image,
+      out,
+      alignment.forward,
+      new cv.Size(alignment.valid.cols, alignment.valid.rows),
+      cv.INTER_LINEAR,
+      cv.BORDER_CONSTANT,
+      new cv.Scalar(0),
+    );
+  } else {
+    image.copyTo(out);
+  }
+  if (alignment.parallax) remapInPlace(cv, out, alignment.parallax, cv.INTER_LINEAR);
   return out;
 }
 

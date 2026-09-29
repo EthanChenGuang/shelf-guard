@@ -207,6 +207,18 @@ const TITLES: Record<DetectedAnomaly['type'], string> = { MISSING: 'Missing', MO
 const REFERENCE_AREA = 1080 * 1920;
 /** Smallest reportable change, as a fraction of the frame (half of a small object moved aside). */
 const MIN_REGION_FRACTION = 0.001;
+/** Regions thinner than this (fraction of the short edge) count as depth-edge slivers. */
+const SLIVER_THICKNESS_FRACTION = 0.04;
+
+/**
+ * A re-shoot from a slightly different spot reveals thin strips of background along depth edges
+ * and the frame border that the baseline never saw. Such a strip is long but thin, unlike an
+ * object: weigh a region's area down by how far its mean thickness falls short of an object's.
+ */
+function sliverFactor(area: number, width: number, height: number, minDim: number): number {
+  const thickness = area / Math.max(1, width, height);
+  return Math.min(1, (thickness / (minDim * SLIVER_THICKNESS_FRACTION)) ** 2);
+}
 
 function oddKernel(n: number): number {
   const k = Math.max(3, Math.round(n));
@@ -334,7 +346,7 @@ function alignedColorPlanes(
       const clipC = clippedMask(cv, c);
       matchPhotometry(cv, b, c, alignment.valid);
       cv.GaussianBlur(c, c, blur, 0);
-      const lit = b.clone();
+      const lit = b.mat_clone();
       const clipped = new Uint8Array(clipB.length);
       for (let i = 0; i < clipped.length; i += 1) clipped[i] = clipB[i] | clipC[i];
       matchIllumination(cv, lit, c, alignment.valid, clipped);
@@ -565,12 +577,14 @@ function diffRegions(
             baselineContrast: Math.hypot(...relationB),
             captureContrast: Math.hypot(...relationC),
           });
-          const confidence = anomalyConfidence(area / frameArea, meanDiff / params.diffThreshold);
-
           const x0 = Math.min(...group.map((f) => f.rect.x));
           const y0 = Math.min(...group.map((f) => f.rect.y));
           const x1 = Math.max(...group.map((f) => f.rect.x + f.rect.width));
           const y1 = Math.max(...group.map((f) => f.rect.y + f.rect.height));
+          const confidence = anomalyConfidence(
+            (area * sliverFactor(area, x1 - x0, y1 - y0, minDim)) / frameArea,
+            meanDiff / params.diffThreshold,
+          );
           const captureRect = toCapture({ x: x0, y: y0, width: x1 - x0, height: y1 - y0 });
           const bbox = pixelRectToNormalized(captureRect, frameSize.width, frameSize.height);
           candidates.push({
@@ -707,6 +721,8 @@ function analyzeFrame(
     alignment?.valid.delete();
     alignment?.inverse?.delete();
     alignment?.forward?.delete();
+    alignment?.parallax?.mapX.delete();
+    alignment?.parallax?.mapY.delete();
     planes?.base.forEach((m) => m.delete());
     planes?.baseLit.forEach((m) => m.delete());
     planes?.cap.forEach((m) => m.delete());
