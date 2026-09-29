@@ -586,13 +586,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
         <div className="mb-4 px-3 py-1 rounded-full bg-[#0F172A]/75 backdrop-blur-md shadow-sm border border-white/10">
           <p className="text-xs text-white/95 flex items-center gap-1.5 font-medium">
             <ScanLine className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            <span>
-              {choosesBaselinePhoto
-                ? t.firstBaselineHint
-                : nativeCaptureMode
-                  ? t.nativeCaptureHint
-                  : t.tapShutterToScan}
-            </span>
+            <span>{choosesBaselinePhoto ? t.firstBaselineHint : t.tapShutterToScan}</span>
           </p>
         </div>
 

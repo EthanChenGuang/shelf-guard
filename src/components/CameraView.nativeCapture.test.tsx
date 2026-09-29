@@ -30,7 +30,7 @@ describe('CameraView native capture mode', () => {
 
     expect(clickSpy).toHaveBeenCalledOnce();
     expect(onShutterClick).not.toHaveBeenCalled();
-    expect(screen.getByText(I18N.it.nativeCaptureHint)).toBeInTheDocument();
+    expect(screen.getByText(I18N.it.tapShutterToScan)).toBeInTheDocument();
   });
 
   it('forwards the chosen photo to onNativePhoto', () => {

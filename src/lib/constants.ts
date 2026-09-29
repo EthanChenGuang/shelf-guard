@@ -68,7 +68,7 @@ export const I18N = {
     baselineTag: 'RIFERIMENTO',
     level: 'IN BOLLA',
     plumb: 'INCLINAZIONE',
-    tapShutterToScan: "Tocca l'otturatore per scansionare lo scaffale",
+    tapShutterToScan: "Tocca l'otturatore per confrontare la foto",
     resetBaseline: 'Reimposta riferimento',
     resetConfirm: "Vuoi davvero cancellare la foto di riferimento e scattarne un'altra?",
     resetBaselineDescription:
@@ -131,8 +131,6 @@ export const I18N = {
       "L'orientamento o le proporzioni della foto non corrispondono al riferimento. Riscatta con lo stesso orientamento e obiettivo (es. grandangolo W)",
     lensMismatch:
       "Questa foto è stata scattata con un obiettivo diverso da quello del riferimento. Seleziona lo stesso obiettivo nella fotocamera di sistema (es. grandangolo W) e riscatta",
-    nativeCaptureHint:
-      "Il riferimento è stato scattato con la fotocamera di sistema · l'otturatore la apre: scegli lo stesso obiettivo (es. grandangolo W)",
     shutterLocked: 'Scansione in corso, attendere',
     quotaExceededTitle: 'Memoria locale piena',
     quotaExceededGuide: 'Completa le ispezioni su altri scaffali o cancella parte dello storico, poi riprova.',
@@ -150,8 +148,7 @@ export const I18N = {
     missingBadgeShort: 'Mancante',
     addedBadgeShort: 'Aggiunto',
     movedBadgeShort: 'Spostato',
-    firstBaselineHint:
-      "Tocca l'otturatore per scattare la foto di riferimento con la fotocamera (puoi scegliere l'obiettivo) o sceglierla dalla galleria",
+    firstBaselineHint: "Tocca l'otturatore per scattare il riferimento",
     enterFullscreen: 'Schermo intero',
     exitFullscreen: 'Esci da schermo intero',
   },
@@ -162,7 +159,7 @@ export const I18N = {
     baselineTag: 'BASELINE',
     level: '水平',
     plumb: '倾角',
-    tapShutterToScan: '轻按快门扫描展架陈列',
+    tapShutterToScan: '轻按快门对比照片',
     resetBaseline: '重设基准图',
     resetConfirm: '确定要清除当前基准图并重新拍摄标定吗？',
     resetBaselineDescription: '当前基准图用于每次巡检时的整图差分比对。您可以上传新拍摄的货架标准照。',
@@ -222,7 +219,6 @@ export const I18N = {
     analysisFailed: '分析失败，请重试拍摄',
     framingMismatch: '拍摄画面与基准图的方向/比例不一致，无法比对。请用与基准图相同的方向和镜头（如 W 广角）重拍',
     lensMismatch: '这张照片与基准图使用的镜头不同，无法比对。请在系统相机中切换到与基准图相同的镜头（如 W 广角）后重拍',
-    nativeCaptureHint: '基准图由系统相机拍摄 · 快门将打开系统相机，请选择与基准图相同的镜头（如 W 广角）',
     shutterLocked: '扫描进行中，请稍候',
     quotaExceededTitle: '本地存储空间已满',
     quotaExceededGuide: '请先在其它货架完成巡检，或清除部分历史记录后再试。',
@@ -240,7 +236,7 @@ export const I18N = {
     missingBadgeShort: '缺失',
     addedBadgeShort: '新增',
     movedBadgeShort: '移位',
-    firstBaselineHint: '轻按快门，用相机拍摄基准图（可选择镜头）或从相册选择',
+    firstBaselineHint: '轻按快门拍摄基准图',
     enterFullscreen: '全屏',
     exitFullscreen: '退出全屏',
   },
@@ -251,7 +247,7 @@ export const I18N = {
     baselineTag: 'BASELINE',
     level: 'LEVEL',
     plumb: 'PLUMB',
-    tapShutterToScan: 'Tap shutter to scan shelf',
+    tapShutterToScan: 'Tap the shutter to compare a photo',
     resetBaseline: 'Reset Baseline',
     resetConfirm: 'Are you sure you want to clear current baseline and recalibrate?',
     resetBaselineDescription:
@@ -312,7 +308,6 @@ export const I18N = {
     analysisFailed: 'Analysis failed — tap shutter to retry',
     framingMismatch: 'This photo does not match the baseline orientation/aspect ratio. Retake it with the same orientation and lens (e.g. W ultra-wide)',
     lensMismatch: 'This photo was taken with a different lens than the baseline. Switch the system camera to the same lens (e.g. W ultra-wide) and retake',
-    nativeCaptureHint: 'Baseline was taken with the system camera · the shutter opens it — pick the same lens (e.g. W ultra-wide)',
     shutterLocked: 'Scan in progress, please wait',
     quotaExceededTitle: 'Local storage is full',
     quotaExceededGuide:
@@ -331,8 +326,7 @@ export const I18N = {
     missingBadgeShort: 'Missing',
     addedBadgeShort: 'Added',
     movedBadgeShort: 'Moved',
-    firstBaselineHint:
-      'Tap the shutter to take the baseline with the camera (you can pick the lens) or choose it from the library',
+    firstBaselineHint: 'Tap the shutter to take the baseline',
     enterFullscreen: 'Full screen',
     exitFullscreen: 'Exit full screen',
   },
