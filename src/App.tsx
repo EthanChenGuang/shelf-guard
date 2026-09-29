@@ -66,7 +66,7 @@ export default function App() {
   const [baseline, setBaseline] = useState<ShelfCalibration>(DEFAULT_CALIBRATION);
   const [hasPersistedBaseline, setHasPersistedBaseline] = useState<boolean>(false);
   // Language
-  const [lang, setLang] = useState<Language>('cn');
+  const [lang, setLang] = useState<Language>('it');
   // Tolerance slider 0–100 (D-11)
   const [tolerance, setTolerance] = useState<ToleranceValue>(50);
 
@@ -182,9 +182,13 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
   // Language toggle handler
   const handleLanguageToggle = async () => {
-    const nextLang: Language = lang === 'cn' ? 'en' : 'cn';
+    const nextLang: Language = lang === 'it' ? 'en' : 'it';
     setLang(nextLang);
     await saveLanguage(nextLang);
   };

@@ -12,17 +12,17 @@ describe('OfflineIndicator (PWA-03)', () => {
   });
 
   it('renders null when navigator.onLine is true', () => {
-    const {container} = render(<OfflineIndicator lang="cn" />);
+    const {container} = render(<OfflineIndicator lang="it" />);
     expect(container.firstChild).toBeNull();
   });
 
   it('renders offlineMode I18N text when navigator.onLine is false', async () => {
     Object.defineProperty(navigator, 'onLine', {value: false, configurable: true});
-    render(<OfflineIndicator lang="cn" />);
+    render(<OfflineIndicator lang="it" />);
     await act(async () => {
       window.dispatchEvent(new Event('offline'));
     });
-    expect(screen.getByText('离线模式 · 本地缓存已就绪')).toBeInTheDocument();
+    expect(screen.getByText('Modalità offline · cache locale pronta')).toBeInTheDocument();
   });
 
   it('positions pill above shutter band at 320px viewport (G-01-4)', async () => {
@@ -30,12 +30,12 @@ describe('OfflineIndicator (PWA-03)', () => {
     Object.defineProperty(window, 'innerWidth', {value: 320, configurable: true});
     Object.defineProperty(window, 'innerHeight', {value: 640, configurable: true});
 
-    render(<OfflineIndicator lang="cn" />);
+    render(<OfflineIndicator lang="it" />);
     await act(async () => {
       window.dispatchEvent(new Event('offline'));
     });
 
-    const pill = screen.getByText('离线模式 · 本地缓存已就绪').closest('div');
+    const pill = screen.getByText('Modalità offline · cache locale pronta').closest('div');
     expect(pill).not.toBeNull();
     expect(pill!.className).toContain('bottom-28');
     expect(pill!.className).not.toContain('bottom-24');

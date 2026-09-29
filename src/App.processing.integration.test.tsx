@@ -58,7 +58,7 @@ vi.mock('./hooks/usePWAInstall', () => ({
 }));
 
 vi.mock('./lib/storage', () => ({
-  loadSavedLanguage: vi.fn(async () => 'cn'),
+  loadSavedLanguage: vi.fn(async () => 'it'),
   saveLanguage: vi.fn(),
   loadSavedTolerance: vi.fn(async () => 50),
   saveTolerance: vi.fn(),
@@ -103,12 +103,12 @@ describe('App PROCESSING integration (STAB-03)', () => {
       await Promise.resolve();
     });
 
-    await user.click(screen.getByLabelText(I18N.cn.captureScan));
+    await user.click(screen.getByLabelText(I18N.it.captureScan));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(800);
     });
 
-    expect(screen.getByText('正在分析展架差异，请稍候...')).toBeInTheDocument();
+    expect(screen.getByText('Analisi delle differenze in corso, attendere...')).toBeInTheDocument();
   });
 });

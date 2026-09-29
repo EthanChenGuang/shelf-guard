@@ -5,7 +5,7 @@ import { DEFAULT_CALIBRATION } from '../lib/constants';
 
 const baseProps = {
   baseline: DEFAULT_CALIBRATION,
-  lang: 'cn' as const,
+  lang: 'it' as const,
   onLanguageToggle: vi.fn(),
   onShutterClick: vi.fn(),
   onOpenHistory: vi.fn(),
@@ -26,9 +26,9 @@ describe('CameraView orientation banner (CAM-07)', () => {
         orientationDenied
       />,
     );
-    expect(screen.getByText('无法访问设备方向传感器')).toBeInTheDocument();
+    expect(screen.getByText('Accesso al sensore di orientamento negato')).toBeInTheDocument();
     expect(screen.getByText(/Safari/)).toBeInTheDocument();
-    expect(screen.getByText(/运动与方向访问/)).toBeInTheDocument();
+    expect(screen.getByText(/movimento e orientamento/)).toBeInTheDocument();
   });
 
   it('fires onRetryOrientation when retry clicked', () => {
@@ -40,7 +40,7 @@ describe('CameraView orientation banner (CAM-07)', () => {
         onRetryOrientation={onRetry}
       />,
     );
-    fireEvent.click(screen.getByText('重试方向权限'));
+    fireEvent.click(screen.getByText('Riprova sensore'));
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
@@ -53,7 +53,7 @@ describe('CameraView orientation banner (CAM-07)', () => {
         onDismissOrientationError={onDismiss}
       />,
     );
-    fireEvent.click(screen.getByLabelText('关闭'));
+    fireEvent.click(screen.getByLabelText('Chiudi'));
     expect(onDismiss).toHaveBeenCalledOnce();
   });
 

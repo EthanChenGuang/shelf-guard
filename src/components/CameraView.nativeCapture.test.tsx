@@ -5,7 +5,7 @@ import {DEFAULT_CALIBRATION, I18N} from '../lib/constants';
 
 const baseProps = {
   baseline: DEFAULT_CALIBRATION,
-  lang: 'cn' as const,
+  lang: 'it' as const,
   onLanguageToggle: vi.fn(),
   onOpenHistory: vi.fn(),
   onResetBaselinePrompt: vi.fn(),
@@ -30,7 +30,7 @@ describe('CameraView native capture mode', () => {
 
     expect(clickSpy).toHaveBeenCalledOnce();
     expect(onShutterClick).not.toHaveBeenCalled();
-    expect(screen.getByText(I18N.cn.nativeCaptureHint)).toBeInTheDocument();
+    expect(screen.getByText(I18N.it.nativeCaptureHint)).toBeInTheDocument();
   });
 
   it('forwards the chosen photo to onNativePhoto', () => {
@@ -48,7 +48,7 @@ describe('CameraView native capture mode', () => {
     render(<CameraView {...baseProps} onShutterClick={vi.fn()} hasPersistedBaseline onPickPhoto={onPickPhoto} />);
     const input = screen.getByTestId('gallery-input');
     expect(input).not.toHaveAttribute('capture');
-    expect(screen.getByRole('button', {name: I18N.cn.pickFromGallery})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: I18N.it.pickFromGallery})).toBeInTheDocument();
     const file = new File(['x'], 'library.jpg', {type: 'image/jpeg'});
     fireEvent.change(input, {target: {files: [file]}});
     expect(onPickPhoto).toHaveBeenCalledWith(file);
@@ -64,7 +64,7 @@ describe('CameraView native capture mode', () => {
     const {rerender} = render(
       <CameraView {...baseProps} onShutterClick={vi.fn()} lens={{index: 1, count: 3}} onCycleLens={onCycleLens} />,
     );
-    fireEvent.click(screen.getByRole('button', {name: I18N.cn.switchLens}));
+    fireEvent.click(screen.getByRole('button', {name: I18N.it.switchLens}));
     expect(onCycleLens).toHaveBeenCalledOnce();
     expect(screen.getByTestId('cycle-lens-button')).toHaveTextContent('1/3');
     rerender(<CameraView {...baseProps} onShutterClick={vi.fn()} lens={{index: 1, count: 1}} onCycleLens={onCycleLens} />);
@@ -85,9 +85,9 @@ describe('CameraView native capture mode', () => {
         {...baseProps}
         onShutterClick={vi.fn()}
         analysisError
-        analysisErrorMessage={I18N.cn.framingMismatch}
+        analysisErrorMessage={I18N.it.framingMismatch}
       />,
     );
-    expect(screen.getByText(I18N.cn.framingMismatch)).toBeInTheDocument();
+    expect(screen.getByText(I18N.it.framingMismatch)).toBeInTheDocument();
   });
 });

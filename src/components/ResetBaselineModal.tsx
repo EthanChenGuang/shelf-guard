@@ -54,9 +54,7 @@ export const ResetBaselineModal: React.FC<ResetBaselineModalProps> = ({
         </div>
 
         <p className="text-xs text-slate-600 leading-relaxed">
-          {lang === 'cn'
-            ? '当前基准图用于每次巡检时的整图差分比对。您可以上传新拍摄的货架标准照。'
-            : 'The current baseline is used for whole-photo differential inspection. You can upload a new photo.'}
+          {t.resetBaselineDescription}
         </p>
 
         {/* Action Options */}
@@ -64,7 +62,7 @@ export const ResetBaselineModal: React.FC<ResetBaselineModalProps> = ({
           {/* Upload new photo as baseline */}
           <label className="w-full py-2.5 px-4 rounded-xl border border-dashed border-slate-300 hover:border-[#10B981] hover:bg-emerald-50/50 text-[#0F172A] font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer">
             <Camera className="w-4 h-4 text-[#006C49]" />
-            <span>{lang === 'cn' ? '上传/拍照替换基准图' : 'Upload / Snap New Baseline'}</span>
+            <span>{t.uploadNewBaseline}</span>
             <input
               type="file"
               accept="image/*"
@@ -79,7 +77,7 @@ export const ResetBaselineModal: React.FC<ResetBaselineModalProps> = ({
             className="w-full py-2.5 px-4 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 font-medium text-xs flex items-center justify-center gap-2 transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
-            <span>{lang === 'cn' ? '清除基准图并重新拍摄' : 'Clear baseline and recapture'}</span>
+            <span>{t.clearBaselineRecapture}</span>
           </button>
         </div>
 

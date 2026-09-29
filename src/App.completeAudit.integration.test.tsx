@@ -95,7 +95,7 @@ vi.mock('./hooks/usePWAInstall', () => ({
 }));
 
 vi.mock('./lib/storage', () => ({
-  loadSavedLanguage: vi.fn(async () => 'cn'),
+  loadSavedLanguage: vi.fn(async () => 'it'),
   saveLanguage: vi.fn(),
   loadSavedTolerance: vi.fn(async () => 50),
   saveTolerance: vi.fn(),
@@ -148,19 +148,19 @@ describe('App complete audit integration (RSLT-06, D-26)', () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByRole('tab', {name: getShelfLabel('cn', 2)})).toHaveAttribute(
+    expect(screen.getByRole('tab', {name: getShelfLabel('it', 2)})).toHaveAttribute(
       'aria-current',
       'true',
     );
 
-    await user.click(screen.getByLabelText(I18N.cn.captureScan));
+    await user.click(screen.getByLabelText(I18N.it.captureScan));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1200);
       await Promise.resolve();
     });
 
-    expect(screen.getByText('确认并完成巡检')).toBeInTheDocument();
+    expect(screen.getByText("Conferma e concludi l'ispezione")).toBeInTheDocument();
     expect(screen.queryByText('Faint shadow')).toBeNull();
 
     const dismissTarget = screen
@@ -172,7 +172,7 @@ describe('App complete audit integration (RSLT-06, D-26)', () => {
       await vi.advanceTimersByTimeAsync(220);
     });
 
-    await user.click(screen.getByText('确认并完成巡检'));
+    await user.click(screen.getByText("Conferma e concludi l'ispezione"));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(400);
@@ -196,7 +196,7 @@ describe('App complete audit integration (RSLT-06, D-26)', () => {
     await waitFor(() => {
       expect(screen.getByTestId('camera-view')).toBeInTheDocument();
     });
-    expect(screen.getByRole('tab', {name: getShelfLabel('cn', 2)})).toHaveAttribute(
+    expect(screen.getByRole('tab', {name: getShelfLabel('it', 2)})).toHaveAttribute(
       'aria-current',
       'true',
     );
@@ -212,14 +212,14 @@ describe('App complete audit integration (RSLT-06, D-26)', () => {
       await Promise.resolve();
     });
 
-    await user.click(screen.getByLabelText(I18N.cn.captureScan));
+    await user.click(screen.getByLabelText(I18N.it.captureScan));
 
     await act(async () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByText('分析失败，请重试拍摄')).toBeInTheDocument();
+    expect(screen.getByText('Analisi non riuscita, riprova lo scatto')).toBeInTheDocument();
     expect(screen.getByTestId('camera-view')).toBeInTheDocument();
-    expect(screen.queryByText('正在分析展架差异，请稍候...')).not.toBeInTheDocument();
+    expect(screen.queryByText('Analisi delle differenze in corso, attendere...')).not.toBeInTheDocument();
   });
 });

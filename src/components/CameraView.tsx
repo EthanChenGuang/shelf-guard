@@ -4,9 +4,12 @@ import {
   CheckCircle2,
   Flashlight,
   FlashlightOff,
+  History,
   Images,
   Aperture,
   Layers,
+  Maximize,
+  Minimize,
   RotateCcw,
   ScanLine,
   Sparkles,
@@ -20,6 +23,7 @@ import { I18N } from '../lib/constants';
 import { attachShelfSwipe } from '../lib/shelfSwipe';
 import { nextShelfIndex, prevShelfIndex, clampShelfIndex } from '../lib/shelfIndex';
 import { ShelfCarousel } from './ShelfCarousel';
+import { useFullscreen } from '../hooks/useFullscreen';
 
 const FOCUS_TAP_MAX_MOVE_PX = 12;
 
@@ -116,6 +120,8 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onCycleLens,
 }) => {
   const t = I18N[lang];
+  const fullscreen = useFullscreen();
+  const thumbnailSrc = lastAudit ? lastAudit.thumbnailUrl : baseline.imageDataUrl;
   const [flashVisible, setFlashVisible] = useState(false);
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nativeInputRef = useRef<HTMLInputElement>(null);
@@ -336,7 +342,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
       </div>
 
       {/* PRD 3-zone top bar (D-21, CAM-04) */}
-      <div className="relative z-20 px-4 pt-3 pb-1 grid grid-cols-3 items-center gap-2">
+      <div className="relative z-20 px-4 pt-3 pb-1 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
         <div className="justify-self-start min-w-0 max-w-[11rem]">
           <button
             type="button"
@@ -401,13 +407,26 @@ export const CameraView: React.FC<CameraViewProps> = ({
             </button>
           )}
 
+          {fullscreen.supported && (
+            <button
+              type="button"
+              data-testid="fullscreen-toggle"
+              onClick={fullscreen.toggle}
+              aria-label={fullscreen.isFullscreen ? t.exitFullscreen : t.enterFullscreen}
+              title={fullscreen.isFullscreen ? t.exitFullscreen : t.enterFullscreen}
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-sg-surface text-sg-success transition-colors hover:bg-sg-border/40"
+            >
+              {fullscreen.isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
+            </button>
+          )}
+
           <button
             type="button"
             data-testid="language-toggle"
             onClick={onLanguageToggle}
             className="flex h-7 items-center justify-center rounded-full bg-sg-surface px-2.5 font-mono-numbers text-[11px] font-bold text-sg-success transition-colors hover:bg-sg-border/40"
           >
-            {lang === 'cn' ? '中' : 'EN'}
+            {lang === 'it' ? 'IT' : 'EN'}
           </button>
         </div>
       </div>
@@ -670,15 +689,24 @@ export const CameraView: React.FC<CameraViewProps> = ({
               data-testid="last-inspection-thumbnail"
               className="h-12 w-12 overflow-hidden rounded-xl border border-sg-border bg-white/85 p-0.5 shadow-md backdrop-blur-xl transition-transform active:scale-95 hover:border-sg-success"
             >
-              <img
-                src={lastAudit ? lastAudit.thumbnailUrl : baseline.imageDataUrl}
-                alt={t.auditThumbnailAlt}
-                className="w-full h-full object-cover rounded-[10px]"
-              />
+              {thumbnailSrc ? (
+                <img
+                  src={thumbnailSrc}
+                  alt={t.auditThumbnailAlt}
+                  className="w-full h-full object-cover rounded-[10px]"
+                />
+              ) : (
+                // Nothing to show yet: no audit and no baseline photo.
+                <span className="flex h-full w-full items-center justify-center text-slate-500">
+                  <History className="h-5 w-5" />
+                </span>
+              )}
             </button>
-            <span className="absolute -bottom-2 bg-[#0F172A]/85 text-white font-mono-numbers text-[9px] px-1.5 py-0.2 rounded-full font-medium shadow-sm border border-white/10">
-              {lastAudit ? lastAudit.timeStr : '14:20'}
-            </span>
+            {lastAudit && (
+              <span className="absolute -bottom-2 bg-[#0F172A]/85 text-white font-mono-numbers text-[9px] px-1.5 py-0.2 rounded-full font-medium shadow-sm border border-white/10">
+                {lastAudit.timeStr}
+              </span>
+            )}
           </div>
           </div>
         </div>

@@ -5,6 +5,7 @@ import {clear} from 'idb-keyval';
 import App from './App';
 import type {ShelfCalibration} from './types';
 import {saveBaseline} from './lib/shelfStorage';
+import {I18N} from './lib/constants';
 
 const TEST_DATA_URL =
   'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA//2Q==';
@@ -188,9 +189,9 @@ describe('App skips the initial-guide tutorial (quick-260925 remove-initial-guid
     await waitForBaselineId('shelf0-baseline');
     expect(screen.queryByTestId('initial-guide')).not.toBeInTheDocument();
 
-    await user.click(screen.getByText('基准图 (已建立)'));
+    await user.click(screen.getByText(I18N.it.baselineEstablished));
 
-    await user.click(screen.getByText('清除基准图并重新拍摄'));
+    await user.click(screen.getByText('Cancella il riferimento e riscatta'));
 
     await waitFor(() => {
       expect(document.querySelector('video')).toBeInTheDocument();

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { clear, set } from 'idb-keyval';
-import { loadSavedMinConfidence, saveMinConfidence } from './storage';
+import { loadSavedLanguage, loadSavedMinConfidence, saveLanguage, saveMinConfidence } from './storage';
 
 describe('confidence threshold persistence', () => {
   beforeEach(async () => {
@@ -19,5 +19,25 @@ describe('confidence threshold persistence', () => {
   it.each([30, 120, 85.5, Number.NaN, '90'])('falls back to 85 for stored %s', async (value) => {
     await set('shelfguard_min_confidence', value);
     await expect(loadSavedMinConfidence()).resolves.toBe(85);
+  });
+});
+
+describe('language persistence', () => {
+  beforeEach(async () => {
+    await clear();
+  });
+
+  it('defaults to Italian when nothing is stored', async () => {
+    await expect(loadSavedLanguage()).resolves.toBe('it');
+  });
+
+  it('round-trips a saved language', async () => {
+    await saveLanguage('en');
+    await expect(loadSavedLanguage()).resolves.toBe('en');
+  });
+
+  it('turns a saved Chinese preference into Italian, which replaced it', async () => {
+    await set('shelfguard_lang', 'cn');
+    await expect(loadSavedLanguage()).resolves.toBe('it');
   });
 });

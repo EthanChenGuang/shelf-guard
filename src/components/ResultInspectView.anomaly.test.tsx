@@ -119,12 +119,12 @@ describe('ResultInspectView added items and confidence badges', () => {
     expect(screen.queryByText(/detected shift/)).not.toBeInTheDocument();
   });
 
-  it('localizes ADDED and MOVED badges in Chinese', () => {
-    render(<ResultInspectView {...addedProps} lang="cn" />);
+  it('localizes ADDED and MOVED badges in Italian', () => {
+    render(<ResultInspectView {...addedProps} lang="it" />);
 
-    expect(screen.getByText('新增 · 92%')).toBeInTheDocument();
-    expect(screen.getByText('移位 · 85%')).toBeInTheDocument();
-    expect(screen.getByText('1 处新增')).toBeInTheDocument();
+    expect(screen.getByText('Aggiunto · 92%')).toBeInTheDocument();
+    expect(screen.getByText('Spostato · 85%')).toBeInTheDocument();
+    expect(screen.getByText('1 Aggiunti')).toBeInTheDocument();
   });
 
   it('filters to ADDED boxes with the added chip and back to all on a second click', () => {
@@ -145,8 +145,8 @@ describe('ResultInspectView added items and confidence badges', () => {
     expect(screen.getByText('Zero Added')).toBeInTheDocument();
   });
 
-  it('reads 无新增 in Chinese when nothing was added', () => {
-    render(<ResultInspectView {...addedProps} addedCount={0} lang="cn" />);
-    expect(screen.getByText('无新增')).toBeInTheDocument();
+  it('reads Nessun aggiunto in Italian when nothing was added', () => {
+    render(<ResultInspectView {...addedProps} addedCount={0} lang="it" />);
+    expect(screen.getByText('Nessun aggiunto')).toBeInTheDocument();
   });
 });

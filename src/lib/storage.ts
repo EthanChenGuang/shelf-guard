@@ -18,12 +18,14 @@ function migrateLegacyTolerance(tol: ToleranceLevel): ToleranceValue {
 /** Global language preference — not shelf-scoped (D-09). */
 export async function loadSavedLanguage(): Promise<Language> {
   try {
-    const lang = await get<Language>(KEY_LANG);
-    if (lang === 'cn' || lang === 'en') return lang;
+    const lang = await get<string>(KEY_LANG);
+    if (lang === 'it' || lang === 'en') return lang;
+    // Chinese was replaced by Italian: a saved Chinese preference means "not English".
+    if (lang === 'cn') return 'it';
   } catch (err) {
     console.warn('Failed to load language setting:', err);
   }
-  return 'cn';
+  return 'it';
 }
 
 export async function saveLanguage(lang: Language): Promise<void> {

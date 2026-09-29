@@ -82,9 +82,9 @@ describe('ResultInspectView confidence threshold', () => {
   });
 
   it('labels the slider in Chinese', () => {
-    render(<ResultInspectView {...baseProps} lang="cn" />);
+    render(<ResultInspectView {...baseProps} lang="it" />);
 
-    expect(screen.getByRole('slider', { name: I18N.cn.confidenceThreshold })).toBeInTheDocument();
-    expect(screen.getByText(I18N.cn.confidenceThresholdHint)).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: I18N.it.confidenceThreshold })).toBeInTheDocument();
+    expect(screen.getByText(I18N.it.confidenceThresholdHint)).toBeInTheDocument();
   });
 });

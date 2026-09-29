@@ -38,7 +38,7 @@ vi.mock('./hooks/usePWAInstall', () => ({
 }));
 
 vi.mock('./lib/storage', () => ({
-  loadSavedLanguage: vi.fn(async () => 'cn'),
+  loadSavedLanguage: vi.fn(async () => 'it'),
   saveLanguage: vi.fn(),
   loadSavedTolerance: vi.fn(async () => 50),
   saveTolerance: vi.fn(),

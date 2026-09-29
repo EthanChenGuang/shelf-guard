@@ -5,7 +5,7 @@ import {DEFAULT_CALIBRATION} from '../lib/constants';
 
 const baseProps = {
   baseline: DEFAULT_CALIBRATION,
-  lang: 'cn' as const,
+  lang: 'it' as const,
   onLanguageToggle: vi.fn(),
   onShutterClick: vi.fn(),
   onOpenHistory: vi.fn(),
@@ -25,7 +25,7 @@ describe('CameraView error banner (CAM-08)', () => {
         cameraError="Permission denied by user"
       />,
     );
-    expect(screen.getByText('无法访问摄像头')).toBeInTheDocument();
+    expect(screen.getByText('Accesso alla fotocamera negato')).toBeInTheDocument();
     expect(screen.getByText(/Safari/)).toBeInTheDocument();
     expect(screen.getByText('Permission denied by user')).toBeInTheDocument();
   });
@@ -39,7 +39,7 @@ describe('CameraView error banner (CAM-08)', () => {
         onDismissCameraError={onDismiss}
       />,
     );
-    fireEvent.click(screen.getByLabelText('关闭'));
+    fireEvent.click(screen.getByLabelText('Chiudi'));
     expect(onDismiss).toHaveBeenCalledOnce();
   });
 
@@ -52,7 +52,7 @@ describe('CameraView error banner (CAM-08)', () => {
         onRetryCamera={onRetry}
       />,
     );
-    fireEvent.click(screen.getByText('重试摄像头'));
+    fireEvent.click(screen.getByText('Riprova fotocamera'));
     expect(onRetry).toHaveBeenCalledOnce();
   });
 });

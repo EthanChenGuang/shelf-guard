@@ -48,7 +48,7 @@ vi.mock('./hooks/usePWAInstall', () => ({
 }));
 
 vi.mock('./lib/storage', () => ({
-  loadSavedLanguage: vi.fn(async () => 'cn'),
+  loadSavedLanguage: vi.fn(async () => 'it'),
   saveLanguage: vi.fn(),
   loadSavedTolerance: vi.fn(async () => 50),
   saveTolerance: vi.fn(),
@@ -105,12 +105,12 @@ describe('App first-baseline integration (D-01)', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(screen.getByText(I18N.cn.baselineNotSet)).toBeInTheDocument();
+    expect(screen.getByText(I18N.it.baselineNotSet)).toBeInTheDocument();
 
-    await user.click(screen.getByLabelText(I18N.cn.captureScan));
+    await user.click(screen.getByLabelText(I18N.it.captureScan));
 
     await waitFor(() => {
-      expect(screen.getByText(I18N.cn.baselineEstablished)).toBeInTheDocument();
+      expect(screen.getByText(I18N.it.baselineEstablished)).toBeInTheDocument();
     });
     expect(saveBaseline).toHaveBeenCalledTimes(1);
     const [shelfId, saved] = vi.mocked(saveBaseline).mock.calls[0];
@@ -120,11 +120,11 @@ describe('App first-baseline integration (D-01)', () => {
       imageDimensions: {width: 1080, height: 1920},
     });
     expect(saved).not.toHaveProperty('splitYPercentages');
-    expect(screen.getByLabelText(I18N.cn.captureScan)).toBeInTheDocument();
+    expect(screen.getByLabelText(I18N.it.captureScan)).toBeInTheDocument();
     expect(analyzeShelfCapture).not.toHaveBeenCalled();
     expect(
-      screen.queryByText('正在进行透视配准与差分分析...'),
+      screen.queryByText('Allineamento e analisi delle differenze in corso...'),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText('正在分析展架差异，请稍候...')).not.toBeInTheDocument();
+    expect(screen.queryByText('Analisi delle differenze in corso, attendere...')).not.toBeInTheDocument();
   });
 });

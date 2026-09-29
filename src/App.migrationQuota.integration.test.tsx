@@ -54,9 +54,9 @@ describe('App migration quota banner (D-20)', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
-      expect(screen.getByText('本地存储空间已满')).toBeInTheDocument();
+      expect(screen.getByText('Memoria locale piena')).toBeInTheDocument();
       expect(
-        screen.getByText('请先在其它货架完成巡检，或清除部分历史记录后再试。'),
+        screen.getByText('Completa le ispezioni su altri scaffali o cancella parte dello storico, poi riprova.'),
       ).toBeInTheDocument();
     });
 

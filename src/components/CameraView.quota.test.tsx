@@ -5,7 +5,7 @@ import {DEFAULT_CALIBRATION} from '../lib/constants';
 
 const baseProps = {
   baseline: DEFAULT_CALIBRATION,
-  lang: 'cn' as const,
+  lang: 'it' as const,
   onLanguageToggle: vi.fn(),
   onShutterClick: vi.fn(),
   onOpenHistory: vi.fn(),
@@ -20,9 +20,9 @@ const baseProps = {
 describe('CameraView quota banner (DATA-04)', () => {
   it('renders quotaExceededTitle and quotaExceededGuide when quotaError is true', () => {
     render(<CameraView {...baseProps} quotaError />);
-    expect(screen.getByText('本地存储空间已满')).toBeInTheDocument();
+    expect(screen.getByText('Memoria locale piena')).toBeInTheDocument();
     expect(
-      screen.getByText('请先在其它货架完成巡检，或清除部分历史记录后再试。'),
+      screen.getByText('Completa le ispezioni su altri scaffali o cancella parte dello storico, poi riprova.'),
     ).toBeInTheDocument();
   });
 
@@ -35,7 +35,7 @@ describe('CameraView quota banner (DATA-04)', () => {
         onDismissQuotaError={onDismiss}
       />,
     );
-    fireEvent.click(screen.getByLabelText('关闭'));
+    fireEvent.click(screen.getByLabelText('Chiudi'));
     expect(onDismiss).toHaveBeenCalledOnce();
   });
 });

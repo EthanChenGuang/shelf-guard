@@ -5,7 +5,7 @@ import { DEFAULT_CALIBRATION } from '../lib/constants';
 
 const baseProps = {
   baseline: DEFAULT_CALIBRATION,
-  lang: 'cn' as const,
+  lang: 'it' as const,
   onLanguageToggle: vi.fn(),
   onShutterClick: vi.fn(),
   onOpenHistory: vi.fn(),

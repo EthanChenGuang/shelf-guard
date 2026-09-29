@@ -213,9 +213,9 @@ describe('App shelf isolation integration (D-16, SHLF-02, SHLF-04)', () => {
     await user.click(getShelfDot(1));
     await waitForBaselineId('shelf1-test');
 
-    await user.click(screen.getByLabelText(I18N.cn.viewPreviousAudit));
+    await user.click(screen.getByLabelText(I18N.it.viewPreviousAudit));
 
-    expect(screen.getByText('暂无历史巡检记录')).toBeInTheDocument();
+    expect(screen.getByText('Nessuna ispezione registrata')).toBeInTheDocument();
     expect(screen.queryByText('shelf0-only')).not.toBeInTheDocument();
   });
 

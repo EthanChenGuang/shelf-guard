@@ -2,7 +2,7 @@
   "id": "/",
   "name": "ShelfGuard PWA",
   "short_name": "ShelfGuard",
-  "description": "跨平台展架陈列变动即时巡检应用 - Instant Retail Shelf & Planogram Inspection PWA",
+  "description": "Ispezione istantanea degli scaffali - Instant Retail Shelf & Planogram Inspection PWA",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
