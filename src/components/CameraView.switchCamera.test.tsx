@@ -15,8 +15,6 @@ const baseProps = {
   isTorchOn: false,
   onToggleTorch: vi.fn(),
   videoRef: { current: null },
-  ghostOpacity: 45,
-  onGhostOpacityChange: vi.fn(),
 };
 
 describe('CameraView switch-camera control (quick-260925 wide-angle lens switching)', () => {

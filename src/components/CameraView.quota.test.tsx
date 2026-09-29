@@ -15,8 +15,6 @@ const baseProps = {
   isTorchOn: false,
   onToggleTorch: vi.fn(),
   videoRef: {current: null},
-  ghostOpacity: 45,
-  onGhostOpacityChange: vi.fn(),
 };
 
 describe('CameraView quota banner (DATA-04)', () => {

@@ -39,8 +39,8 @@ function detect(cv: CV, gray: Mat, scale: number) {
   return { kps, des };
 }
 
-/** Capture-to-baseline homography; `areaRange` bounds how much of the baseline the capture may cover. */
-function estimateHomography(cv: CV, baseGray: Mat, capGray: Mat, areaRange: [number, number] = [0.5, 2]): Mat | null {
+/** Capture-to-baseline homography, or null when the two photos cannot be matched. */
+function estimateHomography(cv: CV, baseGray: Mat, capGray: Mat): Mat | null {
   const scale = Math.min(1, FEATURE_LONG_EDGE / Math.max(baseGray.cols, baseGray.rows));
   const b = detect(cv, baseGray, scale);
   const c = detect(cv, capGray, scale);
@@ -76,7 +76,7 @@ function estimateHomography(cv: CV, baseGray: Mat, capGray: Mat, areaRange: [num
         return null;
       }
       const inliers = cv.countNonZero(inlierMask);
-      if (inliers < MIN_INLIERS || inliers / count < MIN_INLIER_RATIO || !isPlausible(H, capGray, baseGray, areaRange)) {
+      if (inliers < MIN_INLIERS || inliers / count < MIN_INLIER_RATIO || !isPlausible(H, capGray, baseGray)) {
         H.delete();
         return null;
       }
@@ -97,7 +97,7 @@ function estimateHomography(cv: CV, baseGray: Mat, capGray: Mat, areaRange: [num
 }
 
 /** Reject degenerate warps: the capture's corners must map to a convex quad of plausible size. */
-function isPlausible(H: Mat, capGray: Mat, baseGray: Mat, areaRange: [number, number]): boolean {
+function isPlausible(H: Mat, capGray: Mat, baseGray: Mat): boolean {
   const h = H.data64F;
   const w = capGray.cols;
   const ht = capGray.rows;
@@ -126,35 +126,7 @@ function isPlausible(H: Mat, capGray: Mat, baseGray: Mat, areaRange: [number, nu
     }
   }
   const ratio = Math.abs(area / 2) / (baseGray.cols * baseGray.rows);
-  return ratio > areaRange[0] && ratio < areaRange[1];
-}
-
-/** The live preview may use a narrower or wider lens than the baseline photo. */
-const GHOST_AREA_RANGE: [number, number] = [0.04, 4];
-
-/**
- * Where the baseline sits in a live preview frame: a row-major 3x3 homography taking baseline
- * coordinates in [0,1]² to frame coordinates in [0,1]², or null when the frame can't be matched.
- */
-export function fitGhostHomography(cv: CV, baseGray: Mat, frameGray: Mat): number[] | null {
-  const frameToBase = estimateHomography(cv, baseGray, frameGray, GHOST_AREA_RANGE);
-  if (!frameToBase) return null;
-  const baseToFrame = new cv.Mat();
-  try {
-    cv.invert(frameToBase, baseToFrame, cv.DECOMP_SVD);
-    const h = Array.from(baseToFrame.data64F);
-    const [bw, bh, fw, fh] = [baseGray.cols, baseGray.rows, frameGray.cols, frameGray.rows];
-    // diag(1/fw, 1/fh, 1) · H · diag(bw, bh, 1)
-    const n = [
-      (h[0] * bw) / fw, (h[1] * bh) / fw, h[2] / fw,
-      (h[3] * bw) / fh, (h[4] * bh) / fh, h[5] / fh,
-      h[6] * bw, h[7] * bh, h[8],
-    ];
-    return n.map((v) => v / n[8]);
-  } finally {
-    frameToBase.delete();
-    baseToFrame.delete();
-  }
+  return ratio > 0.5 && ratio < 2;
 }
 
 const PHOTOMETRY_KNOTS = [0.02, 0.1, 0.25, 0.5, 0.75, 0.9, 0.98];

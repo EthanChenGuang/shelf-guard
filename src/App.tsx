@@ -67,8 +67,6 @@ export default function App() {
   const [hasPersistedBaseline, setHasPersistedBaseline] = useState<boolean>(false);
   // Language
   const [lang, setLang] = useState<Language>('cn');
-  // Ghost opacity (0 - 100)
-  const [ghostOpacity, setGhostOpacity] = useState<number>(45);
   // Tolerance slider 0–100 (D-11)
   const [tolerance, setTolerance] = useState<ToleranceValue>(50);
 
@@ -542,8 +540,6 @@ export default function App() {
           onDismissOrientationError={() => setOrientationDismissed(true)}
           hasSensor={hasSensor}
           videoRef={videoRef}
-          ghostOpacity={ghostOpacity}
-          onGhostOpacityChange={setGhostOpacity}
           onInstallPwa={install}
           isInstallable={isInstallable}
         />

@@ -16,8 +16,6 @@ const baseProps = {
   isTorchOn: false,
   onToggleTorch: vi.fn(),
   videoRef: { current: null },
-  ghostOpacity: 45,
-  onGhostOpacityChange: vi.fn(),
 };
 
 describe('CameraView orientation banner (CAM-07)', () => {

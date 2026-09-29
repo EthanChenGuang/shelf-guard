@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Camera,
   CheckCircle2,
@@ -12,16 +12,12 @@ import {
   Sparkles,
   SwitchCamera,
   AlertCircle,
-  ChevronDown,
-  ChevronUp,
   X,
 } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Language, ShelfCalibration, AuditRecord } from '../types';
 import { I18N } from '../lib/constants';
 import { attachShelfSwipe } from '../lib/shelfSwipe';
-import { ghostMatrix, toCssMatrix3d } from '../lib/ghostFit';
-import { useGhostFit } from '../hooks/useGhostFit';
 import { nextShelfIndex, prevShelfIndex, clampShelfIndex } from '../lib/shelfIndex';
 import { ShelfCarousel } from './ShelfCarousel';
 
@@ -47,8 +43,6 @@ interface CameraViewProps {
   onFocusPointChange?: (x: number, y: number) => void;
   isShutterLocked?: boolean;
   videoRef: React.Ref<HTMLVideoElement | null>;
-  ghostOpacity: number;
-  onGhostOpacityChange: (val: number) => void;
   onInstallPwa?: () => void;
   isInstallable?: boolean;
   cameraError?: string | null;
@@ -98,8 +92,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onFocusPointChange,
   isShutterLocked = false,
   videoRef,
-  ghostOpacity,
-  onGhostOpacityChange,
   cameraError,
   onRetryCamera,
   onDismissCameraError,
@@ -128,65 +120,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nativeInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
-  const showGhost = hasPersistedBaseline && !!baseline.imageDataUrl;
-  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
-  const attachVideo = useCallback(
-    (node: HTMLVideoElement | null) => {
-      setVideoEl(node);
-      if (typeof videoRef === 'function') videoRef(node);
-      else if (videoRef) (videoRef as React.MutableRefObject<HTMLVideoElement | null>).current = node;
-    },
-    [videoRef],
-  );
-  const ghostFit = useGhostFit(videoEl, baseline.imageDataUrl, showGhost);
-  const ghostTransform =
-    ghostFit && videoEl && videoEl.videoWidth > 0 && videoEl.clientWidth > 0
-      ? toCssMatrix3d(
-          ghostMatrix(
-            ghostFit,
-            baseline.imageDimensions,
-            { width: videoEl.videoWidth, height: videoEl.videoHeight },
-            { width: videoEl.clientWidth, height: videoEl.clientHeight },
-          ),
-        )
-      : null;
-  const ghostSliderRef = useRef<HTMLDivElement>(null);
-  const ghostValueTrackRef = useRef<HTMLDivElement>(null);
-  const ghostDragRef = useRef(false);
-
-  const setGhostFromClientY = useCallback(
-    (clientY: number) => {
-      const track = ghostValueTrackRef.current;
-      if (!track) return;
-      const rect = track.getBoundingClientRect();
-      if (rect.height <= 0) return;
-      const ratio = (clientY - rect.top) / rect.height;
-      const next = Math.round((1 - Math.min(1, Math.max(0, ratio))) * 100);
-      onGhostOpacityChange(next);
-    },
-    [onGhostOpacityChange],
-  );
-
-  useEffect(() => {
-    if (!showGhost) return;
-
-    const onPointerMove = (e: PointerEvent) => {
-      if (!ghostDragRef.current) return;
-      setGhostFromClientY(e.clientY);
-    };
-    const endDrag = () => {
-      ghostDragRef.current = false;
-    };
-
-    document.addEventListener('pointermove', onPointerMove);
-    document.addEventListener('pointerup', endDrag);
-    document.addEventListener('pointercancel', endDrag);
-    return () => {
-      document.removeEventListener('pointermove', onPointerMove);
-      document.removeEventListener('pointerup', endDrag);
-      document.removeEventListener('pointercancel', endDrag);
-    };
-  }, [showGhost, setGhostFromClientY]);
   const displayTilt = orientationDenied ? 0 : tilt;
   const displayIsLevel = orientationDenied ? false : isLevel;
   const showSimulateToggle =
@@ -292,43 +225,12 @@ export const CameraView: React.FC<CameraViewProps> = ({
             transition={feedTransition}
           >
             <video
-              ref={attachVideo}
+              ref={videoRef}
               autoPlay
               playsInline
               muted
               className="w-full h-full object-cover object-center pointer-events-none"
             />
-
-            {showGhost && (
-              <div
-                data-testid="ghost-overlay"
-                data-fit={ghostTransform ? 'matched' : 'full-frame'}
-                className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none mix-blend-screen transition-opacity duration-150"
-                style={{ opacity: ghostOpacity / 100 }}
-              >
-                {ghostTransform ? (
-                  // Placed where the baseline appears in the live view, whatever lens the preview uses.
-                  <img
-                    src={baseline.imageDataUrl}
-                    alt={t.baselineGhostAlt}
-                    className="absolute left-0 top-0 max-w-none filter contrast-125 brightness-110 transition-transform duration-300"
-                    style={{
-                      width: baseline.imageDimensions.width,
-                      height: baseline.imageDimensions.height,
-                      transformOrigin: '0 0',
-                      transform: ghostTransform,
-                    }}
-                  />
-                ) : (
-                  <img
-                    src={baseline.imageDataUrl}
-                    alt={t.baselineGhostAlt}
-                    className="w-full h-full object-cover object-center filter contrast-125 brightness-110"
-                  />
-                )}
-                <div className="absolute inset-0 bg-emerald-500/10 mix-blend-overlay" />
-              </div>
-            )}
 
             <div className="absolute inset-0 bg-gradient-to-b from-[#0F172A]/70 via-transparent to-[#0F172A]/85 pointer-events-none" />
           </motion.div>
@@ -523,100 +425,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
           </div>
 
         </div>
-      )}
-
-      {/* RIGHT EDGE VERTICAL SLIDER (GHOST TRANSPARENCY) */}
-      {showGhost && (
-      <div
-        ref={ghostSliderRef}
-        role="slider"
-        aria-label={t.ghostOpacity}
-        aria-orientation="vertical"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={ghostOpacity}
-        tabIndex={0}
-        data-testid="ghost-opacity-slider"
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
-            e.preventDefault();
-            onGhostOpacityChange(Math.min(100, ghostOpacity + 5));
-          } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
-            e.preventDefault();
-            onGhostOpacityChange(Math.max(0, ghostOpacity - 5));
-          }
-        }}
-        className="absolute right-3 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center bg-white/85 backdrop-blur-xl px-1.5 py-3.5 rounded-full shadow-lg border border-slate-200/70 touch-none"
-      >
-        <button
-          type="button"
-          aria-label={`${t.ghost} +10`}
-          className="mb-0.5 flex h-8 w-10 items-center justify-center rounded-full text-slate-700 active:bg-slate-200/80"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onGhostOpacityChange(Math.min(100, ghostOpacity + 10));
-          }}
-        >
-          <ChevronUp className="h-4 w-4" />
-        </button>
-
-        <div className="relative flex w-12 flex-col items-center justify-between py-1">
-          <span className="pointer-events-none font-mono-numbers text-[9px] text-slate-400 uppercase font-semibold">100</span>
-
-          <div
-            ref={ghostValueTrackRef}
-            data-testid="ghost-opacity-track"
-            className="relative flex h-36 w-12 touch-none items-center justify-center"
-            onPointerDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              ghostDragRef.current = true;
-              setGhostFromClientY(e.clientY);
-            }}
-          >
-            <div className="pointer-events-none relative h-full w-2 overflow-hidden rounded-full bg-slate-200">
-              <div
-                className="absolute bottom-0 w-full rounded-full bg-[#10B981]"
-                style={{ height: `${ghostOpacity}%` }}
-              />
-            </div>
-            <div
-              className="pointer-events-none absolute left-1/2 h-4 w-4 -translate-x-1/2 rounded-full border-2 border-white bg-[#10B981] shadow-md"
-              style={{ bottom: `calc(${ghostOpacity}% - 8px)` }}
-            />
-          </div>
-
-          <span className="pointer-events-none font-mono-numbers text-[9px] text-slate-400 uppercase font-semibold">0</span>
-        </div>
-
-        <button
-          type="button"
-          aria-label={`${t.ghost} -10`}
-          className="mt-0.5 flex h-8 w-10 items-center justify-center rounded-full text-slate-700 active:bg-slate-200/80"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onGhostOpacityChange(Math.max(0, ghostOpacity - 10));
-          }}
-        >
-          <ChevronDown className="h-4 w-4" />
-        </button>
-
-        <div className="mt-1 text-center">
-          <span className="font-mono-numbers text-[10px] text-[#006C49] font-bold block">
-            {ghostOpacity}%
-          </span>
-          <span className="font-mono-numbers text-[8px] text-slate-400 uppercase tracking-tighter block">
-            {t.ghost}
-          </span>
-          {ghostTransform && (
-            <span data-testid="ghost-matched" className="mt-0.5 block text-[8px] font-semibold text-[#006C49]">
-              {t.ghostMatched}
-            </span>
-          )}
-        </div>
-      </div>
       )}
 
       {/* BOTTOM CONTROL AREA */}

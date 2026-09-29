@@ -15,8 +15,6 @@ const baseProps = {
   isTorchOn: false,
   onToggleTorch: vi.fn(),
   videoRef: { current: null },
-  ghostOpacity: 45,
-  onGhostOpacityChange: vi.fn(),
 };
 
 function makePointerEvent(type: string, clientX: number, clientY: number) {

@@ -55,8 +55,8 @@ export const ResetBaselineModal: React.FC<ResetBaselineModalProps> = ({
 
         <p className="text-xs text-slate-600 leading-relaxed">
           {lang === 'cn'
-            ? '当前基准图用于每次巡检时的幽灵覆层透视配准与整图差分比对。您可以上传新拍摄的货架标准照。'
-            : 'The current baseline is used for ghost alignment and whole-photo differential inspection. You can upload a new photo.'}
+            ? '当前基准图用于每次巡检时的整图差分比对。您可以上传新拍摄的货架标准照。'
+            : 'The current baseline is used for whole-photo differential inspection. You can upload a new photo.'}
         </p>
 
         {/* Action Options */}
