@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  Maximize2,
   Gauge,
   Layers,
   RotateCw,
@@ -14,6 +15,8 @@ import {
   Sparkles,
   Touchpad,
   Volume2,
+  ZoomIn,
+  ZoomOut,
   AlertTriangle,
   X,
 } from 'lucide-react';
@@ -92,6 +95,9 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   const [animatingDismissIds, setAnimatingDismissIds] = useState<string[]>([]);
   // Export toast
   const [showExportToast, setShowExportToast] = useState(false);
+  // Full-screen inspection overlay and its zoom factor (1 = fit to screen width)
+  const [fullscreen, setFullscreen] = useState(false);
+  const [zoom, setZoom] = useState(1);
 
   const activeAnomalies = anomalies.filter(
     (a) =>
@@ -127,6 +133,60 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
     setShowExportToast(true);
     setTimeout(() => setShowExportToast(false), 2600);
   };
+
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+
+  const renderBoxes = () =>
+    !isBlinkingBaseline && showArLayers && (
+      <>
+        {activeAnomalies.map((item) => {
+          const styles = TYPE_STYLES[item.type];
+          return (
+            <div
+              key={item.id}
+              className={`ar-box absolute rounded-xl transition-all duration-200 ${styles.box}`}
+              style={{
+                top: `${item.boundingBox.y * 100}%`,
+                left: `${item.boundingBox.x * 100}%`,
+                width: `${item.boundingBox.width * 100}%`,
+                height: `${item.boundingBox.height * 100}%`,
+              }}
+              onClick={(e) => handleDismiss(item.id, e)}
+            >
+              {/* Label above the box: colored text only */}
+              <div
+                className={`absolute -top-5 left-0 flex items-center gap-1 whitespace-nowrap font-mono-numbers text-[11px] font-bold ${styles.badge}`}
+                style={LABEL_HALO}
+                title={item.title}
+              >
+                <span>
+                  {`${badgeLabels[item.type]} · ${(
+                    ((item.score ?? item.confidence ?? 0) * 100)
+                  ).toFixed(0)}%`}
+                </span>
+                <button onClick={(e) => handleDismiss(item.id, e)} className="hover:opacity-80">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </>
+    );
+
+  const holdHandlers = {
+    onContextMenu: (e: React.SyntheticEvent) => e.preventDefault(),
+    onMouseDown: () => setIsBlinkingBaseline(true),
+    onMouseUp: () => setIsBlinkingBaseline(false),
+    onMouseLeave: () => setIsBlinkingBaseline(false),
+    onTouchStart: () => setIsBlinkingBaseline(true),
+    onTouchEnd: () => setIsBlinkingBaseline(false),
+    onTouchCancel: () => setIsBlinkingBaseline(false),
+  };
+
+  const ZOOM_MAX = 4;
+  const changeZoom = (delta: number) =>
+    setZoom((z) => Math.min(ZOOM_MAX, Math.max(1, +(z + delta).toFixed(2))));
 
   return (
     <div className="relative w-full min-h-[100dvh] bg-sg-surface flex flex-col justify-between overflow-x-hidden select-none">
@@ -230,13 +290,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
         className="relative mx-auto overflow-hidden bg-slate-900 cursor-pointer select-none [-webkit-touch-callout:none]"
         style={frameBoxStyle(baseline.imageDimensions, '72vh')}
         // Long-press is the compare gesture; the browser's image menu must not take it over.
-        onContextMenu={(e) => e.preventDefault()}
-        onMouseDown={() => setIsBlinkingBaseline(true)}
-        onMouseUp={() => setIsBlinkingBaseline(false)}
-        onMouseLeave={() => setIsBlinkingBaseline(false)}
-        onTouchStart={() => setIsBlinkingBaseline(true)}
-        onTouchEnd={() => setIsBlinkingBaseline(false)}
-        onTouchCancel={() => setIsBlinkingBaseline(false)}
+        {...holdHandlers}
       >
         {/* Inspection Still Photo or Baseline when blinking */}
         <img
@@ -246,52 +300,26 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
           className="w-full h-full object-fill pointer-events-none"
         />
 
-        {/* AR Bounding Boxes (Hidden during Blink Compare or if layers toggled off) */}
-        {!isBlinkingBaseline && showArLayers && (
-          <>
-            {activeAnomalies.map((item) => {
-              const styles = TYPE_STYLES[item.type];
-              const top = item.boundingBox.y * 100;
-              const left = item.boundingBox.x * 100;
-              const width = item.boundingBox.width * 100;
-              const height = item.boundingBox.height * 100;
+        {renderBoxes()}
 
-              return (
-                <div
-                  key={item.id}
-                  className={`ar-box absolute rounded-xl transition-all duration-200 ${styles.box}`}
-                  style={{
-                    top: `${top}%`,
-                    left: `${left}%`,
-                    width: `${width}%`,
-                    height: `${height}%`,
-                  }}
-                  onClick={(e) => handleDismiss(item.id, e)}
-                >
-                  {/* Label above the box: colored text only */}
-                  <div
-                    className={`absolute -top-5 left-0 flex items-center gap-1 whitespace-nowrap font-mono-numbers text-[11px] font-bold ${styles.badge}`}
-                    style={LABEL_HALO}
-                    title={item.title}
-                  >
-                    <span>
-                      {`${badgeLabels[item.type]} · ${(
-                        ((item.score ?? item.confidence ?? 0) * 100)
-                      ).toFixed(0)}%`}
-                    </span>
-                    <button
-                      onClick={(e) => handleDismiss(item.id, e)}
-                      className="hover:opacity-80"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </>
-        )}
-
+        {/* Expand to full screen */}
+        <button
+          type="button"
+          aria-label={t.expandPhoto}
+          title={t.expandPhoto}
+          onClick={() => {
+            setIsBlinkingBaseline(false);
+            setZoom(1);
+            setFullscreen(true);
+          }}
+          onMouseDown={stop}
+          onMouseUp={stop}
+          onTouchStart={stop}
+          onTouchEnd={stop}
+          className="absolute top-2 right-2 z-10 w-9 h-9 rounded-full bg-black/55 text-white flex items-center justify-center active:scale-95 transition-transform"
+        >
+          <Maximize2 className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Compare hint below the photo, so nothing covers it; shows the baseline state while held */}
@@ -413,6 +441,76 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Full-screen inspection: scroll to pan, +/- to zoom, long-press for the baseline */}
+      {fullscreen && (
+        <div className="fixed inset-0 z-[60] bg-black flex flex-col">
+          <div className="flex items-center justify-between px-3 py-2 text-white">
+            <span
+              className={`flex items-center gap-1.5 text-xs font-semibold ${
+                isBlinkingBaseline ? 'text-emerald-300' : 'text-white/80'
+              }`}
+            >
+              {isBlinkingBaseline ? (
+                <CheckCircle2 className="w-3.5 h-3.5" />
+              ) : (
+                <Eye className="w-3.5 h-3.5" />
+              )}
+              {isBlinkingBaseline ? t.goldenBaseline : t.pressHoldCompare}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                aria-label={t.zoomOut}
+                disabled={zoom <= 1}
+                onClick={() => changeZoom(-0.5)}
+                className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center disabled:opacity-40"
+              >
+                <ZoomOut className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                aria-label={t.zoomIn}
+                disabled={zoom >= ZOOM_MAX}
+                onClick={() => changeZoom(0.5)}
+                className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center disabled:opacity-40"
+              >
+                <ZoomIn className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                aria-label={t.closeFullscreen}
+                onClick={() => {
+                  setIsBlinkingBaseline(false);
+                  setFullscreen(false);
+                }}
+                className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-auto [-webkit-touch-callout:none]" {...holdHandlers}>
+            <div
+              className="relative mx-auto"
+              style={{
+                aspectRatio: `${baseline.imageDimensions.width / baseline.imageDimensions.height || 9 / 16}`,
+                width: `${zoom * 100}%`,
+                maxWidth: zoom === 1 ? 'calc((100dvh - 4rem) * var(--ar, 0.5625))' : undefined,
+                ['--ar' as string]: `${baseline.imageDimensions.width / baseline.imageDimensions.height || 9 / 16}`,
+              }}
+            >
+              <img
+                src={isBlinkingBaseline ? baseline.imageDataUrl : currentCaptureUrl}
+                alt="Shelf Inspection Fullscreen"
+                draggable={false}
+                className="w-full h-full object-fill pointer-events-none"
+              />
+              {renderBoxes()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Export Toast Notification */}
       {showExportToast && (
