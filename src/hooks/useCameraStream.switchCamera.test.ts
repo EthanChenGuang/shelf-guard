@@ -147,4 +147,49 @@ describe('useCameraStream switchCamera (front/rear facingMode)', () => {
     expect(lastVideo.deviceId).toBeUndefined();
     expect(result.current.facingMode).toBe('user');
   });
+
+  it('retries while the other camera is still being released (NotReadableError)', async () => {
+    const { getUserMedia } = stubNavigator('environment');
+    const { result } = renderHook(() => useCameraStream());
+    await act(async () => {
+      await result.current.startCamera();
+    });
+
+    const busy = Object.assign(new Error('Could not start video source'), { name: 'NotReadableError' });
+    getUserMedia.mockRejectedValueOnce(busy);
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        const switching = result.current.switchCamera();
+        await vi.advanceTimersByTimeAsync(300);
+        await switching;
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(result.current.cameraError).toBeNull();
+    expect(result.current.facingMode).toBe('user');
+  });
+
+  it('brings the previous camera back when the other one never opens', async () => {
+    const { getUserMedia } = stubNavigator('environment');
+    const { result } = renderHook(() => useCameraStream());
+    await act(async () => {
+      await result.current.startCamera();
+    });
+
+    getUserMedia.mockImplementation(async (constraints: { video?: { facingMode?: unknown } }) => {
+      const facing = constraints?.video?.facingMode as { exact?: string } | undefined;
+      if (facing?.exact === 'user') throw Object.assign(new Error('Overconstrained'), { name: 'OverconstrainedError' });
+      return makeStream('environment') as unknown as MediaStream;
+    });
+    await act(async () => {
+      await result.current.switchCamera();
+    });
+
+    expect(result.current.facingMode).toBe('environment');
+    expect(result.current.stream).not.toBeNull();
+    expect(result.current.cameraError).toBeNull();
+  });
 });

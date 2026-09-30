@@ -113,6 +113,26 @@ export function pickWideAngleDeviceId(devices: MediaDeviceInfo[]): string | null
   return ranked[0]?.deviceId ?? null;
 }
 
+/** Waits before each retry of a camera that is still busy (ms). */
+const CAMERA_BUSY_RETRY_DELAYS = [250, 500, 1000];
+
+/**
+ * Open a camera, retrying while it is busy. Android releases a stopped camera asynchronously, so
+ * opening the other one right after (a front/rear flip or a lens change) can fail with "Could not
+ * start video source" (NotReadableError) until the first is actually free.
+ */
+async function openCamera(constraints: MediaStreamConstraints): Promise<MediaStream> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (err) {
+      const busy = err instanceof Error && (err.name === 'NotReadableError' || err.name === 'AbortError');
+      if (!busy || attempt >= CAMERA_BUSY_RETRY_DELAYS.length) throw err;
+      await new Promise((resolve) => setTimeout(resolve, CAMERA_BUSY_RETRY_DELAYS[attempt]));
+    }
+  }
+}
+
 function buildDefaultVideoConstraints(facing: 'environment' | 'user'): MediaTrackConstraints {
   const base: MediaTrackConstraints = {
     facingMode: { ideal: facing },
@@ -278,6 +298,7 @@ export function useCameraStream() {
       try {
         if (streamRef.current) {
           streamRef.current.getTracks().forEach((t) => t.stop());
+          streamRef.current = null;
         }
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
           throw new Error('Camera API not available');
@@ -285,13 +306,13 @@ export function useCameraStream() {
 
         let mediaStream: MediaStream;
         try {
-          mediaStream = await navigator.mediaDevices.getUserMedia({
+          mediaStream = await openCamera({
             video: videoConstraints ?? buildDefaultVideoConstraints(facingModeRef.current),
             audio: false,
           });
         } catch (firstErr) {
           if (!videoConstraints && facingModeRef.current === 'environment') {
-            mediaStream = await navigator.mediaDevices.getUserMedia({
+            mediaStream = await openCamera({
               video: {
                 facingMode: { ideal: 'environment' },
                 width: { ideal: 1920 },
@@ -455,9 +476,11 @@ export function useCameraStream() {
     );
     if (ok) {
       setFacingMode(nextFacing);
-    } else {
-      facingModeRef.current = previousFacing;
+      return;
     }
+    // The old camera is already stopped: bring it back rather than leave a black preview.
+    facingModeRef.current = previousFacing;
+    await acquireStream(undefined, { preferWideLens: previousFacing === 'environment' });
   }, [acquireStream]);
 
   const backLenses = cameraDevices.filter((d) => !isLikelyFrontCamera(d));
