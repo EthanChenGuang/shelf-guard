@@ -60,9 +60,13 @@ export const INITIAL_MOCK_ANOMALIES: DetectedAnomaly[] = [
   },
 ];
 
+/** Brand name, the same in every language (page title, manifest, camera header). */
+export const APP_NAME = 'Online Market';
+
 export const I18N = {
   it: {
     appTitle: 'Online Market Ispezione Scaffali',
+    appSubtitle: 'Ispezione Scaffali',
     baselineEstablished: 'Riferimento pronto',
     baselineNotSet: 'Nessun riferimento',
     baselineTag: 'RIFERIMENTO',
@@ -154,6 +158,7 @@ export const I18N = {
   },
   cn: {
     appTitle: 'Online Market 展架即时巡检',
+    appSubtitle: '展架即时巡检',
     baselineEstablished: '基准图 (已建立)',
     baselineNotSet: '基准图 (未建立)',
     baselineTag: 'BASELINE',
@@ -242,6 +247,7 @@ export const I18N = {
   },
   en: {
     appTitle: 'Online Market Planogram Audit',
+    appSubtitle: 'Planogram Audit',
     baselineEstablished: 'Baseline (Set)',
     baselineNotSet: 'Baseline (Empty)',
     baselineTag: 'BASELINE',
