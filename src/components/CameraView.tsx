@@ -323,6 +323,31 @@ export const CameraView: React.FC<CameraViewProps> = ({
             <div className={`absolute bottom-1 left-1 border-b border-l ${orientationDenied ? 'border-slate-400/50' : displayIsLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
             <div className={`absolute bottom-1 right-1 border-b border-r ${orientationDenied ? 'border-slate-400/50' : displayIsLevel ? 'border-[#10B981]' : 'border-white/40'}`} />
 
+            {!showSimulateToggle && (
+              <div
+                data-testid="level-micro-badge"
+                className={`absolute -bottom-8 glass-panel flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 ${
+                  displayIsLevel ? 'bg-sg-success/10' : 'bg-sg-warning/10'
+                }`}
+              >
+                {displayIsLevel ? (
+                  <>
+                    <CheckCircle2 className="h-3 w-3 text-sg-success" />
+                    <span className="font-mono-numbers text-[10px] font-bold tracking-wide text-sg-success">
+                      0.0° {t.level}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="h-3 w-3 text-sg-warning" />
+                    <span className="font-mono-numbers text-[10px] font-semibold tracking-wide text-sg-warning">
+                      {displayTilt > 0 ? `+${displayTilt}°` : `${displayTilt}°`} {t.plumb}
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+
             {showSimulateToggle && (
               <button
                 onClick={onSimulateTiltToggle}
@@ -354,9 +379,10 @@ export const CameraView: React.FC<CameraViewProps> = ({
         </div>
       </div>
 
-      {/* PRD 3-zone top bar (D-21, CAM-04) */}
-      <div className="relative z-20 px-4 pt-3 pb-1 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-        <div className="justify-self-start min-w-0 max-w-[11rem]">
+      {/* Top bar: baseline status left, camera/app toggles right (D-21, CAM-04). The tilt reading
+          sits under the level crosshair, where long translations cannot crowd these pills. */}
+      <div className="relative z-20 px-4 pt-3 pb-1 flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
           <button
             type="button"
             data-testid="baseline-status-pill"
@@ -375,32 +401,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
           </button>
         </div>
 
-        <div className="justify-self-center">
-          <div
-            data-testid="level-micro-badge"
-            className={`glass-panel flex items-center gap-1 rounded-full px-2.5 py-1 ${
-              displayIsLevel ? 'bg-sg-success/10' : 'bg-sg-warning/10'
-            }`}
-          >
-            {displayIsLevel ? (
-              <>
-                <CheckCircle2 className="h-3 w-3 text-sg-success" />
-                <span className="font-mono-numbers text-[10px] font-bold tracking-wide text-sg-success">
-                  0.0° {t.level}
-                </span>
-              </>
-            ) : (
-              <>
-                <RotateCcw className="h-3 w-3 text-sg-warning" />
-                <span className="font-mono-numbers text-[10px] font-semibold tracking-wide text-sg-warning">
-                  {displayTilt > 0 ? `+${displayTilt}°` : `${displayTilt}°`} {t.plumb}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="justify-self-end flex items-center gap-1 glass-panel rounded-full p-1">
+        <div className="shrink-0 flex items-center gap-1 glass-panel rounded-full p-1">
           {hasTorch && (
             <button
               type="button"
