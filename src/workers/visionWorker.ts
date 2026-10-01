@@ -382,6 +382,94 @@ function colorTolerantDiff(cv: CV, base: Mat[], cap: Mat[], kernelSize: number):
   }
 }
 
+/** Window of the local texture-energy average, as a fraction of the short edge. */
+const TEXTURE_WINDOW_FRACTION = 0.03;
+/** Pre-blur so fine print, which resampling a re-shoot softens, carries no energy in either photo. */
+const TEXTURE_PRE_BLUR = 7;
+/** Keeps flat areas from turning sensor noise into large energy ratios. */
+const TEXTURE_ENERGY_OFFSET = 24;
+/** log(baseline / capture energy) from which detail counts as gone. */
+const VANISHED_MIN_LOG_RATIO = 0.6;
+/** Local mean color diff from which the tolerant diff already sees the change on its own. */
+const VANISHED_MAX_COLOR_DIFF = 17;
+/** Diff units per unit of log energy ratio: a busy object against a plain back reads ~1. */
+const VANISHED_DIFF_SCALE = 80;
+
+/** Local mean of |Sobel x| + |Sobel y| of the smoothed image over a window (float). */
+function textureEnergy(cv: CV, gray: Mat, window: number): Mat {
+  const smooth = new cv.Mat();
+  const gx = new cv.Mat();
+  const gy = new cv.Mat();
+  const out = new cv.Mat();
+  try {
+    cv.GaussianBlur(gray, smooth, new cv.Size(TEXTURE_PRE_BLUR, TEXTURE_PRE_BLUR), 0);
+    cv.Sobel(smooth, gx, cv.CV_32F, 1, 0, 3);
+    cv.Sobel(smooth, gy, cv.CV_32F, 0, 1, 3);
+    const x = gx.data32F;
+    const y = gy.data32F;
+    for (let i = 0; i < x.length; i += 1) x[i] = Math.abs(x[i]) + Math.abs(y[i]);
+    cv.boxFilter(gx, out, cv.CV_32F, new cv.Size(window, window));
+    return out;
+  } finally {
+    smooth.delete();
+    gx.delete();
+    gy.delete();
+  }
+}
+
+/**
+ * Raise `diff` where a detailed object vanished but the tolerant diff forgives it: a busy object
+ * taken away from a plain back leaves flat tones that lie inside the object's local min/max
+ * range. There the baseline shows an object and the local texture energy collapses by a large
+ * factor, which residual misalignment, noise and exposure do not cause (noise and parallax slivers
+ * add detail instead). Where the color diff already responds (e.g. a plain object now covering
+ * busy clutter) it is left to judge on its own. Only windows fully inside the overlap count, since
+ * the frame and overlap borders cut the energy off, and only object-sized patches survive.
+ */
+function addVanishedDetail(
+  cv: CV,
+  diff: Mat,
+  grayB: Mat,
+  grayC: Mat,
+  valid: Mat,
+  objectsB: Mat,
+  minDim: number,
+): void {
+  const window = oddKernel(minDim * TEXTURE_WINDOW_FRACTION);
+  const energyB = textureEnergy(cv, grayB, window);
+  const energyC = textureEnergy(cv, grayC, window);
+  const colorDiff = new cv.Mat();
+  const inner = new cv.Mat();
+  const vanished = new cv.Mat(diff.rows, diff.cols, cv.CV_8UC1, new cv.Scalar(0));
+  const border = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(window + 4, window + 4));
+  const objectSized = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(window, window));
+  try {
+    cv.blur(diff, colorDiff, new cv.Size(window, window));
+    cv.erode(valid, inner, border, new cv.Point(-1, -1), 1, cv.BORDER_CONSTANT, new cv.Scalar(0));
+    const eB = energyB.data32F;
+    const eC = energyC.data32F;
+    const d = colorDiff.data;
+    const m = inner.data;
+    const oB = objectsB.data32S;
+    const out = vanished.data;
+    for (let i = 0; i < out.length; i += 1) {
+      if (!m[i] || oB[i] === 0 || d[i] >= VANISHED_MAX_COLOR_DIFF) continue;
+      const r = Math.log((eB[i] + TEXTURE_ENERGY_OFFSET) / (eC[i] + TEXTURE_ENERGY_OFFSET));
+      if (r >= VANISHED_MIN_LOG_RATIO) out[i] = Math.min(255, r * VANISHED_DIFF_SCALE);
+    }
+    cv.morphologyEx(vanished, vanished, cv.MORPH_OPEN, objectSized);
+    cv.max(diff, vanished, diff);
+  } finally {
+    energyB.delete();
+    energyC.delete();
+    colorDiff.delete();
+    inner.delete();
+    vanished.delete();
+    border.delete();
+    objectSized.delete();
+  }
+}
+
 /** Per-channel mean color inside `mask` minus inside `ring`. */
 function colorRelation(cv: CV, planes: Mat[], mask: Mat, ring: Mat): number[] {
   return planes.map((plane) => (cv.mean(plane, mask)[0] ?? 0) - (cv.mean(plane, ring)[0] ?? 0));
@@ -675,6 +763,7 @@ function analyzeFrame(
     const captureObjects = objectMask(cv, planes.cap, lookup);
     cv.bitwise_and(captureObjects, alignment.valid, captureObjects);
     objectsC = labelObjects(cv, captureObjects);
+    addVanishedDetail(cv, diff, grayB, grayC, alignment.valid, objectsB.labels, minDim);
 
     const anomalies = diffRegions(
       cv,
