@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { CameraView } from './CameraView';
-import { DEFAULT_CALIBRATION, I18N } from '../lib/constants';
+import { APP_NAME, DEFAULT_CALIBRATION, I18N } from '../lib/constants';
 
 const baseProps = {
   baseline: DEFAULT_CALIBRATION,
@@ -36,6 +36,14 @@ describe('CameraView PRD top bar (CAM-04)', () => {
     expect(screen.getByTestId('baseline-status-pill')).toHaveTextContent(
       I18N.it.baselineNotSet,
     );
+  });
+
+  it('shows the app name with a translated subtitle', () => {
+    render(<CameraView {...baseProps} lang="cn" />);
+
+    const title = screen.getByTestId('app-title');
+    expect(title).toHaveTextContent(APP_NAME);
+    expect(title).toHaveTextContent(I18N.cn.appSubtitle);
   });
 
   it('renders IT on language toggle when lang is it', () => {

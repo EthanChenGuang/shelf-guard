@@ -499,7 +499,7 @@ export default function App() {
   const lastAudit = auditHistory.length > 0 ? auditHistory[0] : null;
 
   return (
-    <div className="w-full min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col items-center justify-center font-sans antialiased">
+    <div className="w-full min-h-[100dvh] bg-[#F8FAFC] text-[#0F172A] flex flex-col items-center justify-center font-sans antialiased">
       {/* 1. Camera Live View */}
       {appMode === 'CAMERA_IDLE' && (
         <CameraView

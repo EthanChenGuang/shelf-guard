@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Language, ShelfCalibration, AuditRecord } from '../types';
-import { I18N } from '../lib/constants';
+import { APP_NAME, I18N } from '../lib/constants';
 import { attachShelfSwipe } from '../lib/shelfSwipe';
 import { nextShelfIndex, prevShelfIndex, clampShelfIndex } from '../lib/shelfIndex';
 import { ShelfCarousel } from './ShelfCarousel';
@@ -379,69 +379,86 @@ export const CameraView: React.FC<CameraViewProps> = ({
         </div>
       </div>
 
-      {/* Top bar: baseline status left, camera/app toggles right (D-21, CAM-04). The tilt reading
-          sits under the level crosshair, where long translations cannot crowd these pills. */}
-      <div className="relative z-20 px-4 pt-3 pb-1 flex items-center justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <button
-            type="button"
-            data-testid="baseline-status-pill"
-            onClick={onResetBaselinePrompt}
-            className="glass-panel flex max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-sg-primary active:scale-95 transition-all hover:bg-white/90"
-          >
-            {hasPersistedBaseline && (
-              <span className="relative flex h-2 w-2 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sg-success opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-sg-success" />
-              </span>
-            )}
-            <span className="truncate text-[11px] font-semibold tracking-tight">
-              {hasPersistedBaseline ? t.baselineEstablished : t.baselineNotSet}
-            </span>
-          </button>
+      {/* Header: app title, clear of the status bar / notch, over the top bar. One flex child, so the
+          root's justify-between keeps both at the top. */}
+      <div className="relative z-20">
+        <div
+          data-testid="app-title"
+          className="relative z-20 flex items-center justify-center gap-2 px-4 pt-[max(0.75rem,env(safe-area-inset-top))]"
+        >
+          <img src="/icon.svg" alt="" className="h-6 w-6 shrink-0 rounded-md shadow-md ring-1 ring-white/20" />
+          <span className="truncate text-[15px] font-bold tracking-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">
+            {APP_NAME}
+          </span>
+          <span className="truncate text-[11px] font-medium text-white/75 drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
+            · {t.appSubtitle}
+          </span>
         </div>
 
-        <div className="shrink-0 flex items-center gap-1 glass-panel rounded-full p-1">
-          {hasTorch && (
+        {/* Top bar: baseline status left, camera/app toggles right (D-21, CAM-04). The tilt reading
+            sits under the level crosshair, where long translations cannot crowd these pills. */}
+        <div className="relative z-20 px-4 pt-2 pb-1 flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
             <button
               type="button"
-              onClick={onToggleTorch}
-              className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
-                isTorchOn
-                  ? 'bg-sg-success text-white shadow-sm'
-                  : 'text-sg-primary hover:bg-sg-surface'
-              }`}
-              title={isTorchOn ? t.torchOff : t.torchOn}
+              data-testid="baseline-status-pill"
+              onClick={onResetBaselinePrompt}
+              className="glass-panel flex max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-sg-primary active:scale-95 transition-all hover:bg-white/90"
             >
-              {isTorchOn ? (
-                <Flashlight className="h-3.5 w-3.5" />
-              ) : (
-                <FlashlightOff className="h-3.5 w-3.5 text-sg-secondary" />
+              {hasPersistedBaseline && (
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sg-success opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-sg-success" />
+                </span>
               )}
+              <span className="truncate text-[11px] font-semibold tracking-tight">
+                {hasPersistedBaseline ? t.baselineEstablished : t.baselineNotSet}
+              </span>
             </button>
-          )}
+          </div>
 
-          {fullscreen.supported && (
+          <div className="shrink-0 flex items-center gap-1 glass-panel rounded-full p-1">
+            {hasTorch && (
+              <button
+                type="button"
+                onClick={onToggleTorch}
+                className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                  isTorchOn
+                    ? 'bg-sg-success text-white shadow-sm'
+                    : 'text-sg-primary hover:bg-sg-surface'
+                }`}
+                title={isTorchOn ? t.torchOff : t.torchOn}
+              >
+                {isTorchOn ? (
+                  <Flashlight className="h-3.5 w-3.5" />
+                ) : (
+                  <FlashlightOff className="h-3.5 w-3.5 text-sg-secondary" />
+                )}
+              </button>
+            )}
+
+            {fullscreen.supported && (
+              <button
+                type="button"
+                data-testid="fullscreen-toggle"
+                onClick={fullscreen.toggle}
+                aria-label={fullscreen.isFullscreen ? t.exitFullscreen : t.enterFullscreen}
+                title={fullscreen.isFullscreen ? t.exitFullscreen : t.enterFullscreen}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-sg-surface text-sg-success transition-colors hover:bg-sg-border/40"
+              >
+                {fullscreen.isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
+              </button>
+            )}
+
             <button
               type="button"
-              data-testid="fullscreen-toggle"
-              onClick={fullscreen.toggle}
-              aria-label={fullscreen.isFullscreen ? t.exitFullscreen : t.enterFullscreen}
-              title={fullscreen.isFullscreen ? t.exitFullscreen : t.enterFullscreen}
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-sg-surface text-sg-success transition-colors hover:bg-sg-border/40"
+              data-testid="language-toggle"
+              onClick={onLanguageToggle}
+              className="flex h-7 items-center justify-center rounded-full bg-sg-surface px-2.5 font-mono-numbers text-[11px] font-bold text-sg-success transition-colors hover:bg-sg-border/40"
             >
-              {fullscreen.isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
+              {LANGUAGE_BADGE[lang]}
             </button>
-          )}
-
-          <button
-            type="button"
-            data-testid="language-toggle"
-            onClick={onLanguageToggle}
-            className="flex h-7 items-center justify-center rounded-full bg-sg-surface px-2.5 font-mono-numbers text-[11px] font-bold text-sg-success transition-colors hover:bg-sg-border/40"
-          >
-            {LANGUAGE_BADGE[lang]}
-          </button>
+          </div>
         </div>
       </div>
 
