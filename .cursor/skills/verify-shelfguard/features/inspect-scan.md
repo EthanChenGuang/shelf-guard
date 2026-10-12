@@ -8,7 +8,7 @@ Compares a new shelf photo against the saved baseline using the in-browser OpenC
 - `scan-progress` — scanning / processing overlays while the worker runs
 - `result-inspect` — **Risultato dell'ispezione** with **Conferma e concludi l'ispezione**
 - `result-inspect-zoom` — two-finger pinch zoom/pan **inline** on `[data-testid="inspect-image-viewport"]` (no fullscreen overlay or expand control). AR boxes transform with the photo. Long-press still blink-compares the baseline at the same zoom/pan. Rapid 1↔2 finger sequences must not toggle blink-compare or reset scale.
-- `result-inspect-hints` — first results view shows `[data-testid="inspect-pinch-hint"]` (two-finger pinch animation + **Pizzica con due dita per ingrandire**) and `[data-testid="inspect-hold-hint"]` (**Tieni premuto per vedere il riferimento**) as high-contrast pills over the photo. Both use `pointer-events: none`. Pinch hint fades after a few seconds or first interaction. `prefers-reduced-motion` disables motion.
+- `result-inspect-hints` — sequenced overlays on `[data-testid="inspect-image-viewport"]`: first `[data-testid="inspect-pinch-hint"]` (two-finger pinch animation + **Pizzica con due dita per ingrandire**), then `[data-testid="inspect-hold-hint"]` (finger press + progress ring + **Tieni premuto per vedere il riferimento**). They do not overlap. Both use `pointer-events: none`. Hold hint stays visible while zoomed. `prefers-reduced-motion` disables motion.
 - `layout-lock` — after portrait↔landscape rotation on capture and results, `scrollX === 0` and document width equals the viewport (no left white strip).
 
 ## How to get to it (user POV)
@@ -37,8 +37,8 @@ Preconditions:
 - **Zoomed blink-compare.** Long-press after pinch; `[data-showing-baseline="true"]` appears at the same `data-zoom-scale`.
 - **No flicker during pinch.** Rapid 1↔2 finger sequences: blink-state toggle count is 0 and scale does not reset to 1.
 - **No post-rotate offset.** On capture and results, after 390×844 ↔ 844×390 ↔ 932×430: `scrollX === 0`, `documentElement.scrollWidth <= innerWidth`.
-- **Gesture hints.** On first results view, both hints are visible with Italian copy and `pointer-events: none`. Capture `*-hints.png` plus animation frames `*-hints-frame-{0,1,2}.png` in portrait and landscape **before** pinch. After pinch the overlay is gone; long-press still blink-compares.
-- **Proof.** `inspect-scan-results-*.png`, `inspect-scan-*-hints.png`, `inspect-scan-*-hints-frame-*.png`, `inspect-scan-*-zoom.png`, `inspect-scan-*-zoom-blink.png`, `inspect-scan-zoom-overflow.txt`, `inspect-scan-rotate-*.png`, `inspect-scan.aria.txt`, `first-capture-comparison.txt`.
+- **Gesture hints.** Sequence pinch then hold (they must not overlap). Italian copy and `pointer-events: none`. Capture `*-pinch-hints.png` / `*-pinch-frame-{0,1,2}.png` then `*-hold-hints.png` / `*-hold-frame-{0,1,2}.png` in portrait and landscape **before** pinch-zoom. Hold hint remains while zoomed; long-press still blink-compares.
+- **Proof.** `inspect-scan-results-*.png`, `inspect-scan-*-pinch-hints.png`, `inspect-scan-*-pinch-frame-*.png`, `inspect-scan-*-hold-hints.png`, `inspect-scan-*-hold-frame-*.png`, `inspect-scan-*-zoom.png`, `inspect-scan-*-zoom-blink.png`, `inspect-scan-zoom-overflow.txt`, `inspect-scan-rotate-*.png`, `inspect-scan.aria.txt`, `first-capture-comparison.txt`.
 
 Command:
 

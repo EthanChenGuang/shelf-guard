@@ -175,26 +175,53 @@ describe('ResultInspectView inline pinch-zoom', () => {
     expect(screen.getByTestId('inspect-image-zoom-layer')).toBeInTheDocument();
   });
 
-  it('shows a non-blocking Italian pinch overlay and a high-contrast hold pill', () => {
+  it('shows a non-blocking Italian pinch overlay before the hold hint', () => {
     render(<ResultInspectView {...baseProps} lang="it" />);
     const pinch = screen.getByTestId('inspect-pinch-hint');
-    const hold = screen.getByTestId('inspect-hold-hint');
     expect(pinch.className).toContain('pointer-events-none');
-    expect(hold.className).toContain('pointer-events-none');
     expect(pinch).toHaveTextContent('Pizzica con due dita per ingrandire');
+    expect(screen.queryByTestId('inspect-hold-hint')).not.toBeInTheDocument();
+  });
+
+  it('sequences pinch then an animated hold hint', () => {
+    render(<ResultInspectView {...baseProps} lang="it" />);
+    expect(screen.getByTestId('inspect-pinch-hint')).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(5401);
+    });
+    expect(screen.queryByTestId('inspect-pinch-hint')).not.toBeInTheDocument();
+    const hold = screen.getByTestId('inspect-hold-hint');
+    expect(hold.className).toContain('pointer-events-none');
     expect(hold).toHaveTextContent('Tieni premuto per vedere il riferimento');
+    expect(screen.getByTestId('inspect-hold-graphic')).toBeInTheDocument();
     expect(hold.querySelector('.inspect-hint-pill')?.className).toMatch(/rounded-full/);
     expect(hold.querySelector('.inspect-hint-pill')?.className).toMatch(/bg-black/);
   });
 
-  it('fades the pinch hint after a few seconds without removing the hold pill', () => {
+  it('keeps the animated hold hint while zoomed', () => {
     render(<ResultInspectView {...baseProps} lang="it" />);
-    expect(screen.getByTestId('inspect-pinch-hint')).toBeInTheDocument();
     act(() => {
-      vi.advanceTimersByTime(8401);
+      vi.advanceTimersByTime(5401);
     });
-    expect(screen.queryByTestId('inspect-pinch-hint')).not.toBeInTheDocument();
-    expect(screen.getByTestId('inspect-hold-hint')).toBeInTheDocument();
+    const viewport = screen.getByTestId('inspect-image-viewport');
+    fireEvent.touchStart(viewport, {
+      touches: [
+        { identifier: 0, clientX: 100, clientY: 100 },
+        { identifier: 1, clientX: 100, clientY: 160 },
+      ],
+    });
+    fireEvent.touchMove(viewport, {
+      touches: [
+        { identifier: 0, clientX: 100, clientY: 40 },
+        { identifier: 1, clientX: 100, clientY: 220 },
+      ],
+    });
+    expect(Number(viewport.getAttribute('data-zoom-scale'))).toBeGreaterThan(1);
+    const hold = screen.getByTestId('inspect-hold-hint');
+    expect(hold).toBeInTheDocument();
+    expect(hold.className).toContain('z-[70]');
+    expect(hold.className).toContain('pointer-events-none');
+    expect(screen.getByTestId('inspect-hold-graphic')).toBeInTheDocument();
   });
 
   it('dismisses the pinch hint on first interaction without blocking later pinch zoom', () => {
@@ -211,6 +238,7 @@ describe('ResultInspectView inline pinch-zoom', () => {
       vi.advanceTimersByTime(400);
     });
     expect(screen.queryByTestId('inspect-pinch-hint')).not.toBeInTheDocument();
+    expect(screen.getByTestId('inspect-hold-hint')).toBeInTheDocument();
 
     fireEvent.touchMove(viewport, {
       touches: [
@@ -221,7 +249,7 @@ describe('ResultInspectView inline pinch-zoom', () => {
     expect(Number(viewport.getAttribute('data-zoom-scale'))).toBeGreaterThan(1);
   });
 
-  it('skips pinch motion when prefers-reduced-motion is set', () => {
+  it('skips pinch and hold motion when prefers-reduced-motion is set', () => {
     const original = window.matchMedia;
     window.matchMedia = ((query: string) =>
       ({
@@ -236,6 +264,10 @@ describe('ResultInspectView inline pinch-zoom', () => {
       })) as typeof window.matchMedia;
     render(<ResultInspectView {...baseProps} lang="it" />);
     expect(screen.getByTestId('inspect-pinch-hint').getAttribute('data-reduced-motion')).toBe('true');
+    act(() => {
+      vi.advanceTimersByTime(2001);
+    });
+    expect(screen.getByTestId('inspect-hold-hint').getAttribute('data-reduced-motion')).toBe('true');
     window.matchMedia = original;
   });
 });

@@ -40,9 +40,10 @@ interface ResultInspectViewProps {
   lang: Language;
 }
 
-const PINCH_HINT_MS = 8000;
-const PINCH_HINT_REDUCED_MS = 2200;
-const PINCH_HINT_FADE_MS = 400;
+const PINCH_HINT_MS = 5000;
+const PINCH_HINT_REDUCED_MS = 1600;
+const HINT_FADE_MS = 400;
+const HOLD_RING = 138.2;
 
 function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
@@ -57,6 +58,37 @@ const PinchHintGraphic: React.FC = () => (
     <g className="inspect-pinch-finger-b">
       <circle cx="60" cy="56" r="12" fill="white" stroke="#0F172A" strokeWidth="3" />
       <circle cx="60" cy="56" r="4.5" fill="#0F172A" />
+    </g>
+  </svg>
+);
+
+const HoldHintGraphic: React.FC = () => (
+  <svg
+    viewBox="0 0 88 88"
+    className="h-24 w-24 drop-shadow-[0_2px_10px_rgba(0,0,0,0.75)]"
+    data-testid="inspect-hold-graphic"
+    aria-hidden="true"
+  >
+    <g className="inspect-hold-ripple">
+      <circle cx="44" cy="44" r="20" fill="none" stroke="white" strokeWidth="2.5" />
+    </g>
+    <circle cx="44" cy="44" r="22" fill="none" stroke="white" strokeOpacity="0.3" strokeWidth="4" />
+    <circle
+      className="inspect-hold-progress"
+      cx="44"
+      cy="44"
+      r="22"
+      fill="none"
+      stroke="white"
+      strokeWidth="4"
+      strokeDasharray={HOLD_RING}
+      strokeDashoffset={HOLD_RING}
+      strokeLinecap="round"
+      transform="rotate(-90 44 44)"
+    />
+    <g className="inspect-hold-finger">
+      <circle cx="44" cy="44" r="12" fill="white" stroke="#0F172A" strokeWidth="3" />
+      <circle cx="44" cy="44" r="4.5" fill="#0F172A" />
     </g>
   </svg>
 );
@@ -92,7 +124,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
     return () => setInspectZoomed(false);
   }, [isZoomed]);
   const isBlinkingBaseline = hold.isBlinking;
-  const [pinchHintVisible, setPinchHintVisible] = useState(true);
+  const [hintPhase, setHintPhase] = useState<'pinch' | 'hold'>('pinch');
   const [pinchHintFading, setPinchHintFading] = useState(false);
   const pinchHintGoneRef = useRef(false);
   const pinchHintHideRef = useRef<number | null>(null);
@@ -104,13 +136,13 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
       if (pinchHintGoneRef.current) return;
       setPinchHintFading(true);
     }, showMs);
-    const hideId = window.setTimeout(() => {
+    const holdId = window.setTimeout(() => {
       pinchHintGoneRef.current = true;
-      setPinchHintVisible(false);
-    }, showMs + PINCH_HINT_FADE_MS);
+      setHintPhase('hold');
+    }, showMs + HINT_FADE_MS);
     return () => {
       window.clearTimeout(fadeId);
-      window.clearTimeout(hideId);
+      window.clearTimeout(holdId);
       if (pinchHintHideRef.current != null) window.clearTimeout(pinchHintHideRef.current);
     };
   }, []);
@@ -119,7 +151,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
     if (pinchHintGoneRef.current) return;
     pinchHintGoneRef.current = true;
     setPinchHintFading(true);
-    pinchHintHideRef.current = window.setTimeout(() => setPinchHintVisible(false), PINCH_HINT_FADE_MS);
+    pinchHintHideRef.current = window.setTimeout(() => setHintPhase('hold'), HINT_FADE_MS);
   };
 
   // State for filtering by anomaly type ('ALL' = show all)
@@ -339,7 +371,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
               showingBaseline={isBlinkingBaseline}
             />
           </div>
-          {pinchHintVisible && !isZoomed && (
+          {hintPhase === 'pinch' && (
             <div
               data-testid="inspect-pinch-hint"
               data-hint-fading={pinchHintFading ? 'true' : 'false'}
@@ -353,28 +385,33 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
               </span>
             </div>
           )}
-        </div>
-        <div
-          data-testid="inspect-hold-hint"
-          role="status"
-          className="absolute bottom-2 left-1/2 z-[21] flex max-w-[min(92%,28rem)] -translate-x-1/2 justify-center pointer-events-none"
-        >
-          <div
-            className={`inspect-hint-pill flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold leading-snug shadow-lg ring-2 backdrop-blur-sm ${
-              isBlinkingBaseline
-                ? 'bg-emerald-950/85 text-emerald-50 ring-emerald-200/90'
-                : 'bg-black/80 text-white ring-white/90'
-            }`}
-          >
-            {isBlinkingBaseline ? (
-              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-300" />
-            ) : (
-              <Eye className="h-5 w-5 shrink-0 text-white" />
-            )}
-            <span className="text-center">
-              {isBlinkingBaseline ? t.goldenBaseline : t.pressHoldCompare}
-            </span>
-          </div>
+          {hintPhase === 'hold' && (
+            <div
+              data-testid="inspect-hold-hint"
+              data-hint-phase="hold"
+              data-reduced-motion={reducedMotion ? 'true' : 'false'}
+              role="status"
+              className="inspect-hold-hint absolute inset-0 z-[70] pointer-events-none flex flex-col items-center justify-center gap-3 px-4"
+            >
+              {!isBlinkingBaseline && <HoldHintGraphic />}
+              <div
+                className={`inspect-hint-pill flex max-w-[90%] items-center gap-2 rounded-full px-4 py-2 text-sm font-bold leading-snug shadow-lg ring-2 backdrop-blur-sm ${
+                  isBlinkingBaseline
+                    ? 'bg-emerald-950/85 text-emerald-50 ring-emerald-200/90'
+                    : 'bg-black/80 text-white ring-white/90'
+                }`}
+              >
+                {isBlinkingBaseline ? (
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-300" />
+                ) : (
+                  <Eye className="h-5 w-5 shrink-0 text-white" />
+                )}
+                <span className="text-center">
+                  {isBlinkingBaseline ? t.goldenBaseline : t.pressHoldCompare}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

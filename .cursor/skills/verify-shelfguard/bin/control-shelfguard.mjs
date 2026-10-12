@@ -620,16 +620,63 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
   return { scale: Number(scale), overflow };
 }
 
-async function captureInspectHints(page, artifactsDir, name, { requirePinch = true } = {}) {
+async function clipInspectViewport(page) {
+  const box = await page.getByTestId('inspect-image-viewport').boundingBox();
+  if (!box) return undefined;
+  return {
+    x: Math.max(0, box.x),
+    y: Math.max(0, box.y),
+    width: Math.max(1, box.width),
+    height: Math.max(1, box.height),
+  };
+}
+
+async function shotHintFrames(page, artifactsDir, name, kind) {
+  const clip = await clipInspectViewport(page);
+  for (let i = 0; i < 3; i += 1) {
+    if (i > 0) await page.waitForTimeout(400);
+    await page.screenshot({
+      path: join(artifactsDir, `${name}-${kind}-frame-${i}.png`),
+      clip,
+    });
+  }
+}
+
+async function capturePinchHint(page, artifactsDir, name) {
   const pinch = page.getByTestId('inspect-pinch-hint');
+  await pinch.waitFor({ state: 'visible', timeout: 5_000 });
+  if (await page.getByTestId('inspect-hold-hint').isVisible().catch(() => false)) {
+    throw new Error(`${name}: hold hint overlapped the pinch hint`);
+  }
+  const pinchPe = await pinch.evaluate((el) => getComputedStyle(el).pointerEvents);
+  if (pinchPe !== 'none') {
+    throw new Error(`${name}: pinch hint pointer-events=${pinchPe} (expected none)`);
+  }
+  const pinchText = ((await pinch.textContent()) ?? '').trim();
+  if (!pinchText.includes(IT.pinchToZoom)) {
+    throw new Error(`${name}: pinch hint missing Italian copy: ${pinchText}`);
+  }
+  const fading = await pinch.getAttribute('data-hint-fading');
+  if (fading === 'true') {
+    throw new Error(`${name}: pinch hint already fading before animation frames`);
+  }
+  await page.screenshot({ path: join(artifactsDir, `${name}-pinch-hints.png`), fullPage: false });
+  await shotHintFrames(page, artifactsDir, name, 'pinch');
+  copyFileSync(join(artifactsDir, `${name}-pinch-hints.png`), join(artifactsDir, `${name}-hints.png`));
+  for (let i = 0; i < 3; i += 1) {
+    copyFileSync(
+      join(artifactsDir, `${name}-pinch-frame-${i}.png`),
+      join(artifactsDir, `${name}-hints-frame-${i}.png`),
+    );
+  }
+  return { pinchText, pinchPe };
+}
+
+async function captureHoldHint(page, artifactsDir, name) {
   const hold = page.getByTestId('inspect-hold-hint');
-  await hold.waitFor({ state: 'visible', timeout: 5_000 });
-  let pinchVisible = false;
-  try {
-    await pinch.waitFor({ state: 'visible', timeout: requirePinch ? 5_000 : 3_000 });
-    pinchVisible = true;
-  } catch (err) {
-    if (requirePinch) throw err;
+  await hold.waitFor({ state: 'visible', timeout: 12_000 });
+  if (await page.getByTestId('inspect-pinch-hint').isVisible().catch(() => false)) {
+    throw new Error(`${name}: pinch hint still visible during hold`);
   }
   const holdPe = await hold.evaluate((el) => getComputedStyle(el).pointerEvents);
   if (holdPe !== 'none') {
@@ -639,52 +686,46 @@ async function captureInspectHints(page, artifactsDir, name, { requirePinch = tr
   if (!holdText.includes(IT.pressHoldCompare) && !holdText.includes('riferimento')) {
     throw new Error(`${name}: hold hint missing Italian copy: ${holdText}`);
   }
-  let pinchPe = 'n/a';
-  let pinchText = '';
-  if (pinchVisible) {
-    pinchPe = await pinch.evaluate((el) => getComputedStyle(el).pointerEvents);
-    if (pinchPe !== 'none') {
-      throw new Error(`${name}: pinch hint pointer-events=${pinchPe} (expected none)`);
-    }
-    pinchText = ((await pinch.textContent()) ?? '').trim();
-    if (!pinchText.includes(IT.pinchToZoom)) {
-      throw new Error(`${name}: pinch hint missing Italian copy: ${pinchText}`);
-    }
-    const fading = await pinch.getAttribute('data-hint-fading');
-    if (fading === 'true' && requirePinch) {
-      throw new Error(`${name}: pinch hint already fading before animation frames`);
-    }
+  if ((await page.getByTestId('inspect-hold-graphic').count()) < 1) {
+    throw new Error(`${name}: hold hint is missing the press/ring graphic`);
   }
-  await page.screenshot({ path: join(artifactsDir, `${name}-hints.png`), fullPage: false });
-  if (pinchVisible) {
-    const viewport = page.getByTestId('inspect-image-viewport');
-    const box = await viewport.boundingBox();
-    const clip = box
-      ? {
-          x: Math.max(0, box.x),
-          y: Math.max(0, box.y),
-          width: Math.max(1, box.width),
-          height: Math.max(1, box.height),
-        }
-      : undefined;
-    for (let i = 0; i < 3; i += 1) {
-      if (i > 0) await page.waitForTimeout(400);
-      await page.screenshot({
-        path: join(artifactsDir, `${name}-hints-frame-${i}.png`),
-        clip,
-      });
-    }
-  }
+  await page.screenshot({ path: join(artifactsDir, `${name}-hold-hints.png`), fullPage: false });
+  await shotHintFrames(page, artifactsDir, name, 'hold');
+  return { holdText, holdPe };
+}
+
+async function writeHintLog(artifactsDir, name, pinch, hold) {
   writeFileSync(
     join(artifactsDir, `${name}-hints.txt`),
     [
-      `pinch="${pinchText || '(dismissed)'}" pointer-events=${pinchPe}`,
-      `hold="${holdText}" pointer-events=${holdPe}`,
-      `frames=${pinchVisible ? '0,400,800ms' : 'none'}`,
+      `pinch="${pinch?.pinchText ?? '(dismissed)'}" pointer-events=${pinch?.pinchPe ?? 'n/a'}`,
+      `hold="${hold.holdText}" pointer-events=${hold.holdPe}`,
+      `sequence=pinch-then-hold`,
+      `pinch-frames=0,400,800ms hold-frames=0,400,800ms`,
     ].join('\n') + '\n',
     'utf8',
   );
-  return { pinchText, holdText, pinchPe, holdPe };
+}
+
+async function captureSequencedHints(page, artifactsDir, portraitName, landscapeName, portraitSize, landscapeSize) {
+  const portraitPinch = await capturePinchHint(page, artifactsDir, portraitName);
+  await page.setViewportSize(landscapeSize);
+  let landscapePinch = null;
+  try {
+    landscapePinch = await capturePinchHint(page, artifactsDir, landscapeName);
+  } catch (err) {
+    writeFileSync(
+      join(artifactsDir, `${landscapeName}-pinch-hints.txt`),
+      `SKIP landscape pinch frames: ${err.message}\n`,
+      'utf8',
+    );
+  }
+  const landscapeHold = await captureHoldHint(page, artifactsDir, landscapeName);
+  await writeHintLog(artifactsDir, landscapeName, landscapePinch, landscapeHold);
+  await page.setViewportSize(portraitSize);
+  const portraitHold = await captureHoldHint(page, artifactsDir, portraitName);
+  await writeHintLog(artifactsDir, portraitName, portraitPinch, portraitHold);
+  return { portraitPinch, portraitHold, landscapePinch, landscapeHold };
 }
 
 async function measureAndShotResults(page, artifactsDir, name) {
@@ -730,9 +771,15 @@ async function driveInspectScan(page, artifactsDir) {
   const metrics = [];
   const zoomScales = {};
   const overflowRows = [];
-  await captureInspectHints(page, artifactsDir, 'inspect-scan-390x844');
+  await captureSequencedHints(
+    page,
+    artifactsDir,
+    'inspect-scan-390x844',
+    'inspect-scan-844x390',
+    { width: 390, height: 844 },
+    { width: 844, height: 390 },
+  );
   await page.setViewportSize({ width: 844, height: 390 });
-  await captureInspectHints(page, artifactsDir, 'inspect-scan-844x390', { requirePinch: false });
   const land844 = await measureAndShotResults(page, artifactsDir, 'inspect-scan-results-844x390');
   await page.setViewportSize({ width: 390, height: 844 });
   const portrait = await measureAndShotResults(page, artifactsDir, 'inspect-scan-results-390x844');
@@ -831,9 +878,14 @@ async function driveInspectScanOnDevice(page, artifactsDir, device) {
   if (!portraitSpec?.viewport || !landscapeSpec?.viewport) {
     throw new Error(`No Playwright portrait/landscape profile for ${device.name}`);
   }
-  await captureInspectHints(page, artifactsDir, `inspect-scan-${portraitLabel}`);
-  await page.setViewportSize(landscapeSpec.viewport);
-  await captureInspectHints(page, artifactsDir, `inspect-scan-${landscapeLabel}`, { requirePinch: false });
+  await captureSequencedHints(
+    page,
+    artifactsDir,
+    `inspect-scan-${portraitLabel}`,
+    `inspect-scan-${landscapeLabel}`,
+    portraitSpec.viewport,
+    landscapeSpec.viewport,
+  );
   await page.setViewportSize(portraitSpec.viewport);
   await page.waitForTimeout(150);
   await measureAndShotResults(page, artifactsDir, `inspect-scan-${portraitLabel}`);
