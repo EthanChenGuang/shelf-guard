@@ -307,6 +307,74 @@ async function rotateAndAssertNoOffset(page, artifactsDir, name) {
   return rows;
 }
 
+async function assertUnclippedWholeScreenZoom(page, label) {
+  const info = await page.evaluate(() => {
+    const frame = document.querySelector('[data-testid="inspect-image-viewport"]');
+    const layer = document.querySelector('[data-testid="inspect-image-zoom-layer"]');
+    if (!frame || !layer) return { error: 'missing frame or zoom layer' };
+    const fr = frame.getBoundingClientRect();
+    const lr = layer.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const clips = [];
+    let el = layer.parentElement;
+    while (el) {
+      const st = getComputedStyle(el);
+      const hidden = ['hidden', 'clip'];
+      if (hidden.includes(st.overflowX) || hidden.includes(st.overflowY) || hidden.includes(st.overflow)) {
+        clips.push({
+          id: el.id || el.getAttribute('data-testid') || el.tagName,
+          overflowX: st.overflowX,
+          overflowY: st.overflowY,
+        });
+      }
+      el = el.parentElement;
+    }
+    const intersectW = Math.max(0, Math.min(lr.right, vw) - Math.max(lr.left, 0));
+    const intersectH = Math.max(0, Math.min(lr.bottom, vh) - Math.max(lr.top, 0));
+    const coverage = vw * vh > 0 ? (intersectW * intersectH) / (vw * vh) : 0;
+    return {
+      scale: Number(frame.getAttribute('data-zoom-scale') || '1'),
+      zoomedAttr: frame.getAttribute('data-inspect-zoomed'),
+      frame: { x: fr.x, y: fr.y, w: fr.width, h: fr.height },
+      layer: { x: lr.x, y: lr.y, w: lr.width, h: lr.height },
+      viewport: { w: vw, h: vh },
+      clips,
+      coverage,
+      extendsBeyondFrame:
+        lr.width > fr.width + 8 &&
+        lr.height > fr.height + 8 &&
+        lr.left < fr.left - 2 &&
+        lr.right > fr.right + 2 &&
+        lr.top < fr.top - 2 &&
+        lr.bottom > fr.bottom + 2,
+    };
+  });
+  if (info.error) throw new Error(`${label}: ${info.error}`);
+  if (info.scale < 2.4) {
+    throw new Error(`${label}: expected scale ~2.75, got ${info.scale}`);
+  }
+  if (info.zoomedAttr !== 'true') {
+    throw new Error(`${label}: data-inspect-zoomed should be true while zoomed`);
+  }
+  if (!info.extendsBeyondFrame) {
+    throw new Error(
+      `${label}: zoomed image is still clipped to the frame (frame ${info.frame.w.toFixed(0)}x${info.frame.h.toFixed(0)} layer ${info.layer.w.toFixed(0)}x${info.layer.h.toFixed(0)} at ${info.layer.x.toFixed(0)},${info.layer.y.toFixed(0)})`,
+    );
+  }
+  if (info.clips.length) {
+    throw new Error(
+      `${label}: zoomed image is clipped by ancestors ${JSON.stringify(info.clips)}`,
+    );
+  }
+  if (info.coverage < 0.7) {
+    throw new Error(
+      `${label}: zoomed image covers ${(info.coverage * 100).toFixed(0)}% of the viewport (need ≥70%)`,
+    );
+  }
+  return info;
+}
+
 async function countFlickerDuringPinch(page, selector) {
   return page.locator(selector).evaluate(async (el) => {
     let blinkToggles = 0;
@@ -388,11 +456,13 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
   if (flicker.showingBaseline) {
     throw new Error(`${name}: baseline was showing after a multi-touch pinch`);
   }
+  await dispatchPinch(page, selector, 400, 80);
   await dispatchPinch(page, selector, 80, 220);
   const scale = await viewport.getAttribute('data-zoom-scale');
-  if (!scale || Number(scale) <= 1.05) {
-    throw new Error(`${name}: pinch zoom did not apply (data-zoom-scale=${scale})`);
+  if (!scale || Number(scale) < 2.4) {
+    throw new Error(`${name}: pinch zoom did not reach ~2.75 (data-zoom-scale=${scale})`);
   }
+  await assertUnclippedWholeScreenZoom(page, name);
   await page.screenshot({ path: join(artifactsDir, `${name}-zoom.png`), fullPage: false });
   await dispatchHoldStart(page, selector);
   await page.waitForTimeout(550);

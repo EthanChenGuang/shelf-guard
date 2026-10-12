@@ -81,7 +81,7 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 | `inspect-scan/inspect-scan-results-844x390.png` | Landscape phone results; image centered (not left-aligned) |
 | `inspect-scan/inspect-scan-results-932x430.png` | Larger landscape phone results; image centered |
 | `inspect-scan/inspect-scan-center.txt` | Left/right gaps per viewport |
-| `inspect-scan/inspect-scan-390x844-zoom.png` | Inline two-finger pinch on the results image (portrait); `data-zoom-scale` > 1 |
+| `inspect-scan/inspect-scan-390x844-zoom.png` | Inline pinch ~2.75; zoomed photo overflows the frame and covers the portrait viewport |
 | `inspect-scan/inspect-scan-844x390-zoom.png` | Inline pinch on landscape 844×390 |
 | `inspect-scan/inspect-scan-932x430-zoom.png` | Inline pinch on 932×430 |
 | `inspect-scan/inspect-scan-390x844-zoom-blink.png` | After pinch, long-press shows the baseline at the same zoom (portrait) |
