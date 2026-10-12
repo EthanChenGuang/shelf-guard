@@ -4,10 +4,10 @@ current_phase: 05
 current_phase_name: PRD UI & Multi-Shelf Experience
 current_plan: 7
 status: verifying
-stopped_at: "Completed quick task 261012-ne9: landscape fullscreen overlay fits under persistent address-bar chrome"
-last_updated: "2026-10-12T17:15:00.000Z"
+stopped_at: "Completed quick task 261012-of5: drop comparison fullscreen; inline pinch-zoom on results"
+last_updated: "2026-10-12T17:42:00.000Z"
 last_activity: 2026-10-12
-last_activity_desc: Completed quick task 261012-ne9 landscape fullscreen overlay chrome fit
+last_activity_desc: Completed quick task 261012-of5 remove comparison fullscreen overlay
 state_head: 00e3ca6d3ae55b66613148b6d42d60ecdd23cf5e
 progress:
   total_phases: 5
@@ -158,6 +158,7 @@ None yet.
 | 12 | 巡检照片可从相册选择（同方向时按基准比例居中裁剪） | 2026-09-28 | 91d3725 | — |
 | 13 | 幽灵覆盖层按实时画面自动对齐（镜头不同也可用）；可在浏览器暴露的后置镜头间切换 | 2026-09-28 | 00e3ca6 | — |
 | 261012-ne9 | Landscape fullscreen: whole photo + close + hint fit inside the visible area under a persistent mobile address bar (contain-fit; WebKit visualViewport lie; chrome-sim verify) | 2026-10-12 | 7d831d9 | [261012-ne9-fix-landscape-fullscreen-overlay-so-imag](./quick/261012-ne9-fix-landscape-fullscreen-overlay-so-imag/) |
+| 261012-of5 | Remove comparison fullscreen overlay; pinch-zoom/pan inline on the centered results image with AR overlays and zoomed blink-compare | 2026-10-12 | 6a42ea6 | [261012-of5-remove-fullscreen-comparison-overlay-ent](./quick/261012-of5-remove-fullscreen-comparison-overlay-ent/) |
 
 ## Deferred Items
 
@@ -171,4 +172,4 @@ Last session: 2026-09-25T17:51:01.597Z
 Stopped at: Completed quick task 260925-r3s: tap-to-focus camera control
 Resume file: None
 
-Last activity: 2026-10-12 - Completed quick task 261012-ne9: landscape fullscreen overlay fits under persistent address-bar chrome
+Last activity: 2026-10-12 - Completed quick task 261012-of5: drop comparison fullscreen; inline pinch-zoom on results
