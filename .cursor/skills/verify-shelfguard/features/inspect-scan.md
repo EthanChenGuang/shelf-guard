@@ -7,7 +7,8 @@ Compares a new shelf photo against the saved baseline using the in-browser OpenC
 - `gallery-capture` — **Scegli la foto dell'ispezione dalla galleria** uploads the inspection photo
 - `scan-progress` — scanning / processing overlays while the worker runs
 - `result-inspect` — **Risultato dell'ispezione** with **Conferma e concludi l'ispezione**
-- `result-inspect-zoom` — two-finger pinch zoom/pan **inline** on `[data-testid="inspect-image-viewport"]` (no fullscreen overlay or expand control). AR boxes transform with the photo. Long-press still blink-compares the baseline at the same zoom/pan.
+- `result-inspect-zoom` — two-finger pinch zoom/pan **inline** on `[data-testid="inspect-image-viewport"]` (no fullscreen overlay or expand control). AR boxes transform with the photo. Long-press still blink-compares the baseline at the same zoom/pan. Rapid 1↔2 finger sequences must not toggle blink-compare or reset scale.
+- `layout-lock` — after portrait↔landscape rotation on capture and results, `scrollX === 0` and document width equals the viewport (no left white strip).
 
 ## How to get to it (user POV)
 
@@ -33,7 +34,9 @@ Preconditions:
 - **Viewports.** Assert 390×844, 844×390, 932×430.
 - **Inline pinch-zoom.** Two-finger pinch on `[data-testid="inspect-image-viewport"]`; `data-zoom-scale` > 1.05.
 - **Zoomed blink-compare.** Long-press after pinch; `[data-showing-baseline="true"]` appears at the same `data-zoom-scale`.
-- **Proof.** `inspect-scan-results-*.png`, `inspect-scan-*-zoom.png`, `inspect-scan-*-zoom-blink.png`, `inspect-scan.aria.txt`, `first-capture-comparison.txt`.
+- **No flicker during pinch.** Rapid 1↔2 finger sequences: blink-state toggle count is 0 and scale does not reset to 1.
+- **No post-rotate offset.** On capture and results, after 390×844 ↔ 844×390 ↔ 932×430: `scrollX === 0`, `documentElement.scrollWidth <= innerWidth`.
+- **Proof.** `inspect-scan-results-*.png`, `inspect-scan-*-zoom.png`, `inspect-scan-*-zoom-blink.png`, `inspect-scan-rotate-*.png`, `inspect-scan.aria.txt`, `first-capture-comparison.txt`.
 
 Command:
 

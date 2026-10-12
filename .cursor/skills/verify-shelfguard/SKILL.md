@@ -87,6 +87,9 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 | `inspect-scan/inspect-scan-390x844-zoom-blink.png` | After pinch, long-press shows the baseline at the same zoom (portrait) |
 | `inspect-scan/inspect-scan-844x390-zoom-blink.png` | Zoomed blink-compare at 844×390 |
 | `inspect-scan/inspect-scan-932x430-zoom-blink.png` | Zoomed blink-compare at 932×430 |
+| `inspect-scan/inspect-scan-rotate-offset.txt` | After portrait↔landscape rotates, scrollX is 0 and document width matches the viewport |
+| `inspect-scan/inspect-scan-rotate-*.png` | Results screen after each orientation change (no left white strip) |
+| `establish-baseline/establish-baseline-rotate-offset.txt` | Same offset asserts on the capture screen |
 | `inspect-scan/inspect-scan.aria.txt` | ARIA tree includes **Conferma e concludi l'ispezione** |
 | `inspect-scan/first-capture-comparison.txt` | First capture with an existing baseline ran comparison (PR #6) |
 | `multi-shelf/multi-shelf-2-empty-baseline.png` | Shelf 2 selected with no baseline yet |

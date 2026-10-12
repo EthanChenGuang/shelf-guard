@@ -169,7 +169,8 @@ async function driveEstablishBaseline(page, artifactsDir) {
   await page.screenshot({ path: join(artifactsDir, 'establish-baseline-camera.png'), fullPage: true });
   const pill = await page.getByTestId('baseline-status-pill').innerText();
   writeFileSync(join(artifactsDir, 'establish-baseline-pill.txt'), pill, 'utf8');
-  return { pill };
+  const rotation = await rotateAndAssertNoOffset(page, artifactsDir, 'establish-baseline-rotate');
+  return { pill, rotation };
 }
 
 async function dispatchPinch(page, selector, fromDist, toDist) {
@@ -246,6 +247,128 @@ function assertCenteredBox(box, pageWidth, label) {
   return { leftGap, rightGap, delta };
 }
 
+async function measureHorizontalLock(page, label) {
+  const metrics = await page.evaluate(() => {
+    const root = document.getElementById('root');
+    const camera = document.querySelector('[data-testid="camera-view"]');
+    const results = document.querySelector('[data-testid="inspect-image-viewport"]');
+    const subject = camera || results || root || document.body;
+    const rect = subject.getBoundingClientRect();
+    return {
+      scrollX: window.scrollX,
+      innerWidth: window.innerWidth,
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      bodyScrollWidth: document.body.scrollWidth,
+      subjectLeft: rect.left,
+    };
+  });
+  if (Math.abs(metrics.scrollX) > 0.5) {
+    throw new Error(`${label}: scrollX=${metrics.scrollX} (expected 0)`);
+  }
+  if (metrics.scrollWidth > metrics.innerWidth + 1) {
+    throw new Error(
+      `${label}: document width ${metrics.scrollWidth} > viewport ${metrics.innerWidth}`,
+    );
+  }
+  if (metrics.subjectLeft < -1) {
+    throw new Error(`${label}: content left edge at ${metrics.subjectLeft} (white-strip shift)`);
+  }
+  return metrics;
+}
+
+async function rotateAndAssertNoOffset(page, artifactsDir, name) {
+  const sizes = [
+    { width: 390, height: 844 },
+    { width: 844, height: 390 },
+    { width: 390, height: 844 },
+    { width: 844, height: 390 },
+    { width: 932, height: 430 },
+    { width: 390, height: 844 },
+  ];
+  const rows = [];
+  for (const size of sizes) {
+    await page.setViewportSize(size);
+    await page.evaluate(() => {
+      window.scrollTo(48, 0);
+      document.documentElement.scrollLeft = 48;
+      document.body.scrollLeft = 48;
+      window.dispatchEvent(new Event('orientationchange'));
+    });
+    await page.waitForTimeout(320);
+    const label = `${name}-${size.width}x${size.height}`;
+    const metrics = await measureHorizontalLock(page, label);
+    await page.screenshot({ path: join(artifactsDir, `${label}.png`), fullPage: false });
+    rows.push(
+      `${label} scrollX=${metrics.scrollX} client=${metrics.clientWidth} inner=${metrics.innerWidth} scrollW=${metrics.scrollWidth} left=${metrics.subjectLeft.toFixed(1)}`,
+    );
+  }
+  writeFileSync(join(artifactsDir, `${name}-offset.txt`), `${rows.join('\n')}\n`, 'utf8');
+  return rows;
+}
+
+async function countFlickerDuringPinch(page, selector) {
+  return page.locator(selector).evaluate(async (el) => {
+    let blinkToggles = 0;
+    let scaleResets = 0;
+    let lastBlink = el.querySelector('[data-showing-baseline]')?.getAttribute('data-showing-baseline') ?? 'false';
+    let lastScale = Number(el.getAttribute('data-zoom-scale') ?? '1');
+    const obs = new MutationObserver(() => {
+      const blink =
+        el.querySelector('[data-showing-baseline]')?.getAttribute('data-showing-baseline') ?? 'false';
+      const scale = Number(el.getAttribute('data-zoom-scale') ?? '1');
+      if (blink !== lastBlink) {
+        blinkToggles += 1;
+        lastBlink = blink;
+      }
+      if (lastScale > 1.05 && scale <= 1.01) scaleResets += 1;
+      lastScale = scale;
+    });
+    obs.observe(el, {
+      attributes: true,
+      subtree: true,
+      attributeFilter: ['data-showing-baseline', 'data-zoom-scale', 'src'],
+    });
+
+    const rect = el.getBoundingClientRect();
+    const cx = rect.x + rect.width / 2;
+    const cy = rect.y + rect.height / 2;
+    const touch = (id, x, y) => new Touch({ identifier: id, target: el, clientX: x, clientY: y });
+    const fire = (type, touches) => {
+      el.dispatchEvent(
+        new TouchEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          touches,
+          targetTouches: touches,
+          changedTouches: touches,
+        }),
+      );
+    };
+
+    const a0 = touch(0, cx, cy - 40);
+    fire('touchstart', [a0]);
+    const pair = (dist) => [touch(0, cx, cy - dist / 2), touch(1, cx, cy + dist / 2)];
+    fire('touchstart', pair(80));
+    for (let i = 0; i < 10; i += 1) {
+      const dist = 90 + i * 12;
+      const fingers = pair(dist);
+      fire('touchmove', fingers);
+      fire('touchend', [fingers[0]]);
+      fire('touchstart', fingers);
+    }
+    fire('touchend', []);
+    await new Promise((r) => setTimeout(r, 80));
+    obs.disconnect();
+    return {
+      blinkToggles,
+      scaleResets,
+      showingBaseline: el.querySelector('[data-showing-baseline="true"]') !== null,
+      scale: Number(el.getAttribute('data-zoom-scale') ?? '1'),
+    };
+  });
+}
+
 async function pinchAndBlinkViewport(page, artifactsDir, name) {
   const selector = '[data-testid="inspect-image-viewport"]';
   const viewport = page.getByTestId('inspect-image-viewport');
@@ -254,6 +377,16 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
   }
   if (await page.getByTestId('inspect-image-fullscreen-open').count()) {
     throw new Error(`${name}: fullscreen expand control is still present`);
+  }
+  const flicker = await countFlickerDuringPinch(page, selector);
+  if (flicker.blinkToggles > 0) {
+    throw new Error(`${name}: blink-compare toggled ${flicker.blinkToggles} times during pinch`);
+  }
+  if (flicker.scaleResets > 0) {
+    throw new Error(`${name}: zoom scale reset ${flicker.scaleResets} times during pinch`);
+  }
+  if (flicker.showingBaseline) {
+    throw new Error(`${name}: baseline was showing after a multi-touch pinch`);
   }
   await dispatchPinch(page, selector, 80, 220);
   const scale = await viewport.getAttribute('data-zoom-scale');
@@ -339,6 +472,7 @@ async function driveInspectScan(page, artifactsDir) {
   }
 
   writeFileSync(join(artifactsDir, 'inspect-scan-center.txt'), `${metrics.join('\n')}\n`, 'utf8');
+  const rotation = await rotateAndAssertNoOffset(page, artifactsDir, 'inspect-scan-rotate');
   const aria = await page.locator('body').ariaSnapshot();
   writeFileSync(join(artifactsDir, 'inspect-scan.aria.txt'), aria, 'utf8');
   return {
@@ -346,7 +480,10 @@ async function driveInspectScan(page, artifactsDir) {
     centered: true,
     firstCaptureComparison: true,
     noFullscreen: true,
+    noFlicker: true,
+    noHorizontalOffset: true,
     zoomScales,
+    rotation,
   };
 }
 
