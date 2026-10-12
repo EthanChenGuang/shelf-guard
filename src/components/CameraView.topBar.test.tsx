@@ -15,6 +15,7 @@ const baseProps = {
   isTorchOn: false,
   onToggleTorch: vi.fn(),
   videoRef: { current: null },
+  shelfHydrated: true,
 };
 
 describe('CameraView PRD top bar (CAM-04)', () => {
@@ -36,6 +37,17 @@ describe('CameraView PRD top bar (CAM-04)', () => {
     expect(screen.getByTestId('baseline-status-pill')).toHaveTextContent(
       I18N.it.baselineNotSet,
     );
+  });
+
+  it('does not show first-baseline copy while shelf data is still loading (STAB-05)', () => {
+    render(
+      <CameraView {...baseProps} shelfHydrated={false} hasPersistedBaseline={false} lang="it" />,
+    );
+
+    expect(screen.getByTestId('baseline-status-pill')).not.toHaveTextContent(
+      I18N.it.baselineNotSet,
+    );
+    expect(screen.queryByTestId('baseline-photo-input')).not.toBeInTheDocument();
   });
 
   it('shows the app name with a translated subtitle', () => {

@@ -17,4 +17,8 @@ describe('App shutter guard (STAB-01)', () => {
   it('allows capture when idle and unlocked', () => {
     expect(isCaptureLocked('CAMERA_IDLE', false)).toBe(false);
   });
+
+  it('blocks capture until shelf baseline/history hydration finishes (STAB-05)', () => {
+    expect(isCaptureLocked('CAMERA_IDLE', false, false)).toBe(true);
+  });
 });
