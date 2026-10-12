@@ -17,7 +17,10 @@ function lockHorizontalViewport() {
   document.body.scrollLeft = 0;
   const root = document.getElementById('root');
   if (root) root.scrollLeft = 0;
-  if (isInspectZoomed()) return;
+  if (isInspectZoomed()) {
+    setInspectZoomed(true);
+    return;
+  }
   const html = document.documentElement;
   const body = document.body;
   html.style.overflowX = 'hidden';

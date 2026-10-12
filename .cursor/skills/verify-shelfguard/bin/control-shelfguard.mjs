@@ -567,6 +567,11 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
   if (!scale || Number(scale) < 2.4) {
     throw new Error(`${name}: pinch zoom did not reach ~2.75 (data-zoom-scale=${scale})`);
   }
+  await page.waitForFunction(
+    () => document.documentElement.getAttribute('data-inspect-zoomed') === 'true',
+    null,
+    { timeout: 3_000 },
+  );
   const overflow = await assertUnclippedWholeScreenZoom(page, name);
   await page.screenshot({ path: join(artifactsDir, `${name}-zoom.png`), fullPage: false });
   await dispatchHoldStart(page, selector);

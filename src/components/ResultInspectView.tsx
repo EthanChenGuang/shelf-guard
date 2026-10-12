@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   Check,
@@ -66,7 +66,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   const hold = useBlinkCompareHold();
   const isZoomed = transform.scale > 1.01;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setInspectZoomed(isZoomed);
     return () => setInspectZoomed(false);
   }, [isZoomed]);
