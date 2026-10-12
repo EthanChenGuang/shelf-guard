@@ -116,8 +116,24 @@ html[data-inspect-zoomed="true"] #root > div {
   opacity: 0;
 }
 
+:root {
+  --inspect-chrome: 7.75rem;
+  --inspect-hold-strip: 3.75rem;
+  --inspect-frame-max: min(72vh, calc(100dvh - var(--inspect-chrome) - var(--inspect-hold-strip)));
+}
+
+.inspect-hold-strip {
+  min-height: var(--inspect-hold-strip);
+}
+
 .inspect-hold-hint {
   transition: opacity 0.4s ease;
+}
+
+.inspect-hold-hint > svg {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
 }
 
 .inspect-hold-finger {
@@ -171,14 +187,17 @@ html[data-inspect-zoomed="true"] #root > div {
 }
 
 @media (orientation: landscape) {
-  .inspect-pinch-hint,
-  .inspect-hold-hint {
+  :root {
+    --inspect-chrome: 6.25rem;
+    --inspect-hold-strip: 3.15rem;
+  }
+
+  .inspect-pinch-hint {
     gap: 0.35rem;
     padding: 0.25rem;
   }
 
-  .inspect-pinch-hint > svg,
-  .inspect-hold-hint > svg {
+  .inspect-pinch-hint > svg {
     width: 3.25rem;
     height: 3.25rem;
     flex-shrink: 0;
@@ -189,6 +208,11 @@ html[data-inspect-zoomed="true"] #root > div {
     font-size: 0.7rem;
     line-height: 1.2;
     padding: 0.3rem 0.65rem;
+  }
+
+  .inspect-hold-hint > svg {
+    width: 2.35rem;
+    height: 2.35rem;
   }
 }
 

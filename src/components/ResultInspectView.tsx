@@ -65,7 +65,7 @@ const PinchHintGraphic: React.FC = () => (
 const HoldHintGraphic: React.FC = () => (
   <svg
     viewBox="0 0 88 88"
-    className="h-24 w-24 drop-shadow-[0_2px_10px_rgba(0,0,0,0.75)]"
+    className="h-11 w-11 drop-shadow-[0_1px_4px_rgba(0,0,0,0.35)]"
     data-testid="inspect-hold-graphic"
     aria-hidden="true"
   >
@@ -301,7 +301,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
         </button>
       </div>
 
-      <div className="relative w-full">
+      <div className="relative w-full flex flex-col items-center">
         <div
           ref={viewportRef}
           className={`relative mx-auto cursor-pointer touch-none ${
@@ -310,7 +310,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
           data-testid="inspect-image-viewport"
           data-zoom-scale={transform.scale.toFixed(2)}
           data-inspect-zoomed={isZoomed ? 'true' : 'false'}
-          style={{ ...frameBoxStyle(baseline.imageDimensions, '72vh'), touchAction: 'none' }}
+          style={{ ...frameBoxStyle(baseline.imageDimensions, 'var(--inspect-frame-max)'), touchAction: 'none' }}
           onMouseDown={(e) => {
             dismissPinchHint();
             hold.begin(e.clientX, e.clientY);
@@ -385,17 +385,23 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
               </span>
             </div>
           )}
+        </div>
+        <div
+          className="inspect-hold-strip z-[70] flex w-full shrink-0 items-center justify-center px-3"
+          data-testid="inspect-hold-strip"
+        >
           {hintPhase === 'hold' && (
             <div
               data-testid="inspect-hold-hint"
               data-hint-phase="hold"
+              data-hold-placement="below"
               data-reduced-motion={reducedMotion ? 'true' : 'false'}
               role="status"
-              className="inspect-hold-hint absolute inset-0 z-[70] pointer-events-none flex flex-col items-center justify-center gap-3 px-4"
+              className="inspect-hold-hint pointer-events-none flex flex-row items-center justify-center gap-2 py-1.5"
             >
               {!isBlinkingBaseline && <HoldHintGraphic />}
               <div
-                className={`inspect-hint-pill flex max-w-[90%] items-center gap-2 rounded-full px-4 py-2 text-sm font-bold leading-snug shadow-lg ring-2 backdrop-blur-sm ${
+                className={`inspect-hint-pill flex max-w-[min(100%,24rem)] items-center gap-2 rounded-full px-4 py-2 text-sm font-bold leading-snug shadow-lg ring-2 backdrop-blur-sm ${
                   isBlinkingBaseline
                     ? 'bg-emerald-950/85 text-emerald-50 ring-emerald-200/90'
                     : 'bg-black/80 text-white ring-white/90'

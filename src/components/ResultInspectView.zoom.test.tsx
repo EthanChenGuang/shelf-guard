@@ -219,9 +219,38 @@ describe('ResultInspectView inline pinch-zoom', () => {
     expect(Number(viewport.getAttribute('data-zoom-scale'))).toBeGreaterThan(1);
     const hold = screen.getByTestId('inspect-hold-hint');
     expect(hold).toBeInTheDocument();
-    expect(hold.className).toContain('z-[70]');
+    expect(viewport.contains(hold)).toBe(false);
+    expect(screen.getByTestId('inspect-hold-strip').className).toContain('z-[70]');
     expect(hold.className).toContain('pointer-events-none');
     expect(screen.getByTestId('inspect-hold-graphic')).toBeInTheDocument();
+  });
+
+  it('places the hold hint below the comparison image, not on it', () => {
+    render(<ResultInspectView {...baseProps} lang="it" />);
+    act(() => {
+      vi.advanceTimersByTime(8401);
+    });
+    const viewport = screen.getByTestId('inspect-image-viewport');
+    const hold = screen.getByTestId('inspect-hold-hint');
+    expect(viewport.contains(hold)).toBe(false);
+    expect(hold.getAttribute('data-hold-placement')).toBe('below');
+    expect(hold).toHaveTextContent('Tieni premuto per vedere il riferimento');
+  });
+
+  it('shows the viewing-reference status below the image while holding', () => {
+    render(<ResultInspectView {...baseProps} lang="it" />);
+    act(() => {
+      vi.advanceTimersByTime(8401);
+    });
+    const viewport = screen.getByTestId('inspect-image-viewport');
+    fireEvent.mouseDown(viewport, { clientX: 120, clientY: 180 });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    const hold = screen.getByTestId('inspect-hold-hint');
+    expect(hold).toHaveTextContent('Stai vedendo la foto di riferimento');
+    expect(viewport.contains(hold)).toBe(false);
+    expect(screen.queryByTestId('inspect-hold-graphic')).not.toBeInTheDocument();
   });
 
   it('dismisses the pinch hint on first interaction without blocking later pinch zoom', () => {
