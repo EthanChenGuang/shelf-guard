@@ -146,7 +146,7 @@ async function withBrowser(url, fn, options = {}) {
         hasTouch: true,
       }),
       locale: 'it-IT',
-      reducedMotion: 'reduce',
+      reducedMotion: 'no-preference',
       serviceWorkers: 'block',
       ...(engine === 'chromium' ? { permissions: ['camera'] } : {}),
     });
@@ -628,6 +628,7 @@ async function captureInspectHints(page, artifactsDir, name) {
   if (fading === 'true') {
     throw new Error(`${name}: pinch hint already fading before animation frames`);
   }
+  await page.screenshot({ path: join(artifactsDir, `${name}-hints.png`), fullPage: false });
   const viewport = page.getByTestId('inspect-image-viewport');
   const box = await viewport.boundingBox();
   const clip = box
@@ -639,13 +640,12 @@ async function captureInspectHints(page, artifactsDir, name) {
       }
     : undefined;
   for (let i = 0; i < 3; i += 1) {
-    if (i > 0) await page.waitForTimeout(350);
+    if (i > 0) await page.waitForTimeout(400);
     await page.screenshot({
       path: join(artifactsDir, `${name}-hints-frame-${i}.png`),
       clip,
     });
   }
-  await page.screenshot({ path: join(artifactsDir, `${name}-hints.png`), fullPage: false });
   writeFileSync(
     join(artifactsDir, `${name}-hints.txt`),
     [
