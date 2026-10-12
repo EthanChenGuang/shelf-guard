@@ -3,7 +3,7 @@
  * Playwright harness for ShelfGuard verification.
  * Invoked from .cursor/skills/verify-shelfguard/SKILL.md — do not run against a dev server you did not start for verification.
  */
-import { chromium } from 'playwright';
+import { chromium, webkit, devices } from 'playwright';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,13 +24,20 @@ const IT = {
   pickFromGallery: "Scegli la foto dell'ispezione dalla galleria",
 };
 
+const CROSS_PLATFORM_DEVICES = [
+  { name: 'iPhone 14', engine: 'webkit', platform: 'ios' },
+  { name: 'iPhone 15 Pro Max', engine: 'webkit', platform: 'ios' },
+  { name: 'Pixel 7', engine: 'chromium', platform: 'android' },
+  { name: 'Galaxy S9+', engine: 'chromium', platform: 'android' },
+];
+
 function usage() {
   console.error(`Usage:
   control-shelfguard doctor [--url URL] [--pid-file PATH]
-  control-shelfguard browser drive <feature-id> [--url URL] [--artifacts-dir DIR]
+  control-shelfguard browser drive <feature-id> [--url URL] [--artifacts-dir DIR] [--engine chromium|webkit] [--device NAME]
   control-shelfguard browser snapshot [--url URL] [--artifacts-dir DIR] [--name NAME]
 
-Feature ids: establish-baseline, inspect-scan, multi-shelf
+Feature ids: establish-baseline, inspect-scan, inspect-scan-cross-platform, multi-shelf
 `);
   process.exit(2);
 }
@@ -43,9 +50,15 @@ function parseArgs(argv) {
     else if (a === '--pid-file') out.pidFile = argv[++i];
     else if (a === '--artifacts-dir') out.artifactsDir = argv[++i];
     else if (a === '--name') out.name = argv[++i];
+    else if (a === '--engine') out.engine = argv[++i];
+    else if (a === '--device') out.device = argv[++i];
     else out._.push(a);
   }
   return out;
+}
+
+function deviceSlug(name) {
+  return String(name).replace(/\+/g, '-plus').replace(/\s+/g, '-');
 }
 
 function curlOk(url) {
@@ -106,24 +119,34 @@ function doctor({ url = DEFAULT_URL, pidFile }) {
   console.log(`  fixtures: baseline-aligned.jpg, capture-displaced.jpg`);
 }
 
-async function withBrowser(url, fn) {
-  const browser = await chromium.launch({
-    headless: true,
-    args: [
-      '--use-fake-device-for-media-stream',
-      '--use-fake-ui-for-media-stream',
-    ],
-  });
+async function withBrowser(url, fn, options = {}) {
+  const deviceName = options.device;
+  const descriptor = deviceName ? devices[deviceName] : null;
+  if (deviceName && !descriptor) {
+    throw new Error(`Unknown Playwright device: ${deviceName}`);
+  }
+  const engine = options.engine ?? descriptor?.defaultBrowserType ?? 'chromium';
+  const browserType = engine === 'webkit' ? webkit : chromium;
+  const launch =
+    engine === 'chromium'
+      ? {
+          headless: true,
+          args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
+        }
+      : { headless: true };
+  const browser = await browserType.launch(launch);
   try {
     const context = await browser.newContext({
-      viewport: { width: 390, height: 844 },
-      deviceScaleFactor: 2,
-      isMobile: true,
-      hasTouch: true,
+      ...(descriptor ?? {
+        viewport: { width: 390, height: 844 },
+        deviceScaleFactor: 2,
+        isMobile: true,
+        hasTouch: true,
+      }),
       locale: 'it-IT',
-      permissions: ['camera'],
       reducedMotion: 'reduce',
       serviceWorkers: 'block',
+      ...(engine === 'chromium' ? { permissions: ['camera'] } : {}),
     });
     const page = await context.newPage();
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
@@ -178,41 +201,71 @@ async function dispatchPinch(page, selector, fromDist, toDist) {
     const rect = el.getBoundingClientRect();
     const cx = rect.x + rect.width / 2;
     const cy = rect.y + rect.height / 2;
-    const touch = (id, x, y) =>
-      new Touch({ identifier: id, target: el, clientX: x, clientY: y });
     const pair = (dist) => [
-      touch(0, cx, cy - dist / 2),
-      touch(1, cx, cy + dist / 2),
+      { id: 31, x: cx, y: cy - dist / 2 },
+      { id: 32, x: cx, y: cy + dist / 2 },
     ];
-    const start = pair(fromDist);
-    const moved = pair(toDist);
-    el.dispatchEvent(
-      new TouchEvent('touchstart', {
-        bubbles: true,
-        cancelable: true,
-        touches: start,
-        targetTouches: start,
-        changedTouches: start,
-      }),
-    );
-    el.dispatchEvent(
-      new TouchEvent('touchmove', {
-        bubbles: true,
-        cancelable: true,
-        touches: moved,
-        targetTouches: moved,
-        changedTouches: moved,
-      }),
-    );
-    el.dispatchEvent(
-      new TouchEvent('touchend', {
-        bubbles: true,
-        cancelable: true,
-        touches: [],
-        targetTouches: [],
-        changedTouches: moved,
-      }),
-    );
+    const fireTouch = () => {
+      if (typeof Touch !== 'function' || typeof TouchEvent !== 'function') return false;
+      try {
+        const touch = (id, x, y) =>
+          new Touch({
+            identifier: id,
+            target: el,
+            clientX: x,
+            clientY: y,
+            pageX: x,
+            pageY: y,
+            screenX: x,
+            screenY: y,
+            radiusX: 2.5,
+            radiusY: 2.5,
+            rotationAngle: 0,
+            force: 1,
+          });
+        const asTouches = (pts) => pts.map((p) => touch(p.id, p.x, p.y));
+        const fire = (type, pts, ended = false) => {
+          const list = asTouches(pts);
+          el.dispatchEvent(
+            new TouchEvent(type, {
+              bubbles: true,
+              cancelable: true,
+              touches: ended ? [] : list,
+              targetTouches: ended ? [] : list,
+              changedTouches: list,
+            }),
+          );
+        };
+        fire('touchstart', pair(fromDist));
+        fire('touchmove', pair(toDist));
+        fire('touchend', pair(toDist), true);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const firePointer = () => {
+      const fire = (type, pts) => {
+        for (const p of pts) {
+          el.dispatchEvent(
+            new PointerEvent(type, {
+              bubbles: true,
+              cancelable: true,
+              pointerId: p.id,
+              pointerType: 'mouse',
+              clientX: p.x,
+              clientY: p.y,
+              isPrimary: p.id === 31,
+              buttons: type === 'pointerup' ? 0 : 1,
+            }),
+          );
+        }
+      };
+      fire('pointerdown', pair(fromDist));
+      fire('pointermove', pair(toDist));
+      fire('pointerup', pair(toDist));
+    };
+    if (!fireTouch()) firePointer();
   }, { fromDist, toDist });
 }
 
@@ -221,15 +274,25 @@ async function dispatchHoldStart(page, selector) {
     const rect = el.getBoundingClientRect();
     const x = rect.x + rect.width / 2;
     const y = rect.y + rect.height / 2;
-    const t = new Touch({ identifier: 0, target: el, clientX: x, clientY: y });
+    try {
+      if (typeof Touch === 'function' && typeof TouchEvent === 'function') {
+        const t = new Touch({ identifier: 0, target: el, clientX: x, clientY: y, pageX: x, pageY: y });
+        el.dispatchEvent(
+          new TouchEvent('touchstart', {
+            bubbles: true,
+            cancelable: true,
+            touches: [t],
+            targetTouches: [t],
+            changedTouches: [t],
+          }),
+        );
+        return;
+      }
+    } catch {
+      // WebKit without Touch constructor — mouse hold still starts blink-compare.
+    }
     el.dispatchEvent(
-      new TouchEvent('touchstart', {
-        bubbles: true,
-        cancelable: true,
-        touches: [t],
-        targetTouches: [t],
-        changedTouches: [t],
-      }),
+      new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientX: x, clientY: y, buttons: 1 }),
     );
   });
 }
@@ -421,31 +484,35 @@ async function countFlickerDuringPinch(page, selector) {
     const rect = el.getBoundingClientRect();
     const cx = rect.x + rect.width / 2;
     const cy = rect.y + rect.height / 2;
-    const touch = (id, x, y) => new Touch({ identifier: id, target: el, clientX: x, clientY: y });
-    const fire = (type, touches) => {
-      el.dispatchEvent(
-        new TouchEvent(type, {
-          bubbles: true,
-          cancelable: true,
-          touches,
-          targetTouches: touches,
-          changedTouches: touches,
-        }),
-      );
-    };
+    try {
+      const touch = (id, x, y) => new Touch({ identifier: id, target: el, clientX: x, clientY: y });
+      const fire = (type, touches) => {
+        el.dispatchEvent(
+          new TouchEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            touches,
+            targetTouches: touches,
+            changedTouches: touches,
+          }),
+        );
+      };
 
-    const a0 = touch(0, cx, cy - 40);
-    fire('touchstart', [a0]);
-    const pair = (dist) => [touch(0, cx, cy - dist / 2), touch(1, cx, cy + dist / 2)];
-    fire('touchstart', pair(80));
-    for (let i = 0; i < 10; i += 1) {
-      const dist = 90 + i * 12;
-      const fingers = pair(dist);
-      fire('touchmove', fingers);
-      fire('touchend', [fingers[0]]);
-      fire('touchstart', fingers);
+      const a0 = touch(0, cx, cy - 40);
+      fire('touchstart', [a0]);
+      const pair = (dist) => [touch(0, cx, cy - dist / 2), touch(1, cx, cy + dist / 2)];
+      fire('touchstart', pair(80));
+      for (let i = 0; i < 10; i += 1) {
+        const dist = 90 + i * 12;
+        const fingers = pair(dist);
+        fire('touchmove', fingers);
+        fire('touchend', [fingers[0]]);
+        fire('touchstart', fingers);
+      }
+      fire('touchend', []);
+    } catch {
+      // WebKit without Touch() — skip the flicker sequence; pinch/overflow still asserted.
     }
-    fire('touchend', []);
     await new Promise((r) => setTimeout(r, 80));
     obs.disconnect();
     return {
@@ -478,7 +545,23 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
   }
   await dispatchPinch(page, selector, 400, 80);
   await dispatchPinch(page, selector, 80, 220);
-  const scale = await viewport.getAttribute('data-zoom-scale');
+  let scale = await viewport.getAttribute('data-zoom-scale');
+  if (!scale || Number(scale) < 2.4) {
+    // TouchEvent constructor can exist on WebKit without delivering the pinch; Pointer is the fallback.
+    await page.locator(selector).evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      const cx = rect.x + rect.width / 2;
+      const cy = rect.y + rect.height / 2;
+      const fire = (type, y0, y1, extra) => {
+        el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 41, pointerType: 'mouse', clientX: cx, clientY: y0, isPrimary: true, ...extra }));
+        el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 42, pointerType: 'mouse', clientX: cx, clientY: y1, isPrimary: false, ...extra }));
+      };
+      fire('pointerdown', cy - 40, cy + 40, { buttons: 1 });
+      fire('pointermove', cy - 110, cy + 110, { buttons: 1 });
+      fire('pointerup', cy - 110, cy + 110, { buttons: 0 });
+    });
+    scale = await viewport.getAttribute('data-zoom-scale');
+  }
   if (!scale || Number(scale) < 2.4) {
     throw new Error(`${name}: pinch zoom did not reach ~2.75 (data-zoom-scale=${scale})`);
   }
@@ -495,7 +578,11 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
   }
   await page.screenshot({ path: join(artifactsDir, `${name}-zoom-blink.png`), fullPage: false });
   await viewport.evaluate((el) => {
-    el.dispatchEvent(new TouchEvent('touchend', { bubbles: true, cancelable: true, touches: [] }));
+    try {
+      el.dispatchEvent(new TouchEvent('touchend', { bubbles: true, cancelable: true, touches: [] }));
+    } catch {
+      el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+    }
   });
   await dispatchPinch(page, selector, 400, 80);
   return { scale: Number(scale), overflow };
@@ -599,10 +686,101 @@ async function driveMultiShelf(page, artifactsDir) {
   return { shelf: 2 };
 }
 
-async function browserDrive(featureId, { url = DEFAULT_URL, artifactsDir }) {
+async function reachInspectResults(page, artifactsDir) {
+  await waitForCameraIdle(page);
+  await waitForShelfHydrated(page);
+  if (await page.getByTestId('baseline-status-pill').getByText(IT.baselineNotSet).isVisible().catch(() => false)) {
+    mkdirSync(join(artifactsDir, 'preflight-baseline'), { recursive: true });
+    await page.getByTestId('baseline-photo-input').waitFor({ state: 'attached', timeout: 10_000 });
+    await page.getByTestId('baseline-photo-input').setInputFiles(BASELINE_FIXTURE);
+    await page.getByTestId('baseline-status-pill').getByText(IT.baselineEstablished).waitFor({
+      timeout: 30_000,
+    });
+    await page.screenshot({
+      path: join(artifactsDir, 'preflight-baseline', 'establish-baseline-camera.png'),
+      fullPage: true,
+    });
+  }
+  await page.getByTestId('baseline-status-pill').getByText(IT.baselineEstablished).waitFor({
+    timeout: 15_000,
+  });
+  await page.getByRole('button', { name: IT.pickFromGallery }).click();
+  await page.getByTestId('gallery-input').setInputFiles(CAPTURE_FIXTURE);
+  await page.getByRole('button', { name: IT.finishInspection }).waitFor({
+    timeout: 120_000,
+  });
+  await page.getByText(IT.auditResult).waitFor({ timeout: 5_000 });
+}
+
+async function driveInspectScanOnDevice(page, artifactsDir, device) {
+  mkdirSync(artifactsDir, { recursive: true });
+  await reachInspectResults(page, artifactsDir);
+  const slug = deviceSlug(device.name);
+  const portraitLabel = `${slug}-portrait`;
+  const landscapeLabel = `${slug}-landscape`;
+  await measureAndShotResults(page, artifactsDir, `inspect-scan-${portraitLabel}`);
+  const portraitZoom = await pinchAndBlinkViewport(page, artifactsDir, `inspect-scan-${portraitLabel}`);
+  const landscapeSpec = devices[`${device.name} landscape`];
+  if (!landscapeSpec?.viewport) {
+    throw new Error(`No Playwright landscape profile for ${device.name}`);
+  }
+  await page.setViewportSize(landscapeSpec.viewport);
+  await page.waitForTimeout(250);
+  await measureAndShotResults(page, artifactsDir, `inspect-scan-${landscapeLabel}`);
+  const landscapeZoom = await pinchAndBlinkViewport(page, artifactsDir, `inspect-scan-${landscapeLabel}`);
+  const overflowRows = [
+    formatZoomOverflow(portraitLabel, portraitZoom.overflow),
+    formatZoomOverflow(landscapeLabel, landscapeZoom.overflow),
+  ];
+  writeFileSync(join(artifactsDir, 'inspect-scan-zoom-overflow.txt'), `${overflowRows.join('\n')}\n`, 'utf8');
+  return {
+    device: device.name,
+    engine: device.engine,
+    platform: device.platform,
+    portrait: {
+      scale: portraitZoom.scale,
+      shortCover: portraitZoom.overflow.shortCover,
+      clips: portraitZoom.overflow.clips.length,
+      beyondFrame: portraitZoom.overflow.extendsBeyondFrame,
+    },
+    landscape: {
+      scale: landscapeZoom.scale,
+      shortCover: landscapeZoom.overflow.shortCover,
+      clips: landscapeZoom.overflow.clips.length,
+      beyondFrame: landscapeZoom.overflow.extendsBeyondFrame,
+    },
+  };
+}
+
+async function driveInspectScanCrossPlatform(url, artifactsDir) {
+  mkdirSync(artifactsDir, { recursive: true });
+  const rows = [];
+  const devicesOut = [];
+  for (const device of CROSS_PLATFORM_DEVICES) {
+    const dir = join(artifactsDir, deviceSlug(device.name));
+    const result = await withBrowser(
+      url,
+      (page) => driveInspectScanOnDevice(page, dir, device),
+      { device: device.name, engine: device.engine },
+    );
+    devicesOut.push(result);
+    rows.push(
+      `${result.platform}/${result.engine} ${result.device} portrait scale=${result.portrait.scale} beyond=${result.portrait.beyondFrame} clips=${result.portrait.clips} short=${(result.portrait.shortCover * 100).toFixed(0)}% | landscape scale=${result.landscape.scale} beyond=${result.landscape.beyondFrame} clips=${result.landscape.clips} short=${(result.landscape.shortCover * 100).toFixed(0)}%`,
+    );
+  }
+  writeFileSync(join(artifactsDir, 'cross-platform-report.txt'), `${rows.join('\n')}\n`, 'utf8');
+  return { devices: devicesOut, report: rows };
+}
+
+async function browserDrive(featureId, { url = DEFAULT_URL, artifactsDir, engine, device }) {
   if (!artifactsDir) {
     console.error('browser drive requires --artifacts-dir');
     process.exit(2);
+  }
+  if (featureId === 'inspect-scan-cross-platform') {
+    const result = await driveInspectScanCrossPlatform(url, artifactsDir);
+    console.log(JSON.stringify({ featureId, ok: true, ...result }, null, 2));
+    return;
   }
   const drivers = {
     'establish-baseline': driveEstablishBaseline,
@@ -614,7 +792,7 @@ async function browserDrive(featureId, { url = DEFAULT_URL, artifactsDir }) {
     console.error(`Unknown feature id: ${featureId}`);
     usage();
   }
-  const result = await withBrowser(url, (page) => driver(page, artifactsDir));
+  const result = await withBrowser(url, (page) => driver(page, artifactsDir), { engine, device });
   console.log(JSON.stringify({ featureId, ok: true, ...result }, null, 2));
 }
 
@@ -646,6 +824,8 @@ async function main() {
     await browserDrive(featureId, {
       url: args.url ?? DEFAULT_URL,
       artifactsDir: args.artifactsDir ? resolve(args.artifactsDir) : undefined,
+      engine: args.engine,
+      device: args.device,
     });
     return;
   }

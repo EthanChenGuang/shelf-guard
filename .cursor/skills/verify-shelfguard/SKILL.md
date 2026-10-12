@@ -12,7 +12,7 @@ ShelfGuard is a **client-only React PWA** (`npm run dev` / Vite). Verification d
 From the repository root:
 
 1. Install deps if needed: `npm install`
-2. Install Playwright Chromium once: `node node_modules/playwright/cli.js install chromium`
+2. Install Playwright browsers once: `node node_modules/playwright/cli.js install chromium webkit`
 3. Start the verification server (build + preview):
 
 ```bash
@@ -56,6 +56,10 @@ node .cursor/skills/verify-shelfguard/bin/control-shelfguard.mjs browser drive i
 node .cursor/skills/verify-shelfguard/bin/control-shelfguard.mjs browser drive multi-shelf \
   --url http://127.0.0.1:4173 \
   --artifacts-dir "${ART}/multi-shelf"
+
+node .cursor/skills/verify-shelfguard/bin/control-shelfguard.mjs browser drive inspect-scan-cross-platform \
+  --url http://127.0.0.1:4173 \
+  --artifacts-dir "${ART}/inspect-scan-cross-platform"
 ```
 
 Read the feature map first: [features/README.md](./features/README.md). Prefer **`data-testid`** and **Italian `aria-label` strings** from `src/lib/constants.ts` (default locale `it`).
@@ -93,6 +97,8 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 | `inspect-scan/inspect-scan.aria.txt` | ARIA tree includes **Conferma e concludi l'ispezione** |
 | `inspect-scan/first-capture-comparison.txt` | First capture with an existing baseline ran comparison (PR #6) |
 | `multi-shelf/multi-shelf-2-empty-baseline.png` | Shelf 2 selected with no baseline yet |
+| `inspect-scan-cross-platform/cross-platform-report.txt` | Per-device pinch overflow: iPhone 14/15 Pro Max (WebKit) + Pixel 7/Galaxy S9+ (Chromium), portrait + landscape |
+| `inspect-scan-cross-platform/<device>/inspect-scan-*-zoom.png` | Zoomed comparison image on that device profile |
 
 Standards:
 
