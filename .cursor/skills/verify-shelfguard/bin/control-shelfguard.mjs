@@ -4,8 +4,9 @@
  * Invoked from .cursor/skills/verify-shelfguard/SKILL.md — do not run against a dev server you did not start for verification.
  */
 import { chromium, webkit, devices } from 'playwright';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
@@ -155,8 +156,40 @@ async function withBrowser(url, fn, options = {}) {
     await page.waitForLoadState('load').catch(() => undefined);
     return await fn(page, context);
   } finally {
-    await browser.close();
+    try {
+      await browser.close();
+    } catch (err) {
+      if (err?.code !== 'EIO') throw err;
+    }
   }
+}
+
+function isTransientIo(err) {
+  return err?.code === 'EIO' || err?.syscall === 'close';
+}
+
+async function saveScreenshot(page, destPath, options = {}) {
+  mkdirSync(dirname(destPath), { recursive: true });
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const tmpPath = join(tmpdir(), `sg-shot-${process.pid}-${Date.now()}-${attempt}.png`);
+    try {
+      await page.screenshot({ ...options, path: tmpPath });
+      copyFileSync(tmpPath, destPath);
+      return;
+    } catch (err) {
+      lastErr = err;
+      if (!isTransientIo(err)) throw err;
+      await new Promise((resolveWait) => setTimeout(resolveWait, 200 * (attempt + 1)));
+    } finally {
+      try {
+        unlinkSync(tmpPath);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  throw lastErr;
 }
 
 async function dismissOrientationBanner(page) {
@@ -193,7 +226,7 @@ async function driveEstablishBaseline(page, artifactsDir) {
   await page.getByTestId('baseline-status-pill').getByText(IT.baselineEstablished).waitFor({
     timeout: 30_000,
   });
-  await page.screenshot({ path: join(artifactsDir, 'establish-baseline-camera.png'), fullPage: true });
+  await saveScreenshot(page, join(artifactsDir, 'establish-baseline-camera.png'), { fullPage: true });
   const pill = await page.getByTestId('baseline-status-pill').innerText();
   writeFileSync(join(artifactsDir, 'establish-baseline-pill.txt'), pill, 'utf8');
   const rotation = await rotateAndAssertNoOffset(page, artifactsDir, 'establish-baseline-rotate');
@@ -365,7 +398,7 @@ async function rotateAndAssertNoOffset(page, artifactsDir, name) {
     await page.waitForTimeout(320);
     const label = `${name}-${size.width}x${size.height}`;
     const metrics = await measureHorizontalLock(page, label);
-    await page.screenshot({ path: join(artifactsDir, `${label}.png`), fullPage: false });
+    await saveScreenshot(page, join(artifactsDir, `${label}.png`), { fullPage: false });
     rows.push(
       `${label} scrollX=${metrics.scrollX} client=${metrics.clientWidth} inner=${metrics.innerWidth} scrollW=${metrics.scrollWidth} left=${metrics.subjectLeft.toFixed(1)}`,
     );
@@ -598,7 +631,7 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
       throw new Error(`${name}: pinch hint still visible after pinch (must not block zoom)`);
     }
   }
-  await page.screenshot({ path: join(artifactsDir, `${name}-zoom.png`), fullPage: false });
+  await saveScreenshot(page, join(artifactsDir, `${name}-zoom.png`), { fullPage: false });
   await dispatchHoldStart(page, selector);
   await page.waitForTimeout(550);
   if ((await viewport.locator('[data-showing-baseline="true"]').count()) < 1) {
@@ -608,7 +641,7 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
   if (!scaleWhileBlink || Number(scaleWhileBlink) < 2.4) {
     throw new Error(`${name}: blink dropped zoom (${scale} -> ${scaleWhileBlink})`);
   }
-  await page.screenshot({ path: join(artifactsDir, `${name}-zoom-blink.png`), fullPage: false });
+  await saveScreenshot(page, join(artifactsDir, `${name}-zoom-blink.png`), { fullPage: false });
   await viewport.evaluate((el) => {
     try {
       el.dispatchEvent(new TouchEvent('touchend', { bubbles: true, cancelable: true, touches: [] }));
@@ -635,10 +668,7 @@ async function shotHintFrames(page, artifactsDir, name, kind) {
   const clip = await clipInspectViewport(page);
   for (let i = 0; i < 3; i += 1) {
     if (i > 0) await page.waitForTimeout(400);
-    await page.screenshot({
-      path: join(artifactsDir, `${name}-${kind}-frame-${i}.png`),
-      clip,
-    });
+    await saveScreenshot(page, join(artifactsDir, `${name}-${kind}-frame-${i}.png`), { clip });
   }
 }
 
@@ -660,7 +690,7 @@ async function capturePinchHint(page, artifactsDir, name) {
   if (fading === 'true') {
     throw new Error(`${name}: pinch hint already fading before animation frames`);
   }
-  await page.screenshot({ path: join(artifactsDir, `${name}-pinch-hints.png`), fullPage: false });
+  await saveScreenshot(page, join(artifactsDir, `${name}-pinch-hints.png`), { fullPage: false });
   await shotHintFrames(page, artifactsDir, name, 'pinch');
   copyFileSync(join(artifactsDir, `${name}-pinch-hints.png`), join(artifactsDir, `${name}-hints.png`));
   for (let i = 0; i < 3; i += 1) {
@@ -689,7 +719,7 @@ async function captureHoldHint(page, artifactsDir, name) {
   if ((await page.getByTestId('inspect-hold-graphic').count()) < 1) {
     throw new Error(`${name}: hold hint is missing the press/ring graphic`);
   }
-  await page.screenshot({ path: join(artifactsDir, `${name}-hold-hints.png`), fullPage: false });
+  await saveScreenshot(page, join(artifactsDir, `${name}-hold-hints.png`), { fullPage: false });
   await shotHintFrames(page, artifactsDir, name, 'hold');
   return { holdText, holdPe };
 }
@@ -738,7 +768,7 @@ async function measureAndShotResults(page, artifactsDir, name) {
   const pageSize = page.viewportSize();
   const viewportBox = await page.getByTestId('inspect-image-viewport').boundingBox();
   const center = assertCenteredBox(viewportBox, pageSize.width, name);
-  await page.screenshot({ path: join(artifactsDir, `${name}.png`), fullPage: false });
+  await saveScreenshot(page, join(artifactsDir, `${name}.png`), { fullPage: false });
   return {
     viewport: `${pageSize.width}x${pageSize.height}`,
     image: `${Math.round(viewportBox.width)}x${Math.round(viewportBox.height)} @ ${Math.round(viewportBox.x)},${Math.round(viewportBox.y)}`,
@@ -843,7 +873,7 @@ async function driveMultiShelf(page, artifactsDir) {
   await page.getByTestId('baseline-status-pill').getByText(IT.baselineNotSet).waitFor({
     timeout: 10_000,
   });
-  await page.screenshot({ path: join(artifactsDir, 'multi-shelf-2-empty-baseline.png'), fullPage: true });
+  await saveScreenshot(page, join(artifactsDir, 'multi-shelf-2-empty-baseline.png'), { fullPage: true });
   return { shelf: 2 };
 }
 
@@ -857,8 +887,7 @@ async function reachInspectResults(page, artifactsDir) {
     await page.getByTestId('baseline-status-pill').getByText(IT.baselineEstablished).waitFor({
       timeout: 30_000,
     });
-    await page.screenshot({
-      path: join(artifactsDir, 'preflight-baseline', 'establish-baseline-camera.png'),
+    await saveScreenshot(page, join(artifactsDir, 'preflight-baseline', 'establish-baseline-camera.png'), {
       fullPage: true,
     });
   }
@@ -982,7 +1011,7 @@ async function browserSnapshot({ url = DEFAULT_URL, artifactsDir, name = 'snapsh
   mkdirSync(artifactsDir, { recursive: true });
   await withBrowser(url, async (page) => {
     await waitForCameraIdle(page);
-    await page.screenshot({ path: join(artifactsDir, `${name}.png`), fullPage: true });
+    await saveScreenshot(page, join(artifactsDir, `${name}.png`), { fullPage: true });
     const aria = await page.locator('body').ariaSnapshot();
     writeFileSync(join(artifactsDir, `${name}.aria.txt`), aria, 'utf8');
   });
