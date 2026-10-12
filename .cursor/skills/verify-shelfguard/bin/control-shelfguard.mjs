@@ -708,23 +708,29 @@ async function writeHintLog(artifactsDir, name, pinch, hold) {
 }
 
 async function captureSequencedHints(page, artifactsDir, portraitName, landscapeName, portraitSize, landscapeSize) {
-  const portraitPinch = await capturePinchHint(page, artifactsDir, portraitName);
+  await page.getByTestId('inspect-pinch-hint').waitFor({ state: 'visible', timeout: 5_000 });
+  // Landscape still first, while the pinch overlay is still on-screen, then portrait still.
   await page.setViewportSize(landscapeSize);
-  let landscapePinch = null;
+  await page.waitForTimeout(120);
+  const landscapePinch = await capturePinchHint(page, artifactsDir, landscapeName);
+  await page.setViewportSize(portraitSize);
+  await page.waitForTimeout(120);
+  let portraitPinch = null;
   try {
-    landscapePinch = await capturePinchHint(page, artifactsDir, landscapeName);
+    portraitPinch = await capturePinchHint(page, artifactsDir, portraitName);
   } catch (err) {
     writeFileSync(
-      join(artifactsDir, `${landscapeName}-pinch-hints.txt`),
-      `SKIP landscape pinch frames: ${err.message}\n`,
+      join(artifactsDir, `${portraitName}-pinch-hints.txt`),
+      `SKIP portrait pinch frames: ${err.message}\n`,
       'utf8',
     );
   }
-  const landscapeHold = await captureHoldHint(page, artifactsDir, landscapeName);
-  await writeHintLog(artifactsDir, landscapeName, landscapePinch, landscapeHold);
-  await page.setViewportSize(portraitSize);
   const portraitHold = await captureHoldHint(page, artifactsDir, portraitName);
   await writeHintLog(artifactsDir, portraitName, portraitPinch, portraitHold);
+  await page.setViewportSize(landscapeSize);
+  await page.waitForTimeout(120);
+  const landscapeHold = await captureHoldHint(page, artifactsDir, landscapeName);
+  await writeHintLog(artifactsDir, landscapeName, landscapePinch, landscapeHold);
   return { portraitPinch, portraitHold, landscapePinch, landscapeHold };
 }
 
@@ -918,11 +924,17 @@ async function driveInspectScanOnDevice(page, artifactsDir, device) {
   };
 }
 
-async function driveInspectScanCrossPlatform(url, artifactsDir) {
+async function driveInspectScanCrossPlatform(url, artifactsDir, { device: onlyDevice } = {}) {
   mkdirSync(artifactsDir, { recursive: true });
   const rows = [];
   const devicesOut = [];
-  for (const device of CROSS_PLATFORM_DEVICES) {
+  const selected = onlyDevice
+    ? CROSS_PLATFORM_DEVICES.filter((d) => d.name === onlyDevice)
+    : CROSS_PLATFORM_DEVICES;
+  if (onlyDevice && selected.length === 0) {
+    throw new Error(`Unknown cross-platform device: ${onlyDevice}`);
+  }
+  for (const device of selected) {
     const dir = join(artifactsDir, deviceSlug(device.name));
     const result = await withBrowser(
       url,
@@ -944,7 +956,7 @@ async function browserDrive(featureId, { url = DEFAULT_URL, artifactsDir, engine
     process.exit(2);
   }
   if (featureId === 'inspect-scan-cross-platform') {
-    const result = await driveInspectScanCrossPlatform(url, artifactsDir);
+    const result = await driveInspectScanCrossPlatform(url, artifactsDir, { device });
     console.log(JSON.stringify({ featureId, ok: true, ...result }, null, 2));
     return;
   }
