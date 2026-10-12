@@ -307,6 +307,18 @@ async function rotateAndAssertNoOffset(page, artifactsDir, name) {
   return rows;
 }
 
+function formatZoomOverflow(label, info) {
+  return [
+    `${label} scale=${info.scale}`,
+    `frame=${info.frame.w.toFixed(0)}x${info.frame.h.toFixed(0)}@${info.frame.x.toFixed(0)},${info.frame.y.toFixed(0)}`,
+    `layer=${info.layer.w.toFixed(0)}x${info.layer.h.toFixed(0)}@${info.layer.x.toFixed(0)},${info.layer.y.toFixed(0)}`,
+    `beyondFrame=${info.extendsBeyondFrame}`,
+    `clips=${info.clips.length}`,
+    `shortCover=${(info.shortCover * 100).toFixed(0)}%`,
+    `area=${(info.coverage * 100).toFixed(0)}%`,
+  ].join(' ');
+}
+
 async function assertUnclippedWholeScreenZoom(page, label) {
   const info = await page.evaluate(() => {
     const frame = document.querySelector('[data-testid="inspect-image-viewport"]');
@@ -333,6 +345,9 @@ async function assertUnclippedWholeScreenZoom(page, label) {
     const intersectW = Math.max(0, Math.min(lr.right, vw) - Math.max(lr.left, 0));
     const intersectH = Math.max(0, Math.min(lr.bottom, vh) - Math.max(lr.top, 0));
     const coverage = vw * vh > 0 ? (intersectW * intersectH) / (vw * vh) : 0;
+    const shortCover = vh <= vw ? intersectH / vh : intersectW / vw;
+    const geomPossible =
+      vw * vh > 0 ? (Math.min(lr.width, vw) * Math.min(lr.height, vh)) / (vw * vh) : 0;
     return {
       scale: Number(frame.getAttribute('data-zoom-scale') || '1'),
       zoomedAttr: frame.getAttribute('data-inspect-zoomed'),
@@ -341,6 +356,8 @@ async function assertUnclippedWholeScreenZoom(page, label) {
       viewport: { w: vw, h: vh },
       clips,
       coverage,
+      shortCover,
+      geomPossible,
       extendsBeyondFrame:
         lr.width > fr.width + 8 &&
         lr.height > fr.height + 8 &&
@@ -367,9 +384,12 @@ async function assertUnclippedWholeScreenZoom(page, label) {
       `${label}: zoomed image is clipped by ancestors ${JSON.stringify(info.clips)}`,
     );
   }
-  if (info.coverage < 0.7) {
+  // Area ≥70% is only possible when the scaled photo is that large (portrait).
+  // Landscape phones keep a short contained frame; require the short axis to be
+  // covered so the zoomed photo paints over chrome instead of sitting in the box.
+  if (info.shortCover < 0.9) {
     throw new Error(
-      `${label}: zoomed image covers ${(info.coverage * 100).toFixed(0)}% of the viewport (need ≥70%)`,
+      `${label}: zoomed image covers ${(info.shortCover * 100).toFixed(0)}% of the short viewport axis (need ≥90%; area ${(info.coverage * 100).toFixed(0)}%)`,
     );
   }
   return info;
@@ -462,7 +482,7 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
   if (!scale || Number(scale) < 2.4) {
     throw new Error(`${name}: pinch zoom did not reach ~2.75 (data-zoom-scale=${scale})`);
   }
-  await assertUnclippedWholeScreenZoom(page, name);
+  const overflow = await assertUnclippedWholeScreenZoom(page, name);
   await page.screenshot({ path: join(artifactsDir, `${name}-zoom.png`), fullPage: false });
   await dispatchHoldStart(page, selector);
   await page.waitForTimeout(550);
@@ -478,7 +498,7 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
     el.dispatchEvent(new TouchEvent('touchend', { bubbles: true, cancelable: true, touches: [] }));
   });
   await dispatchPinch(page, selector, 400, 80);
-  return Number(scale);
+  return { scale: Number(scale), overflow };
 }
 
 async function measureAndShotResults(page, artifactsDir, name) {
@@ -523,10 +543,13 @@ async function driveInspectScan(page, artifactsDir) {
 
   const metrics = [];
   const zoomScales = {};
+  const overflowRows = [];
   const portrait = await measureAndShotResults(page, artifactsDir, 'inspect-scan-results-390x844');
   metrics.push(`390x844 results ${portrait.image} left=${portrait.leftGap} right=${portrait.rightGap} delta=${portrait.delta}`);
   copyFileSync(join(artifactsDir, 'inspect-scan-results-390x844.png'), join(artifactsDir, 'inspect-scan-results.png'));
-  zoomScales['390x844'] = await pinchAndBlinkViewport(page, artifactsDir, 'inspect-scan-390x844');
+  const portraitZoom = await pinchAndBlinkViewport(page, artifactsDir, 'inspect-scan-390x844');
+  zoomScales['390x844'] = portraitZoom.scale;
+  overflowRows.push(formatZoomOverflow('390x844', portraitZoom.overflow));
   copyFileSync(join(artifactsDir, 'inspect-scan-390x844-zoom-blink.png'), join(artifactsDir, 'inspect-scan-zoom-blink.png'));
 
   for (const size of [
@@ -538,10 +561,13 @@ async function driveInspectScan(page, artifactsDir) {
     const label = `${size.width}x${size.height}`;
     const shot = await measureAndShotResults(page, artifactsDir, `inspect-scan-results-${label}`);
     metrics.push(`${label} results ${shot.image} left=${shot.leftGap} right=${shot.rightGap} delta=${shot.delta}`);
-    zoomScales[label] = await pinchAndBlinkViewport(page, artifactsDir, `inspect-scan-${label}`);
+    const zoomed = await pinchAndBlinkViewport(page, artifactsDir, `inspect-scan-${label}`);
+    zoomScales[label] = zoomed.scale;
+    overflowRows.push(formatZoomOverflow(label, zoomed.overflow));
   }
 
   writeFileSync(join(artifactsDir, 'inspect-scan-center.txt'), `${metrics.join('\n')}\n`, 'utf8');
+  writeFileSync(join(artifactsDir, 'inspect-scan-zoom-overflow.txt'), `${overflowRows.join('\n')}\n`, 'utf8');
   const rotation = await rotateAndAssertNoOffset(page, artifactsDir, 'inspect-scan-rotate');
   const aria = await page.locator('body').ariaSnapshot();
   writeFileSync(join(artifactsDir, 'inspect-scan.aria.txt'), aria, 'utf8');

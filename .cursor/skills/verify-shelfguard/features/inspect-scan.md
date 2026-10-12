@@ -36,7 +36,7 @@ Preconditions:
 - **Zoomed blink-compare.** Long-press after pinch; `[data-showing-baseline="true"]` appears at the same `data-zoom-scale`.
 - **No flicker during pinch.** Rapid 1↔2 finger sequences: blink-state toggle count is 0 and scale does not reset to 1.
 - **No post-rotate offset.** On capture and results, after 390×844 ↔ 844×390 ↔ 932×430: `scrollX === 0`, `documentElement.scrollWidth <= innerWidth`.
-- **Proof.** `inspect-scan-results-*.png`, `inspect-scan-*-zoom.png`, `inspect-scan-*-zoom-blink.png`, `inspect-scan-rotate-*.png`, `inspect-scan.aria.txt`, `first-capture-comparison.txt`.
+- **Proof.** `inspect-scan-results-*.png`, `inspect-scan-*-zoom.png`, `inspect-scan-*-zoom-blink.png`, `inspect-scan-zoom-overflow.txt`, `inspect-scan-rotate-*.png`, `inspect-scan.aria.txt`, `first-capture-comparison.txt`.
 
 Command:
 
