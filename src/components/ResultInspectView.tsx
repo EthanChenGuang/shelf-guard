@@ -40,7 +40,7 @@ interface ResultInspectViewProps {
   lang: Language;
 }
 
-const PINCH_HINT_MS = 5000;
+const PINCH_HINT_MS = 8000;
 const PINCH_HINT_REDUCED_MS = 1600;
 const HINT_FADE_MS = 400;
 const HOLD_RING = 138.2;

@@ -173,21 +173,23 @@ html[data-inspect-zoomed="true"] #root > div {
 @media (orientation: landscape) {
   .inspect-pinch-hint,
   .inspect-hold-hint {
-    gap: 0.35rem;
-    padding: 0.25rem;
+    flex-direction: row;
+    gap: 0.5rem;
+    padding: 0.35rem;
   }
 
   .inspect-pinch-hint svg,
   .inspect-hold-hint svg {
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 4.25rem;
+    height: 4.25rem;
+    flex-shrink: 0;
   }
 
   .inspect-pinch-hint .inspect-hint-pill,
   .inspect-hold-hint .inspect-hint-pill {
-    font-size: 0.65rem;
-    line-height: 1.15;
-    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    padding: 0.35rem 0.75rem;
   }
 }
 

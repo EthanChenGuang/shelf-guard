@@ -187,7 +187,7 @@ describe('ResultInspectView inline pinch-zoom', () => {
     render(<ResultInspectView {...baseProps} lang="it" />);
     expect(screen.getByTestId('inspect-pinch-hint')).toBeInTheDocument();
     act(() => {
-      vi.advanceTimersByTime(5401);
+      vi.advanceTimersByTime(8401);
     });
     expect(screen.queryByTestId('inspect-pinch-hint')).not.toBeInTheDocument();
     const hold = screen.getByTestId('inspect-hold-hint');
@@ -201,7 +201,7 @@ describe('ResultInspectView inline pinch-zoom', () => {
   it('keeps the animated hold hint while zoomed', () => {
     render(<ResultInspectView {...baseProps} lang="it" />);
     act(() => {
-      vi.advanceTimersByTime(5401);
+      vi.advanceTimersByTime(8401);
     });
     const viewport = screen.getByTestId('inspect-image-viewport');
     fireEvent.touchStart(viewport, {
