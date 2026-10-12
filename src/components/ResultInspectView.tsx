@@ -222,7 +222,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
           onMouseLeave={() => hold.cancel()}
           onTouchStart={(e) => {
             touchHandlers.onTouchStart(e);
-            if (e.touches.length !== 1) {
+            if (e.touches.length >= 2) {
               hold.cancel();
               return;
             }
@@ -231,7 +231,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
           }}
           onTouchMove={(e) => {
             touchHandlers.onTouchMove(e);
-            if (e.touches.length !== 1) {
+            if (e.touches.length >= 2) {
               hold.cancel();
               return;
             }
