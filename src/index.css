@@ -133,7 +133,7 @@ html[data-inspect-zoomed="true"] #root > div {
   }
 
   [data-testid='inspect-hold-hint'] {
-    margin-top: -0.65rem;
+    bottom: 22%;
   }
 }
 
