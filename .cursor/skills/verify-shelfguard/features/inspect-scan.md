@@ -7,7 +7,7 @@ Compares a new shelf photo against the saved baseline using the in-browser OpenC
 - `gallery-capture` — **Scegli la foto dell'ispezione dalla galleria** uploads the inspection photo
 - `scan-progress` — scanning / processing overlays while the worker runs
 - `result-inspect` — **Risultato dell'ispezione** with **Conferma e concludi l'ispezione**
-- `result-inspect-fullscreen` — tap or **Schermo intero** opens an opaque **Analisi comparativa** overlay sized to the **visual viewport** (Fullscreen API when the browser allows it; iOS falls back to visualViewport). Pinch-zoom; long-press still blink-compares the baseline at the same zoom/pan; **Esci da schermo intero** (✕) closes; AR boxes remain visible. Overlay must stay inside the visible area in landscape (no 100dvh overflow under the address bar).
+- `result-inspect-zoom` — two-finger pinch zoom/pan **inline** on `[data-testid="inspect-image-viewport"]` (no fullscreen overlay or expand control). AR boxes transform with the photo. Long-press still blink-compares the baseline at the same zoom/pan.
 
 ## How to get to it (user POV)
 
@@ -29,11 +29,11 @@ Preconditions:
 - **Ensure baseline.** After hydration, pill shows **Riferimento pronto**.
 - **First capture (comparison).** Click gallery button by Italian `aria-label`, set `public/test-fixtures/capture-displaced.jpg` on `[data-testid="gallery-input"]`. This is the first capture with a persisted baseline — it must run comparison, not save a new baseline.
 - **Wait for results.** Button **Conferma e concludi l'ispezione** becomes visible (timeout up to 120s for worker init). Camera idle must not remain on screen.
-- **Confirm centering.** `[data-testid="inspect-image-viewport"]` is `mx-auto` on the sized frame. Left/right gaps match in portrait **and** landscape (`inspect-scan-center.txt`).
-- **Open fullscreen under WebKit-lie chrome.** Click `[data-testid="inspect-image-fullscreen-open"]` after `simulatePersistentTopChrome`: visualViewport reports offsetTop 0 / height === innerHeight, the 100svh probe reports innerHeight−56, and a 56px address bar is painted. Overlay.y must be ≥ 56; close, hint, and canvas stay inside that box (contain-fit, not cover-crop).
-- **Viewports.** Assert 390×844, 844×390, 932×430, then rotate 844×390 → 390×844 **while fullscreen is open**.
-- **Zoomed blink-compare.** Pinch `[data-testid="inspect-image-fullscreen-stage"]`, then long-press; `[data-showing-baseline="true"]` appears.
-- **Proof.** `inspect-scan-results-*.png`, `inspect-scan-fullscreen-*.png`, `inspect-scan-fullscreen-blink-zoomed.png`, `inspect-scan-fullscreen-rotate-390x844.png`, `inspect-scan.aria.txt`, `first-capture-comparison.txt`.
+- **Confirm centering.** `[data-testid="inspect-image-viewport"]` is `mx-auto` on the sized frame. Left/right gaps match in portrait **and** landscape (`inspect-scan-center.txt`). There is no `[data-testid="inspect-image-fullscreen"]` or expand control.
+- **Viewports.** Assert 390×844, 844×390, 932×430.
+- **Inline pinch-zoom.** Two-finger pinch on `[data-testid="inspect-image-viewport"]`; `data-zoom-scale` > 1.05.
+- **Zoomed blink-compare.** Long-press after pinch; `[data-showing-baseline="true"]` appears at the same `data-zoom-scale`.
+- **Proof.** `inspect-scan-results-*.png`, `inspect-scan-*-zoom.png`, `inspect-scan-*-zoom-blink.png`, `inspect-scan.aria.txt`, `first-capture-comparison.txt`.
 
 Command:
 

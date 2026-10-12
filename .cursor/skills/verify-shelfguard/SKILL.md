@@ -77,15 +77,16 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 |----------|--------|
 | `establish-baseline/establish-baseline-camera.png` | Baseline saved; pill shows **Riferimento pronto** |
 | `establish-baseline/establish-baseline-pill.txt` | Exact baseline status text |
-| `inspect-scan/inspect-scan-results-390x844.png` | Portrait results; comparison image centered |
+| `inspect-scan/inspect-scan-results-390x844.png` | Portrait results; comparison image centered; no fullscreen control |
 | `inspect-scan/inspect-scan-results-844x390.png` | Landscape phone results; image centered (not left-aligned) |
 | `inspect-scan/inspect-scan-results-932x430.png` | Larger landscape phone results; image centered |
 | `inspect-scan/inspect-scan-center.txt` | Left/right gaps per viewport |
-| `inspect-scan/inspect-scan-fullscreen-390x844.png` | Overlay sits below a painted 56px address bar after a WebKit lie (visualViewport offsetTop 0 / height === innerHeight; 100svh probe reports innerHeight−56); close, hint, and the whole photo inside that box (portrait) |
-| `inspect-scan/inspect-scan-fullscreen-844x390.png` | Same WebKit-lie chrome in landscape: overlay.y ≥ 56, close/hint/photo inside the visible box |
-| `inspect-scan/inspect-scan-fullscreen-932x430.png` | Same WebKit-lie chrome at 932×430 |
-| `inspect-scan/inspect-scan-fullscreen-rotate-390x844.png` | After landscape→portrait while open, overlay still sits below the painted bar |
-| `inspect-scan/inspect-scan-fullscreen-blink-zoomed.png` | After pinch-zoom, long-press shows the baseline at the same zoom |
+| `inspect-scan/inspect-scan-390x844-zoom.png` | Inline two-finger pinch on the results image (portrait); `data-zoom-scale` > 1 |
+| `inspect-scan/inspect-scan-844x390-zoom.png` | Inline pinch on landscape 844×390 |
+| `inspect-scan/inspect-scan-932x430-zoom.png` | Inline pinch on 932×430 |
+| `inspect-scan/inspect-scan-390x844-zoom-blink.png` | After pinch, long-press shows the baseline at the same zoom (portrait) |
+| `inspect-scan/inspect-scan-844x390-zoom-blink.png` | Zoomed blink-compare at 844×390 |
+| `inspect-scan/inspect-scan-932x430-zoom-blink.png` | Zoomed blink-compare at 932×430 |
 | `inspect-scan/inspect-scan.aria.txt` | ARIA tree includes **Conferma e concludi l'ispezione** |
 | `inspect-scan/first-capture-comparison.txt` | First capture with an existing baseline ran comparison (PR #6) |
 | `multi-shelf/multi-shelf-2-empty-baseline.png` | Shelf 2 selected with no baseline yet |

@@ -15,8 +15,6 @@ const DEFAULT_URL = process.env.SHELFGUARD_VERIFY_URL ?? 'http://127.0.0.1:4173'
 const BASELINE_FIXTURE = join(REPO_ROOT, 'public/test-fixtures/baseline-aligned.jpg');
 const CAPTURE_FIXTURE = join(REPO_ROOT, 'public/test-fixtures/capture-displaced.jpg');
 
-const ADDRESS_BAR_CHROME_PX = 56;
-
 const IT = {
   captureScan: 'Scatta e analizza lo scaffale',
   baselineEstablished: 'Riferimento pronto',
@@ -123,9 +121,6 @@ async function withBrowser(url, fn) {
       isMobile: true,
       hasTouch: true,
       locale: 'it-IT',
-      // iPhone Edge UA so iosOverlayChromePx fires if 100svh also equals innerHeight.
-      userAgent:
-        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) EdgiOS/120.0.0.0 Mobile/15E148 Safari/604.1',
       permissions: ['camera'],
       reducedMotion: 'reduce',
       serviceWorkers: 'block',
@@ -238,118 +233,6 @@ async function dispatchHoldStart(page, selector) {
   });
 }
 
-async function simulatePersistentTopChrome(page, chromePx) {
-  await page.evaluate((chrome) => {
-    // Real iOS Edge/Safari: visualViewport often reports offsetTop 0 and
-    // height === innerHeight while the address bar still overlays the top.
-    // A truthful visualViewport wrap would let the old overlay code pass.
-    const prev = window.visualViewport;
-    const fake = {
-      get offsetTop() {
-        return 0;
-      },
-      get offsetLeft() {
-        return 0;
-      },
-      get width() {
-        return window.innerWidth;
-      },
-      get height() {
-        return window.innerHeight;
-      },
-      get scale() {
-        return prev?.scale ?? 1;
-      },
-      get pageLeft() {
-        return prev?.pageLeft ?? 0;
-      },
-      get pageTop() {
-        return prev?.pageTop ?? 0;
-      },
-      addEventListener(type, fn, opts) {
-        prev?.addEventListener?.(type, fn, opts);
-      },
-      removeEventListener(type, fn, opts) {
-        prev?.removeEventListener?.(type, fn, opts);
-      },
-      dispatchEvent(event) {
-        return prev?.dispatchEvent?.(event) ?? true;
-      },
-    };
-    try {
-      Object.defineProperty(window, 'visualViewport', {
-        configurable: true,
-        get() {
-          return fake;
-        },
-      });
-    } catch {
-      if (prev) {
-        Object.defineProperty(prev, 'offsetTop', { configurable: true, get: () => 0 });
-        Object.defineProperty(prev, 'offsetLeft', { configurable: true, get: () => 0 });
-        Object.defineProperty(prev, 'width', {
-          configurable: true,
-          get: () => window.innerWidth,
-        });
-        Object.defineProperty(prev, 'height', {
-          configurable: true,
-          get: () => window.innerHeight,
-        });
-      }
-    }
-
-    window.__sgChromePx = chrome;
-    if (!window.__sgChromeRectPatched) {
-      window.__sgChromeRectPatched = true;
-      const orig = Element.prototype.getBoundingClientRect;
-      Element.prototype.getBoundingClientRect = function patchedRect() {
-        if (this.getAttribute?.('data-css-small-viewport') === 'true') {
-          const c = window.__sgChromePx || 0;
-          return new DOMRect(0, 0, window.innerWidth, Math.max(0, window.innerHeight - c));
-        }
-        return orig.call(this);
-      };
-    }
-
-    let bar = document.getElementById('sg-fake-address-bar');
-    if (!bar) {
-      bar = document.createElement('div');
-      bar.id = 'sg-fake-address-bar';
-      bar.setAttribute('data-testid', 'fake-address-bar');
-      document.documentElement.appendChild(bar);
-    }
-    bar.style.cssText = [
-      'position:fixed',
-      'top:0',
-      'left:0',
-      'right:0',
-      `height:${chrome}px`,
-      'z-index:2147483646',
-      'background:#1c1c1e',
-      'color:#f5f5f7',
-      'display:flex',
-      'align-items:center',
-      'padding:0 12px',
-      'font:12px/1.2 -apple-system,system-ui,sans-serif',
-      'pointer-events:none',
-      'box-sizing:border-box',
-    ].join(';');
-    bar.textContent = '🔒 gregis-gmailcoms-projects.vercel.app';
-
-    window.dispatchEvent(new Event('resize'));
-  }, chromePx);
-}
-
-async function applyAddressBarChrome(page) {
-  await simulatePersistentTopChrome(page, ADDRESS_BAR_CHROME_PX);
-}
-
-async function hideFakeAddressBar(page) {
-  await page.evaluate(() => {
-    document.getElementById('sg-fake-address-bar')?.remove();
-  });
-}
-
 function assertCenteredBox(box, pageWidth, label) {
   if (!box) throw new Error(`${label}: comparison image has no box`);
   const leftGap = box.x;
@@ -363,61 +246,35 @@ function assertCenteredBox(box, pageWidth, label) {
   return { leftGap, rightGap, delta };
 }
 
-function boxInside(inner, outer, slop = 1) {
-  return (
-    inner.x >= outer.x - slop &&
-    inner.y >= outer.y - slop &&
-    inner.x + inner.width <= outer.x + outer.width + slop &&
-    inner.y + inner.height <= outer.y + outer.height + slop
-  );
-}
-
-async function assertOverlayFitsVisible(page, label) {
-  const overlay = page.getByTestId('inspect-image-fullscreen');
-  const box = await overlay.boundingBox();
-  if (!box) throw new Error(`${label}: fullscreen overlay has no box`);
-  const metrics = await page.evaluate(() => ({
-    innerWidth: window.innerWidth,
-    innerHeight: window.innerHeight,
-  }));
-  const chrome = ADDRESS_BAR_CHROME_PX;
-  if (box.y < chrome - 1) {
-    throw new Error(
-      `${label}: overlay.y ${box.y.toFixed(1)} sits under chrome ${chrome}`,
-    );
+async function pinchAndBlinkViewport(page, artifactsDir, name) {
+  const selector = '[data-testid="inspect-image-viewport"]';
+  const viewport = page.getByTestId('inspect-image-viewport');
+  if (await page.getByTestId('inspect-image-fullscreen').count()) {
+    throw new Error(`${name}: comparison fullscreen overlay is still present`);
   }
-  if (box.y + box.height > metrics.innerHeight + 1) {
-    throw new Error(
-      `${label}: overlay bottom ${ (box.y + box.height).toFixed(1) } exceeds innerHeight ${metrics.innerHeight}`,
-    );
+  if (await page.getByTestId('inspect-image-fullscreen-open').count()) {
+    throw new Error(`${name}: fullscreen expand control is still present`);
   }
-  if (box.x < -1) {
-    throw new Error(`${label}: overlay.x ${box.x.toFixed(1)} is off the left edge`);
+  await dispatchPinch(page, selector, 80, 220);
+  const scale = await viewport.getAttribute('data-zoom-scale');
+  if (!scale || Number(scale) <= 1.05) {
+    throw new Error(`${name}: pinch zoom did not apply (data-zoom-scale=${scale})`);
   }
-  if (box.x + box.width > metrics.innerWidth + 1) {
-    throw new Error(
-      `${label}: overlay right ${ (box.x + box.width).toFixed(1) } exceeds innerWidth ${metrics.innerWidth}`,
-    );
+  await page.screenshot({ path: join(artifactsDir, `${name}-zoom.png`), fullPage: false });
+  await dispatchHoldStart(page, selector);
+  await page.waitForTimeout(550);
+  if ((await viewport.locator('[data-showing-baseline="true"]').count()) < 1) {
+    throw new Error(`${name}: zoomed blink-compare did not show the baseline image`);
   }
-
-  for (const id of ['inspect-image-fullscreen-close', 'inspect-image-fullscreen-hint']) {
-    const child = await overlay.getByTestId(id).boundingBox();
-    if (!child) throw new Error(`${label}: ${id} has no box`);
-    if (!boxInside(child, box)) {
-      throw new Error(
-        `${label}: ${id} ${Math.round(child.x)},${Math.round(child.y)} ${Math.round(child.width)}x${Math.round(child.height)} is not inside overlay ${Math.round(box.x)},${Math.round(box.y)} ${Math.round(box.width)}x${Math.round(box.height)}`,
-      );
-    }
+  const scaleWhileBlink = await viewport.getAttribute('data-zoom-scale');
+  if (scaleWhileBlink !== scale) {
+    throw new Error(`${name}: blink changed zoom (${scale} -> ${scaleWhileBlink})`);
   }
-
-  const canvasBox = await overlay.getByTestId('inspect-shelf-canvas').boundingBox();
-  if (!canvasBox) throw new Error(`${label}: inspect-shelf-canvas has no box`);
-  if (canvasBox.width > box.width + 1 || canvasBox.height > box.height + 1) {
-    throw new Error(
-      `${label}: canvas ${Math.round(canvasBox.width)}x${Math.round(canvasBox.height)} overflows overlay ${Math.round(box.width)}x${Math.round(box.height)} (cover-crop, not contain-fit)`,
-    );
-  }
-  return { overlay: box, inner: metrics, chrome };
+  await page.screenshot({ path: join(artifactsDir, `${name}-zoom-blink.png`), fullPage: false });
+  await viewport.evaluate((el) => {
+    el.dispatchEvent(new TouchEvent('touchend', { bubbles: true, cancelable: true, touches: [] }));
+  });
+  return Number(scale);
 }
 
 async function measureAndShotResults(page, artifactsDir, name) {
@@ -461,75 +318,34 @@ async function driveInspectScan(page, artifactsDir) {
   );
 
   const metrics = [];
-  await hideFakeAddressBar(page);
+  const zoomScales = {};
   const portrait = await measureAndShotResults(page, artifactsDir, 'inspect-scan-results-390x844');
   metrics.push(`390x844 results ${portrait.image} left=${portrait.leftGap} right=${portrait.rightGap} delta=${portrait.delta}`);
-
-  await applyAddressBarChrome(page);
-  await page.getByTestId('inspect-image-fullscreen-open').click();
-  const overlay = page.getByTestId('inspect-image-fullscreen');
-  await overlay.waitFor({ state: 'visible', timeout: 5_000 });
-  await assertOverlayFitsVisible(page, 'portrait 390x844 fullscreen');
-  await page.screenshot({ path: join(artifactsDir, 'inspect-scan-fullscreen-390x844.png'), fullPage: false });
   copyFileSync(join(artifactsDir, 'inspect-scan-results-390x844.png'), join(artifactsDir, 'inspect-scan-results.png'));
-  copyFileSync(join(artifactsDir, 'inspect-scan-fullscreen-390x844.png'), join(artifactsDir, 'inspect-scan-fullscreen.png'));
-
-  await dispatchPinch(page, '[data-testid="inspect-image-fullscreen-stage"]', 80, 220);
-  const scale = await page.getByTestId('inspect-image-fullscreen-stage').getAttribute('data-zoom-scale');
-  if (!scale || Number(scale) <= 1.05) {
-    throw new Error(`Pinch zoom did not apply (data-zoom-scale=${scale})`);
-  }
-  await dispatchHoldStart(page, '[data-testid="inspect-image-fullscreen-stage"]');
-  await page.waitForTimeout(550);
-  if ((await overlay.locator('[data-showing-baseline="true"]').count()) < 1) {
-    throw new Error('Zoomed blink-compare did not show the baseline image');
-  }
-  await page.screenshot({ path: join(artifactsDir, 'inspect-scan-fullscreen-blink-zoomed.png'), fullPage: false });
-  await page.getByTestId('inspect-image-fullscreen-close').click();
-  await overlay.waitFor({ state: 'hidden', timeout: 5_000 });
+  zoomScales['390x844'] = await pinchAndBlinkViewport(page, artifactsDir, 'inspect-scan-390x844');
+  copyFileSync(join(artifactsDir, 'inspect-scan-390x844-zoom-blink.png'), join(artifactsDir, 'inspect-scan-zoom-blink.png'));
 
   for (const size of [
     { width: 844, height: 390 },
     { width: 932, height: 430 },
   ]) {
     await page.setViewportSize(size);
-    await hideFakeAddressBar(page);
     await page.waitForTimeout(200);
     const label = `${size.width}x${size.height}`;
     const shot = await measureAndShotResults(page, artifactsDir, `inspect-scan-results-${label}`);
     metrics.push(`${label} results ${shot.image} left=${shot.leftGap} right=${shot.rightGap} delta=${shot.delta}`);
-    await applyAddressBarChrome(page);
-    await page.getByTestId('inspect-image-fullscreen-open').click();
-    await overlay.waitFor({ state: 'visible', timeout: 5_000 });
-    await assertOverlayFitsVisible(page, `${label} fullscreen`);
-    await page.screenshot({ path: join(artifactsDir, `inspect-scan-fullscreen-${label}.png`), fullPage: false });
-    await page.getByTestId('inspect-image-fullscreen-close').click();
-    await overlay.waitFor({ state: 'hidden', timeout: 5_000 });
+    zoomScales[label] = await pinchAndBlinkViewport(page, artifactsDir, `inspect-scan-${label}`);
   }
-
-  await page.setViewportSize({ width: 844, height: 390 });
-  await applyAddressBarChrome(page);
-  await page.waitForTimeout(200);
-  await page.getByTestId('inspect-image-fullscreen-open').click();
-  await overlay.waitFor({ state: 'visible', timeout: 5_000 });
-  await assertOverlayFitsVisible(page, 'pre-rotate landscape fullscreen');
-  await page.setViewportSize({ width: 390, height: 844 });
-  await applyAddressBarChrome(page);
-  await page.waitForTimeout(250);
-  await assertOverlayFitsVisible(page, 'orientation change while fullscreen open');
-  await page.screenshot({ path: join(artifactsDir, 'inspect-scan-fullscreen-rotate-390x844.png'), fullPage: false });
-  await page.getByTestId('inspect-image-fullscreen-close').click();
-  await overlay.waitFor({ state: 'hidden', timeout: 5_000 });
 
   writeFileSync(join(artifactsDir, 'inspect-scan-center.txt'), `${metrics.join('\n')}\n`, 'utf8');
   const aria = await page.locator('body').ariaSnapshot();
   writeFileSync(join(artifactsDir, 'inspect-scan.aria.txt'), aria, 'utf8');
   return {
     hasFinish: true,
-    hasFullscreen: true,
     centered: true,
     firstCaptureComparison: true,
-    zoomScale: Number(scale),
+    noFullscreen: true,
+    zoomScales,
   };
 }
 
