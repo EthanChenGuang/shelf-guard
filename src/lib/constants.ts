@@ -155,8 +155,6 @@ export const I18N = {
     firstBaselineHint: "Tocca l'otturatore per scattare il riferimento",
     enterFullscreen: 'Schermo intero',
     exitFullscreen: 'Esci da schermo intero',
-    comparisonFullscreenTitle: 'Analisi comparativa',
-    comparisonFullscreenHint: 'Pizzica per ingrandire · tocca ✕ per chiudere',
   },
   cn: {
     appTitle: 'Online Market 展架即时巡检',
@@ -246,8 +244,6 @@ export const I18N = {
     firstBaselineHint: '轻按快门拍摄基准图',
     enterFullscreen: '全屏',
     exitFullscreen: '退出全屏',
-    comparisonFullscreenTitle: '比对分析全屏',
-    comparisonFullscreenHint: '双指缩放 · 点 ✕ 关闭',
   },
   en: {
     appTitle: 'Online Market Planogram Audit',
@@ -339,7 +335,5 @@ export const I18N = {
     firstBaselineHint: 'Tap the shutter to take the baseline',
     enterFullscreen: 'Full screen',
     exitFullscreen: 'Exit full screen',
-    comparisonFullscreenTitle: 'Comparison analysis',
-    comparisonFullscreenHint: 'Pinch to zoom · tap ✕ to close',
   },
 };

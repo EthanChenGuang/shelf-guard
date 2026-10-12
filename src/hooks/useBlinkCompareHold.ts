@@ -12,8 +12,8 @@ export interface BlinkCompareHold {
 }
 
 /**
- * Press-and-hold to swap in the baseline. A short stationary tap can open fullscreen;
- * movement cancels the hold so pinch/pan still work while zoomed.
+ * Press-and-hold to swap in the baseline. Movement cancels the hold so pinch/pan
+ * still work while zoomed. Optional onShortRelease is unused on the results page.
  */
 export function useBlinkCompareHold(options: { onShortRelease?: () => void } = {}): BlinkCompareHold {
   const [isBlinking, setIsBlinking] = useState(false);

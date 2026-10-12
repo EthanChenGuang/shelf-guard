@@ -2,7 +2,6 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { DetectedAnomaly, Language, ShelfCalibration } from '../types';
 import { I18N } from '../lib/constants';
-import { containViewportStyle, coverViewportStyle } from '../lib/frameBox';
 
 const TYPE_STYLES: Record<DetectedAnomaly['type'], { box: string; badge: string }> = {
   MISSING: { box: 'border-2 border-sg-danger', badge: 'text-sg-danger' },
@@ -19,8 +18,6 @@ export interface InspectShelfCanvasProps {
   showArLayers: boolean;
   lang: Language;
   onDismissAnomaly?: (id: string, e: React.MouseEvent) => void;
-  layout?: 'fill' | 'cover' | 'contain';
-  coverViewport?: { width: number; height: number };
   className?: string;
   showingBaseline?: boolean;
 }
@@ -32,8 +29,6 @@ export const InspectShelfCanvas: React.FC<InspectShelfCanvasProps> = ({
   showArLayers,
   lang,
   onDismissAnomaly,
-  layout = 'fill',
-  coverViewport,
   className = '',
   showingBaseline = false,
 }) => {
@@ -44,20 +39,12 @@ export const InspectShelfCanvas: React.FC<InspectShelfCanvasProps> = ({
     ADDED: t.addedBadgeShort,
   };
 
-  const layoutStyle =
-    layout === 'cover' && coverViewport
-      ? coverViewportStyle(baseline.imageDimensions, coverViewport)
-      : layout === 'contain' && coverViewport
-        ? containViewportStyle(baseline.imageDimensions, coverViewport)
-        : { width: '100%', height: '100%' };
-
   return (
     <div
       className={`relative overflow-hidden bg-slate-900 select-none [-webkit-touch-callout:none] ${className}`}
-      style={layoutStyle}
+      style={{ width: '100%', height: '100%' }}
       onContextMenu={(e) => e.preventDefault()}
       data-testid="inspect-shelf-canvas"
-      data-layout={layout}
       data-showing-baseline={showingBaseline ? 'true' : 'false'}
     >
       <img

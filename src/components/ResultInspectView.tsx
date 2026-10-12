@@ -6,7 +6,6 @@ import {
   Eye,
   Gauge,
   Layers,
-  Maximize,
   Share2,
   Sliders,
 } from 'lucide-react';
@@ -15,11 +14,10 @@ import { DetectedAnomaly, Language, ShelfCalibration, ToleranceValue } from '../
 import { I18N } from '../lib/constants';
 import { MIN_CONFIDENCE_CEIL, MIN_CONFIDENCE_FLOOR, meetsMinConfidence } from '../lib/vision/confidence';
 import { InspectShelfCanvas } from './InspectShelfCanvas';
-import { InspectImageFullscreen } from './InspectImageFullscreen';
 import { useBlinkCompareHold } from '../hooks/useBlinkCompareHold';
+import { usePinchPanZoom } from '../hooks/usePinchPanZoom';
 import { touchAt } from '../lib/touchAt';
 import { frameBoxStyle } from '../lib/frameBox';
-import { exitDocumentFullscreen, requestElementFullscreen } from '../hooks/useFullscreen';
 
 interface ResultInspectViewProps {
   currentCaptureUrl: string;
@@ -62,13 +60,8 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
 }) => {
   const t = I18N[lang];
 
-  const [isComparisonFullscreen, setIsComparisonFullscreen] = useState(false);
-  const hold = useBlinkCompareHold({
-    onShortRelease: () => {
-      setIsComparisonFullscreen(true);
-      void requestElementFullscreen(document.documentElement);
-    },
-  });
+  const { transform, style, touchHandlers } = usePinchPanZoom();
+  const hold = useBlinkCompareHold();
   const isBlinkingBaseline = hold.isBlinking;
   // State for filtering by anomaly type ('ALL' = show all)
   const [filterType, setFilterType] = useState<'ALL' | DetectedAnomaly['type']>('ALL');
@@ -112,17 +105,6 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   const handleExport = () => {
     setShowExportToast(true);
     setTimeout(() => setShowExportToast(false), 2600);
-  };
-
-  const openComparisonFullscreen = () => {
-    hold.cancel();
-    setIsComparisonFullscreen(true);
-    void requestElementFullscreen(document.documentElement);
-  };
-
-  const closeComparisonFullscreen = () => {
-    setIsComparisonFullscreen(false);
-    void exitDocumentFullscreen();
   };
 
   const displayImageUrl = isBlinkingBaseline ? baseline.imageDataUrl : currentCaptureUrl;
@@ -226,8 +208,9 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
 
       <div className="w-full">
         <div
-          className="relative mx-auto cursor-pointer"
+          className="relative mx-auto cursor-pointer overflow-hidden touch-none"
           data-testid="inspect-image-viewport"
+          data-zoom-scale={transform.scale.toFixed(2)}
           style={frameBoxStyle(baseline.imageDimensions, '72vh')}
           onMouseDown={(e) => hold.begin(e.clientX, e.clientY)}
           onMouseMove={(e) => {
@@ -236,55 +219,45 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
           onMouseUp={() => hold.end()}
           onMouseLeave={() => hold.cancel()}
           onTouchStart={(e) => {
+            touchHandlers.onTouchStart(e);
+            if (e.touches.length >= 2) {
+              hold.cancel();
+              return;
+            }
             const t0 = touchAt(e.touches, 0);
             hold.begin(t0?.clientX ?? 0, t0?.clientY ?? 0);
           }}
           onTouchMove={(e) => {
+            touchHandlers.onTouchMove(e);
+            if (e.touches.length >= 2) {
+              hold.cancel();
+              return;
+            }
             const t0 = touchAt(e.touches, 0);
             if (t0) hold.move(t0.clientX, t0.clientY);
           }}
-          onTouchEnd={() => hold.end()}
-          onTouchCancel={() => hold.cancel()}
+          onTouchEnd={(e) => {
+            touchHandlers.onTouchEnd(e);
+            hold.end();
+          }}
+          onTouchCancel={(e) => {
+            touchHandlers.onTouchEnd(e);
+            hold.cancel();
+          }}
         >
-          <InspectShelfCanvas
-            imageUrl={displayImageUrl}
-            baseline={baseline}
-            activeAnomalies={isBlinkingBaseline || !showArLayers ? [] : activeAnomalies}
-            showArLayers={!isBlinkingBaseline && showArLayers}
-            lang={lang}
-            layout="fill"
-            onDismissAnomaly={handleDismiss}
-            showingBaseline={isBlinkingBaseline}
-          />
-          <button
-            type="button"
-            data-testid="inspect-image-fullscreen-open"
-            aria-label={t.enterFullscreen}
-            title={t.enterFullscreen}
-            onMouseDown={(e) => e.stopPropagation()}
-            onMouseUp={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onTouchEnd={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              openComparisonFullscreen();
-            }}
-            className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white shadow-lg backdrop-blur-sm active:scale-95"
-          >
-            <Maximize className="h-5 w-5" />
-          </button>
+          <div className="h-full w-full will-change-transform" style={style}>
+            <InspectShelfCanvas
+              imageUrl={displayImageUrl}
+              baseline={baseline}
+              activeAnomalies={isBlinkingBaseline || !showArLayers ? [] : activeAnomalies}
+              showArLayers={!isBlinkingBaseline && showArLayers}
+              lang={lang}
+              onDismissAnomaly={handleDismiss}
+              showingBaseline={isBlinkingBaseline}
+            />
+          </div>
         </div>
       </div>
-
-      <InspectImageFullscreen
-        open={isComparisonFullscreen}
-        onClose={closeComparisonFullscreen}
-        imageUrl={currentCaptureUrl}
-        baseline={baseline}
-        activeAnomalies={activeAnomalies}
-        showArLayers={showArLayers}
-        lang={lang}
-      />
 
       {/* Compare hint below the photo, so nothing covers it; shows the baseline state while held */}
       <div
