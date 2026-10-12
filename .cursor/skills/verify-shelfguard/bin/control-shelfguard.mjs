@@ -204,10 +204,11 @@ async function driveMultiShelf(page, artifactsDir) {
   mkdirSync(artifactsDir, { recursive: true });
   await waitForCameraIdle(page);
   await waitForShelfHydrated(page);
-  await page.getByRole('button', { name: 'Shelf 2', exact: true }).click();
-  await page.getByRole('button', { name: 'Shelf 2' }).getAttribute('aria-pressed').then((v) => {
-    if (v !== 'true') throw new Error('Shelf 2 not selected after click');
-  });
+  const carousel = page.getByTestId('shelf-carousel');
+  await carousel.getByRole('tab', { name: 'Scaffale 2' }).click();
+  const current = await carousel.getByRole('tab', { name: 'Scaffale 2' }).getAttribute('aria-current');
+  if (current !== 'true') throw new Error('Scaffale 2 not selected after click');
+  await waitForShelfHydrated(page);
   await page.getByTestId('baseline-status-pill').getByText(IT.baselineNotSet).waitFor({
     timeout: 10_000,
   });
