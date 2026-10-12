@@ -4,10 +4,10 @@ current_phase: 05
 current_phase_name: PRD UI & Multi-Shelf Experience
 current_plan: 7
 status: verifying
-stopped_at: "Completed quick task 261012-of5: drop comparison fullscreen; inline pinch-zoom on results"
-last_updated: "2026-10-12T17:42:00.000Z"
+stopped_at: "Completed quick task 261012-ozp: pinch flicker + post-rotate white strip; TCG emulator + Mobile MCP"
+last_updated: "2026-10-12T18:35:00.000Z"
 last_activity: 2026-10-12
-last_activity_desc: Completed quick task 261012-of5 remove comparison fullscreen overlay
+last_activity_desc: Completed quick task 261012-ozp pinch flicker and rotation layout lock
 state_head: 00e3ca6d3ae55b66613148b6d42d60ecdd23cf5e
 progress:
   total_phases: 5
@@ -159,6 +159,7 @@ None yet.
 | 13 | 幽灵覆盖层按实时画面自动对齐（镜头不同也可用）；可在浏览器暴露的后置镜头间切换 | 2026-09-28 | 00e3ca6 | — |
 | 261012-ne9 | Landscape fullscreen: whole photo + close + hint fit inside the visible area under a persistent mobile address bar (contain-fit; WebKit visualViewport lie; chrome-sim verify) | 2026-10-12 | 7d831d9 | [261012-ne9-fix-landscape-fullscreen-overlay-so-imag](./quick/261012-ne9-fix-landscape-fullscreen-overlay-so-imag/) |
 | 261012-of5 | Remove comparison fullscreen overlay; pinch-zoom/pan inline on the centered results image with AR overlays and zoomed blink-compare | 2026-10-12 | 6a42ea6 | [261012-of5-remove-fullscreen-comparison-overlay-ent](./quick/261012-of5-remove-fullscreen-comparison-overlay-ent/) |
+| 261012-ozp | Fix results pinch-zoom flicker and post-rotation white strip on capture and results; boot Android emulator + Mobile MCP when possible | 2026-10-12 | 0d28d7a | [261012-ozp-fix-results-pinch-zoom-flicker-blink-com](./quick/261012-ozp-fix-results-pinch-zoom-flicker-blink-com/) |
 
 ## Deferred Items
 
@@ -172,4 +173,4 @@ Last session: 2026-09-25T17:51:01.597Z
 Stopped at: Completed quick task 260925-r3s: tap-to-focus camera control
 Resume file: None
 
-Last activity: 2026-10-12 - Completed quick task 261012-of5: drop comparison fullscreen; inline pinch-zoom on results
+Last activity: 2026-10-12 - Completed quick task 261012-ozp: pinch flicker + rotation layout lock
