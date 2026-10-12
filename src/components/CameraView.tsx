@@ -40,6 +40,8 @@ interface CameraViewProps {
   isLevel: boolean;
   onSimulateTiltToggle?: () => void;
   hasPersistedBaseline?: boolean;
+  /** False while IndexedDB baseline/history for the active shelf is still loading (STAB-05). */
+  shelfHydrated?: boolean;
   isTorchOn: boolean;
   onToggleTorch: () => void;
   hasTorch?: boolean;
@@ -94,6 +96,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
   isLevel,
   onSimulateTiltToggle,
   hasPersistedBaseline = false,
+  shelfHydrated = false,
   isTorchOn,
   onToggleTorch,
   hasTorch = false,
@@ -134,7 +137,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
   const nativeInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const baselineInputRef = useRef<HTMLInputElement>(null);
-  const choosesBaselinePhoto = !hasPersistedBaseline && !!onBaselinePhoto;
+  const choosesBaselinePhoto = shelfHydrated && !hasPersistedBaseline && !!onBaselinePhoto;
   const displayTilt = orientationDenied ? 0 : tilt;
   const displayIsLevel = orientationDenied ? false : isLevel;
   const showSimulateToggle =
@@ -142,7 +145,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
   const reduceMotion = useReducedMotion();
   const swipeLayerRef = useRef<HTMLDivElement>(null);
   const cameraAvailable = !cameraError;
-  const shutterBreathing = !isShutterLocked && cameraAvailable && !reduceMotion;
+  const shutterBreathing = shelfHydrated && !isShutterLocked && cameraAvailable && !reduceMotion;
 
   const handleShutterClick = () => {
     if (isShutterLocked) return;
@@ -405,14 +408,18 @@ export const CameraView: React.FC<CameraViewProps> = ({
               onClick={onResetBaselinePrompt}
               className="glass-panel flex max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-sg-primary active:scale-95 transition-all hover:bg-white/90"
             >
-              {hasPersistedBaseline && (
+              {shelfHydrated && hasPersistedBaseline && (
                 <span className="relative flex h-2 w-2 shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sg-success opacity-75" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-sg-success" />
                 </span>
               )}
               <span className="truncate text-[11px] font-semibold tracking-tight">
-                {hasPersistedBaseline ? t.baselineEstablished : t.baselineNotSet}
+                {!shelfHydrated
+                  ? '\u00A0'
+                  : hasPersistedBaseline
+                    ? t.baselineEstablished
+                    : t.baselineNotSet}
               </span>
             </button>
           </div>
@@ -604,7 +611,9 @@ export const CameraView: React.FC<CameraViewProps> = ({
         <div className="mb-4 px-3 py-1 rounded-full bg-[#0F172A]/75 backdrop-blur-md shadow-sm border border-white/10">
           <p className="text-xs text-white/95 flex items-center gap-1.5 font-medium">
             <ScanLine className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            <span>{choosesBaselinePhoto ? t.firstBaselineHint : t.tapShutterToScan}</span>
+            <span>
+              {shelfHydrated && choosesBaselinePhoto ? t.firstBaselineHint : t.tapShutterToScan}
+            </span>
           </p>
         </div>
 
