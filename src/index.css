@@ -126,16 +126,14 @@ html[data-inspect-zoomed="true"] #root > div {
     height: 2.5rem;
   }
 
-  .inspect-hint-pill {
-    font-size: 0.7rem;
+  .inspect-pinch-hint .inspect-hint-pill {
+    font-size: 0.65rem;
     line-height: 1.15;
-    padding: 0.28rem 0.7rem;
-    white-space: nowrap;
+    padding: 0.25rem 0.6rem;
   }
 
   [data-testid='inspect-hold-hint'] {
-    bottom: 0.35rem;
-    max-width: 98%;
+    margin-top: -0.65rem;
   }
 }
 

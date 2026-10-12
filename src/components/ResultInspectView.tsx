@@ -348,32 +348,32 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
               aria-hidden="true"
             >
               <PinchHintGraphic />
-              <span className="inspect-hint-pill max-w-[90%] truncate rounded-full bg-black/80 px-4 py-2 text-center text-sm font-bold leading-snug text-white shadow-lg ring-2 ring-white/90 backdrop-blur-sm">
+              <span className="inspect-hint-pill max-w-[90%] rounded-full bg-black/80 px-4 py-2 text-center text-sm font-bold leading-snug text-white shadow-lg ring-2 ring-white/90 backdrop-blur-sm">
                 {t.pinchToZoom}
               </span>
             </div>
           )}
+        </div>
+        <div
+          data-testid="inspect-hold-hint"
+          role="status"
+          className="relative z-20 mx-auto -mt-7 mb-2 flex max-w-[min(92%,28rem)] justify-center pointer-events-none"
+        >
           <div
-            data-testid="inspect-hold-hint"
-            role="status"
-            className="absolute bottom-3 left-1/2 z-10 max-w-[92%] -translate-x-1/2 pointer-events-none"
+            className={`inspect-hint-pill flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold leading-snug shadow-lg ring-2 backdrop-blur-sm ${
+              isBlinkingBaseline
+                ? 'bg-emerald-950/85 text-emerald-50 ring-emerald-200/90'
+                : 'bg-black/80 text-white ring-white/90'
+            }`}
           >
-            <div
-              className={`inspect-hint-pill flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold leading-snug shadow-lg ring-2 backdrop-blur-sm ${
-                isBlinkingBaseline
-                  ? 'bg-emerald-950/85 text-emerald-50 ring-emerald-200/90'
-                  : 'bg-black/80 text-white ring-white/90'
-              }`}
-            >
-              {isBlinkingBaseline ? (
-                <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-300" />
-              ) : (
-                <Eye className="h-5 w-5 shrink-0 text-white" />
-              )}
-              <span className="text-center">
-                {isBlinkingBaseline ? t.goldenBaseline : t.pressHoldCompare}
-              </span>
-            </div>
+            {isBlinkingBaseline ? (
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-300" />
+            ) : (
+              <Eye className="h-5 w-5 shrink-0 text-white" />
+            )}
+            <span className="text-center">
+              {isBlinkingBaseline ? t.goldenBaseline : t.pressHoldCompare}
+            </span>
           </div>
         </div>
       </div>
