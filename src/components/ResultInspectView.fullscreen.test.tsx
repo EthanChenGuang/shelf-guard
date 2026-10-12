@@ -106,4 +106,68 @@ describe('ResultInspectView comparison fullscreen', () => {
     const boxes = screen.getByTestId('inspect-image-fullscreen').querySelectorAll('.ar-box');
     expect(boxes.length).toBe(1);
   });
+
+  it('centers the comparison image in the results layout', () => {
+    render(<ResultInspectView {...baseProps} />);
+    const viewport = screen.getByTestId('inspect-image-viewport');
+    expect(viewport.className).toContain('w-fit');
+    expect(viewport.parentElement?.className).toContain('justify-center');
+  });
+
+  it('portals an opaque fullscreen overlay that covers the phone viewport', async () => {
+    vi.useRealTimers();
+    const user = userEvent.setup();
+    render(<ResultInspectView {...baseProps} />);
+    await user.click(screen.getByTestId('inspect-image-fullscreen-open'));
+
+    const overlay = screen.getByTestId('inspect-image-fullscreen');
+    expect(overlay.parentElement).toBe(document.body);
+    expect(overlay.style.width).toBe('100vw');
+    expect(overlay.style.height).toBe('100dvh');
+    expect(overlay.className).toContain('bg-black');
+    expect(overlay.className).not.toContain('bg-black/95');
+
+    const canvas = overlay.querySelector('[data-testid="inspect-shelf-canvas"]') as HTMLElement;
+    expect(canvas.dataset.layout).toBe('cover');
+    expect(canvas.style.width).toContain('100vw');
+    expect(canvas.style.height).toContain('100dvh');
+  });
+
+  it('shows the baseline at the same zoom after a hold in fullscreen', () => {
+    const props = {
+      ...baseProps,
+      baseline: { ...baseProps.baseline, imageDataUrl: 'blob:https://example.com/persisted-baseline' },
+    };
+    render(<ResultInspectView {...props} />);
+    fireEvent.click(screen.getByTestId('inspect-image-fullscreen-open'));
+
+    const stage = screen.getByTestId('inspect-image-fullscreen-stage');
+    fireEvent.touchStart(stage, {
+      touches: [
+        { identifier: 0, clientX: 100, clientY: 100 },
+        { identifier: 1, clientX: 100, clientY: 160 },
+      ],
+    });
+    fireEvent.touchMove(stage, {
+      touches: [
+        { identifier: 0, clientX: 100, clientY: 40 },
+        { identifier: 1, clientX: 100, clientY: 220 },
+      ],
+    });
+    fireEvent.touchEnd(stage, { touches: [] });
+
+    expect(Number(stage.getAttribute('data-zoom-scale'))).toBeGreaterThan(1);
+    const scaleAfterZoom = stage.getAttribute('data-zoom-scale');
+
+    fireEvent.mouseDown(stage, { clientX: 120, clientY: 180 });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    const overlay = screen.getByTestId('inspect-image-fullscreen');
+    const img = overlay.querySelector('[data-testid="inspect-comparison-image"]') as HTMLImageElement;
+    expect(img.src).toContain('persisted-baseline');
+    expect(overlay.querySelector('[data-showing-baseline="true"]')).toBeTruthy();
+    expect(stage.getAttribute('data-zoom-scale')).toBe(scaleAfterZoom);
+  });
 });

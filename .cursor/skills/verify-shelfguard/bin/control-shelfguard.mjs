@@ -117,6 +117,9 @@ async function withBrowser(url, fn) {
   try {
     const context = await browser.newContext({
       viewport: { width: 390, height: 844 },
+      deviceScaleFactor: 2,
+      isMobile: true,
+      hasTouch: true,
       locale: 'it-IT',
       permissions: ['camera'],
       reducedMotion: 'reduce',
@@ -159,6 +162,67 @@ async function driveEstablishBaseline(page, artifactsDir) {
   return { pill };
 }
 
+async function dispatchPinch(page, selector, fromDist, toDist) {
+  await page.locator(selector).evaluate((el, { fromDist, toDist }) => {
+    const rect = el.getBoundingClientRect();
+    const cx = rect.x + rect.width / 2;
+    const cy = rect.y + rect.height / 2;
+    const touch = (id, x, y) =>
+      new Touch({ identifier: id, target: el, clientX: x, clientY: y });
+    const pair = (dist) => [
+      touch(0, cx, cy - dist / 2),
+      touch(1, cx, cy + dist / 2),
+    ];
+    const start = pair(fromDist);
+    const moved = pair(toDist);
+    el.dispatchEvent(
+      new TouchEvent('touchstart', {
+        bubbles: true,
+        cancelable: true,
+        touches: start,
+        targetTouches: start,
+        changedTouches: start,
+      }),
+    );
+    el.dispatchEvent(
+      new TouchEvent('touchmove', {
+        bubbles: true,
+        cancelable: true,
+        touches: moved,
+        targetTouches: moved,
+        changedTouches: moved,
+      }),
+    );
+    el.dispatchEvent(
+      new TouchEvent('touchend', {
+        bubbles: true,
+        cancelable: true,
+        touches: [],
+        targetTouches: [],
+        changedTouches: moved,
+      }),
+    );
+  }, { fromDist, toDist });
+}
+
+async function dispatchHoldStart(page, selector) {
+  await page.locator(selector).evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    const x = rect.x + rect.width / 2;
+    const y = rect.y + rect.height / 2;
+    const t = new Touch({ identifier: 0, target: el, clientX: x, clientY: y });
+    el.dispatchEvent(
+      new TouchEvent('touchstart', {
+        bubbles: true,
+        cancelable: true,
+        touches: [t],
+        targetTouches: [t],
+        changedTouches: [t],
+      }),
+    );
+  });
+}
+
 async function driveInspectScan(page, artifactsDir) {
   mkdirSync(artifactsDir, { recursive: true });
   await waitForCameraIdle(page);
@@ -174,15 +238,53 @@ async function driveInspectScan(page, artifactsDir) {
     timeout: 120_000,
   });
   await page.getByText(IT.auditResult).waitFor({ timeout: 5_000 });
-  await page.screenshot({ path: join(artifactsDir, 'inspect-scan-results.png'), fullPage: true });
+
+  const viewportBox = await page.getByTestId('inspect-image-viewport').boundingBox();
+  const pageSize = page.viewportSize();
+  if (!viewportBox || !pageSize) throw new Error('Could not measure comparison image');
+  const leftGap = viewportBox.x;
+  const rightGap = pageSize.width - (viewportBox.x + viewportBox.width);
+  const centerDelta = Math.abs(leftGap - rightGap);
+  writeFileSync(
+    join(artifactsDir, 'inspect-scan-center.txt'),
+    `viewport=${pageSize.width}x${pageSize.height}\nimage=${Math.round(viewportBox.width)}x${Math.round(viewportBox.height)} @ ${Math.round(viewportBox.x)},${Math.round(viewportBox.y)}\nleftGap=${leftGap.toFixed(1)} rightGap=${rightGap.toFixed(1)} delta=${centerDelta.toFixed(1)}\n`,
+    'utf8',
+  );
+  if (centerDelta > 8) {
+    throw new Error(`Comparison image is not centered (left ${leftGap.toFixed(1)} vs right ${rightGap.toFixed(1)})`);
+  }
+  await page.screenshot({ path: join(artifactsDir, 'inspect-scan-results.png'), fullPage: false });
+
   await page.getByTestId('inspect-image-fullscreen-open').click();
-  await page.getByTestId('inspect-image-fullscreen').waitFor({ state: 'visible', timeout: 5_000 });
-  await page.screenshot({ path: join(artifactsDir, 'inspect-scan-fullscreen.png'), fullPage: true });
+  const overlay = page.getByTestId('inspect-image-fullscreen');
+  await overlay.waitFor({ state: 'visible', timeout: 5_000 });
+  const overlayBox = await overlay.boundingBox();
+  if (!overlayBox) throw new Error('Fullscreen overlay has no box');
+  if (Math.abs(overlayBox.width - pageSize.width) > 2 || Math.abs(overlayBox.height - pageSize.height) > 2) {
+    throw new Error(
+      `Fullscreen overlay does not fill the phone viewport: ${Math.round(overlayBox.width)}x${Math.round(overlayBox.height)} vs ${pageSize.width}x${pageSize.height}`,
+    );
+  }
+  await page.screenshot({ path: join(artifactsDir, 'inspect-scan-fullscreen.png'), fullPage: false });
+
+  await dispatchPinch(page, '[data-testid="inspect-image-fullscreen-stage"]', 80, 220);
+  const scale = await page.getByTestId('inspect-image-fullscreen-stage').getAttribute('data-zoom-scale');
+  if (!scale || Number(scale) <= 1.05) {
+    throw new Error(`Pinch zoom did not apply (data-zoom-scale=${scale})`);
+  }
+  await dispatchHoldStart(page, '[data-testid="inspect-image-fullscreen-stage"]');
+  await page.waitForTimeout(550);
+  const blinking = await overlay.locator('[data-showing-baseline="true"]').count();
+  if (blinking < 1) {
+    throw new Error('Zoomed blink-compare did not show the baseline image');
+  }
+  await page.screenshot({ path: join(artifactsDir, 'inspect-scan-fullscreen-blink-zoomed.png'), fullPage: false });
+
   await page.getByTestId('inspect-image-fullscreen-close').click();
-  await page.getByTestId('inspect-image-fullscreen').waitFor({ state: 'hidden', timeout: 5_000 });
+  await overlay.waitFor({ state: 'hidden', timeout: 5_000 });
   const aria = await page.locator('body').ariaSnapshot();
   writeFileSync(join(artifactsDir, 'inspect-scan.aria.txt'), aria, 'utf8');
-  return { hasFinish: true, hasFullscreen: true };
+  return { hasFinish: true, hasFullscreen: true, centered: true, zoomScale: Number(scale) };
 }
 
 async function driveMultiShelf(page, artifactsDir) {

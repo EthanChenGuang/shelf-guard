@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ArrowLeft,
   Check,
@@ -16,8 +16,8 @@ import { I18N } from '../lib/constants';
 import { MIN_CONFIDENCE_CEIL, MIN_CONFIDENCE_FLOOR, meetsMinConfidence } from '../lib/vision/confidence';
 import { InspectShelfCanvas } from './InspectShelfCanvas';
 import { InspectImageFullscreen } from './InspectImageFullscreen';
-
-const COMPARE_HOLD_MS = 450;
+import { useBlinkCompareHold } from '../hooks/useBlinkCompareHold';
+import { touchAt } from '../lib/touchAt';
 
 interface ResultInspectViewProps {
   currentCaptureUrl: string;
@@ -60,11 +60,11 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
 }) => {
   const t = I18N[lang];
 
-  const [isBlinkingBaseline, setIsBlinkingBaseline] = useState(false);
   const [isComparisonFullscreen, setIsComparisonFullscreen] = useState(false);
-  const compareHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const compareHoldActiveRef = useRef(false);
-  const comparePointerDownRef = useRef(false);
+  const hold = useBlinkCompareHold({
+    onShortRelease: () => setIsComparisonFullscreen(true),
+  });
+  const isBlinkingBaseline = hold.isBlinking;
   // State for filtering by anomaly type ('ALL' = show all)
   const [filterType, setFilterType] = useState<'ALL' | DetectedAnomaly['type']>('ALL');
   // State for toggling AR overlay bounding boxes visibility
@@ -109,38 +109,8 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
     setTimeout(() => setShowExportToast(false), 2600);
   };
 
-  const clearCompareHoldTimer = () => {
-    if (compareHoldTimerRef.current) {
-      clearTimeout(compareHoldTimerRef.current);
-      compareHoldTimerRef.current = null;
-    }
-  };
-
-  const beginComparePointer = () => {
-    comparePointerDownRef.current = true;
-    compareHoldActiveRef.current = false;
-    clearCompareHoldTimer();
-    compareHoldTimerRef.current = setTimeout(() => {
-      compareHoldActiveRef.current = true;
-      setIsBlinkingBaseline(true);
-    }, COMPARE_HOLD_MS);
-  };
-
-  const endComparePointer = () => {
-    if (!comparePointerDownRef.current) return;
-    comparePointerDownRef.current = false;
-    clearCompareHoldTimer();
-    const wasHold = compareHoldActiveRef.current;
-    compareHoldActiveRef.current = false;
-    setIsBlinkingBaseline(false);
-    if (!wasHold) {
-      setIsComparisonFullscreen(true);
-    }
-  };
-
   const openComparisonFullscreen = () => {
-    setIsBlinkingBaseline(false);
-    clearCompareHoldTimer();
+    hold.cancel();
     setIsComparisonFullscreen(true);
   };
 
@@ -243,26 +213,26 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
         </button>
       </div>
 
-      <div className="relative mx-auto w-full max-w-[100vw]">
+      <div className="flex w-full justify-center">
         <div
-          className="relative cursor-pointer"
+          className="relative w-fit cursor-pointer"
           data-testid="inspect-image-viewport"
-          onMouseDown={beginComparePointer}
-          onMouseUp={endComparePointer}
-          onMouseLeave={() => {
-            comparePointerDownRef.current = false;
-            clearCompareHoldTimer();
-            compareHoldActiveRef.current = false;
-            setIsBlinkingBaseline(false);
+          onMouseDown={(e) => hold.begin(e.clientX, e.clientY)}
+          onMouseMove={(e) => {
+            if (e.buttons) hold.move(e.clientX, e.clientY);
           }}
-          onTouchStart={beginComparePointer}
-          onTouchEnd={endComparePointer}
-          onTouchCancel={() => {
-            comparePointerDownRef.current = false;
-            clearCompareHoldTimer();
-            compareHoldActiveRef.current = false;
-            setIsBlinkingBaseline(false);
+          onMouseUp={() => hold.end()}
+          onMouseLeave={() => hold.cancel()}
+          onTouchStart={(e) => {
+            const t0 = touchAt(e.touches, 0);
+            hold.begin(t0?.clientX ?? 0, t0?.clientY ?? 0);
           }}
+          onTouchMove={(e) => {
+            const t0 = touchAt(e.touches, 0);
+            if (t0) hold.move(t0.clientX, t0.clientY);
+          }}
+          onTouchEnd={() => hold.end()}
+          onTouchCancel={() => hold.cancel()}
         >
           <InspectShelfCanvas
             imageUrl={displayImageUrl}
@@ -271,6 +241,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
             showArLayers={!isBlinkingBaseline && showArLayers}
             lang={lang}
             onDismissAnomaly={handleDismiss}
+            showingBaseline={isBlinkingBaseline}
           />
           <button
             type="button"

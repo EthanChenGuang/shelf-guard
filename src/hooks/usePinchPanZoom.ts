@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, type CSSProperties, type TouchEvent } from 'react';
+import { touchAt } from '../lib/touchAt';
 
 export interface PinchPanTransform {
   scale: number;
@@ -8,15 +9,14 @@ export interface PinchPanTransform {
 
 const MIN_SCALE = 1;
 const MAX_SCALE = 5;
+const PAN_START_PX = 8;
 
 function touchDistance(touches: TouchEvent['touches']): number {
   if (touches.length < 2) return 0;
-  const t0 = touches.item(0);
-  const t1 = touches.item(1);
+  const t0 = touchAt(touches, 0);
+  const t1 = touchAt(touches, 1);
   if (!t0 || !t1) return 0;
-  const dx = t0.clientX - t1.clientX;
-  const dy = t0.clientY - t1.clientY;
-  return Math.hypot(dx, dy);
+  return Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
 }
 
 export function usePinchPanZoom(): {
@@ -26,10 +26,12 @@ export function usePinchPanZoom(): {
   touchHandlers: {
     onTouchStart: (e: TouchEvent) => void;
     onTouchMove: (e: TouchEvent) => void;
-    onTouchEnd: (e: TouchEvent) => void;
+    onTouchEnd: (e?: TouchEvent) => void;
   };
 } {
   const [transform, setTransform] = useState<PinchPanTransform>({ scale: 1, tx: 0, ty: 0 });
+  const transformRef = useRef(transform);
+  transformRef.current = transform;
   const gestureRef = useRef<{
     mode: 'idle' | 'pan' | 'pinch';
     startTransform: PinchPanTransform;
@@ -45,62 +47,81 @@ export function usePinchPanZoom(): {
   });
 
   const reset = useCallback(() => {
-    setTransform({ scale: 1, tx: 0, ty: 0 });
+    const next = { scale: 1, tx: 0, ty: 0 };
+    transformRef.current = next;
+    setTransform(next);
     gestureRef.current.mode = 'idle';
   }, []);
 
   const onTouchStart = useCallback((e: TouchEvent) => {
-    if (e.touches.length === 2) {
+    const current = transformRef.current;
+    if (e.touches.length >= 2) {
       gestureRef.current = {
         mode: 'pinch',
-        startTransform: transform,
+        startTransform: current,
         startX: 0,
         startY: 0,
         startDist: touchDistance(e.touches),
       };
-    } else if (e.touches.length === 1 && transform.scale > 1) {
+      return;
+    }
+    if (e.touches.length === 1 && current.scale > 1) {
+      const t = touchAt(e.touches, 0);
       gestureRef.current = {
-        mode: 'pan',
-        startTransform: transform,
-        startX: e.touches.item(0)?.clientX ?? 0,
-        startY: e.touches.item(0)?.clientY ?? 0,
+        mode: 'idle',
+        startTransform: current,
+        startX: t?.clientX ?? 0,
+        startY: t?.clientY ?? 0,
         startDist: 0,
       };
     }
-  }, [transform]);
+  }, []);
 
   const onTouchMove = useCallback((e: TouchEvent) => {
     const g = gestureRef.current;
-    if (g.mode === 'pinch' && e.touches.length >= 2) {
+    const current = transformRef.current;
+    if (e.touches.length >= 2) {
       e.preventDefault();
+      if (g.mode !== 'pinch') {
+        gestureRef.current = {
+          mode: 'pinch',
+          startTransform: current,
+          startX: 0,
+          startY: 0,
+          startDist: touchDistance(e.touches),
+        };
+      }
       const dist = touchDistance(e.touches);
-      if (g.startDist <= 0) return;
+      const startDist = gestureRef.current.startDist;
+      if (startDist <= 0) return;
       const nextScale = Math.min(
         MAX_SCALE,
-        Math.max(MIN_SCALE, g.startTransform.scale * (dist / g.startDist)),
+        Math.max(MIN_SCALE, gestureRef.current.startTransform.scale * (dist / startDist)),
       );
-      setTransform({ ...g.startTransform, scale: nextScale });
-    } else if (g.mode === 'pan' && e.touches.length === 1) {
-      e.preventDefault();
-      const touch = e.touches.item(0);
+      const next = { ...gestureRef.current.startTransform, scale: nextScale };
+      transformRef.current = next;
+      setTransform(next);
+      return;
+    }
+    if (e.touches.length === 1 && current.scale > 1) {
+      const touch = touchAt(e.touches, 0);
       if (!touch) return;
       const dx = touch.clientX - g.startX;
       const dy = touch.clientY - g.startY;
-      setTransform({
+      if (g.mode !== 'pan') {
+        if (Math.hypot(dx, dy) < PAN_START_PX) return;
+        gestureRef.current.mode = 'pan';
+      }
+      e.preventDefault();
+      const next = {
         scale: g.startTransform.scale,
         tx: g.startTransform.tx + dx,
         ty: g.startTransform.ty + dy,
-      });
-    } else if (e.touches.length === 2 && g.mode !== 'pinch') {
-      gestureRef.current = {
-        mode: 'pinch',
-        startTransform: transform,
-        startX: 0,
-        startY: 0,
-        startDist: touchDistance(e.touches),
       };
+      transformRef.current = next;
+      setTransform(next);
     }
-  }, [transform]);
+  }, []);
 
   const onTouchEnd = useCallback(() => {
     gestureRef.current.mode = 'idle';

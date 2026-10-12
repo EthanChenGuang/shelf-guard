@@ -77,9 +77,11 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 |----------|--------|
 | `establish-baseline/establish-baseline-camera.png` | Baseline saved; pill shows **Riferimento pronto** |
 | `establish-baseline/establish-baseline-pill.txt` | Exact baseline status text |
-| `inspect-scan/inspect-scan-results.png` | Full inspection result screen |
-| `inspect-scan/inspect-scan-fullscreen.png` | Comparison analysis fullscreen overlay with annotations |
-| `inspect-scan/inspect-scan.aria.txt` | ARIA tree includes **Conferma e concludi l'ispezione** and fullscreen dialog |
+| `inspect-scan/inspect-scan-results.png` | Inspection result screen (mobile viewport); comparison image centered |
+| `inspect-scan/inspect-scan-center.txt` | Left/right gaps for the comparison image match |
+| `inspect-scan/inspect-scan-fullscreen.png` | Opaque overlay filling the 390×844 phone viewport |
+| `inspect-scan/inspect-scan-fullscreen-blink-zoomed.png` | After pinch-zoom, long-press shows the baseline at the same zoom |
+| `inspect-scan/inspect-scan.aria.txt` | ARIA tree includes **Conferma e concludi l'ispezione** |
 | `multi-shelf/multi-shelf-2-empty-baseline.png` | Shelf 2 selected with no baseline yet |
 
 Standards:

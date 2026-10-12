@@ -1,9 +1,12 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { DetectedAnomaly, Language, ShelfCalibration } from '../types';
 import { I18N } from '../lib/constants';
 import { usePinchPanZoom } from '../hooks/usePinchPanZoom';
+import { useBlinkCompareHold } from '../hooks/useBlinkCompareHold';
 import { InspectShelfCanvas } from './InspectShelfCanvas';
+import { touchAt } from '../lib/touchAt';
 
 export interface InspectImageFullscreenProps {
   open: boolean;
@@ -25,11 +28,13 @@ export const InspectImageFullscreen: React.FC<InspectImageFullscreenProps> = ({
   lang,
 }) => {
   const t = I18N[lang];
-  const { reset, style, touchHandlers } = usePinchPanZoom();
+  const { transform, reset, style, touchHandlers } = usePinchPanZoom();
+  const hold = useBlinkCompareHold();
 
   useEffect(() => {
     if (!open) {
       reset();
+      hold.cancel();
       return undefined;
     }
     const prev = document.body.style.overflow;
@@ -42,50 +47,88 @@ export const InspectImageFullscreen: React.FC<InspectImageFullscreenProps> = ({
       document.body.style.overflow = prev;
       window.removeEventListener('keydown', onKey);
     };
-  }, [open, onClose, reset]);
+  }, [open, onClose, reset, hold.cancel]);
 
   if (!open) return null;
 
-  return (
+  const displayUrl = hold.isBlinking ? baseline.imageDataUrl : imageUrl;
+
+  const overlay = (
     <div
-      className="fixed inset-0 z-[100] flex flex-col bg-black/95"
+      className="fixed inset-0 z-[200] bg-black"
       role="dialog"
       aria-modal="true"
       aria-label={t.comparisonFullscreenTitle}
       data-testid="inspect-image-fullscreen"
+      style={{ width: '100vw', height: '100dvh' }}
     >
-      <header className="flex shrink-0 items-center justify-between px-4 py-3 safe-area-inset-top">
-        <p className="text-sm font-semibold text-white/90">{t.comparisonFullscreenTitle}</p>
-        <button
-          type="button"
-          data-testid="inspect-image-fullscreen-close"
-          onClick={onClose}
-          aria-label={t.exitFullscreen}
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white active:scale-95"
-        >
-          <X className="h-6 w-6" />
-        </button>
-      </header>
-
       <div
-        className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden px-2 pb-4"
-        {...touchHandlers}
+        className="absolute inset-0 flex items-center justify-center overflow-hidden touch-none"
+        data-testid="inspect-image-fullscreen-stage"
+        data-zoom-scale={transform.scale.toFixed(2)}
+        onTouchStart={(e) => {
+          touchHandlers.onTouchStart(e);
+          if (e.touches.length >= 2) {
+            hold.cancel();
+            return;
+          }
+          const t0 = touchAt(e.touches, 0);
+          hold.begin(t0?.clientX ?? 0, t0?.clientY ?? 0);
+        }}
+        onTouchMove={(e) => {
+          touchHandlers.onTouchMove(e);
+          if (e.touches.length >= 2) {
+            hold.cancel();
+            return;
+          }
+          const t0 = touchAt(e.touches, 0);
+          if (t0) hold.move(t0.clientX, t0.clientY);
+        }}
+        onTouchEnd={(e) => {
+          touchHandlers.onTouchEnd(e);
+          hold.end();
+        }}
+        onTouchCancel={(e) => {
+          touchHandlers.onTouchEnd(e);
+          hold.cancel();
+        }}
+        onMouseDown={(e) => hold.begin(e.clientX, e.clientY)}
+        onMouseMove={(e) => {
+          if (e.buttons) hold.move(e.clientX, e.clientY);
+        }}
+        onMouseUp={() => hold.end()}
+        onMouseLeave={() => hold.cancel()}
+        onContextMenu={(e) => e.preventDefault()}
       >
-        <div className="w-full max-w-[100vw] will-change-transform" style={style}>
+        <div className="will-change-transform" style={style}>
           <InspectShelfCanvas
-            imageUrl={imageUrl}
+            imageUrl={displayUrl}
             baseline={baseline}
-            activeAnomalies={activeAnomalies}
-            showArLayers={showArLayers}
+            activeAnomalies={hold.isBlinking ? [] : activeAnomalies}
+            showArLayers={!hold.isBlinking && showArLayers}
             lang={lang}
-            viewportHeight={undefined}
-            className="w-full max-h-[85dvh] mx-auto"
-            imageClassName="w-full h-full max-h-[85dvh] object-contain pointer-events-none"
+            layout="cover"
+            showingBaseline={hold.isBlinking}
           />
         </div>
       </div>
 
-      <p className="shrink-0 pb-4 text-center text-xs text-white/60">{t.comparisonFullscreenHint}</p>
+      <button
+        type="button"
+        data-testid="inspect-image-fullscreen-close"
+        onClick={onClose}
+        aria-label={t.exitFullscreen}
+        className="absolute right-3 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-black/55 text-white active:scale-95"
+        style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}
+      >
+        <X className="h-6 w-6" />
+      </button>
+
+      <p className="pointer-events-none absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-0 right-0 z-20 px-4 text-center text-xs text-white/80">
+        {hold.isBlinking ? t.goldenBaseline : t.comparisonFullscreenHint}
+      </p>
     </div>
   );
+
+  return createPortal(overlay, document.body);
 };

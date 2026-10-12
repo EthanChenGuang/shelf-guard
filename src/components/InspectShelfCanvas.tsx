@@ -2,7 +2,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { DetectedAnomaly, Language, ShelfCalibration } from '../types';
 import { I18N } from '../lib/constants';
-import { frameBoxStyle } from '../lib/frameBox';
+import { coverViewportStyle, frameBoxStyle } from '../lib/frameBox';
 
 const TYPE_STYLES: Record<DetectedAnomaly['type'], { box: string; badge: string }> = {
   MISSING: { box: 'border-2 border-sg-danger', badge: 'text-sg-danger' },
@@ -19,10 +19,9 @@ export interface InspectShelfCanvasProps {
   showArLayers: boolean;
   lang: Language;
   onDismissAnomaly?: (id: string, e: React.MouseEvent) => void;
-  /** When set, constrains layout; omit in fullscreen pinch container */
-  viewportHeight?: string;
+  layout?: 'inline' | 'cover';
   className?: string;
-  imageClassName?: string;
+  showingBaseline?: boolean;
 }
 
 export const InspectShelfCanvas: React.FC<InspectShelfCanvasProps> = ({
@@ -32,9 +31,9 @@ export const InspectShelfCanvas: React.FC<InspectShelfCanvasProps> = ({
   showArLayers,
   lang,
   onDismissAnomaly,
-  viewportHeight = '72vh',
+  layout = 'inline',
   className = '',
-  imageClassName = 'w-full h-full object-fill pointer-events-none',
+  showingBaseline = false,
 }) => {
   const t = I18N[lang];
   const badgeLabels: Record<DetectedAnomaly['type'], string> = {
@@ -43,17 +42,27 @@ export const InspectShelfCanvas: React.FC<InspectShelfCanvasProps> = ({
     ADDED: t.addedBadgeShort,
   };
 
-  const layoutStyle = viewportHeight
-    ? frameBoxStyle(baseline.imageDimensions, viewportHeight)
-    : { aspectRatio: `${baseline.imageDimensions.width} / ${baseline.imageDimensions.height}` };
+  const layoutStyle =
+    layout === 'cover'
+      ? coverViewportStyle(baseline.imageDimensions)
+      : frameBoxStyle(baseline.imageDimensions, '72vh');
 
   return (
     <div
       className={`relative overflow-hidden bg-slate-900 select-none [-webkit-touch-callout:none] ${className}`}
       style={layoutStyle}
       onContextMenu={(e) => e.preventDefault()}
+      data-testid="inspect-shelf-canvas"
+      data-layout={layout}
+      data-showing-baseline={showingBaseline ? 'true' : 'false'}
     >
-      <img src={imageUrl} alt="Shelf Inspection Display" draggable={false} className={imageClassName} />
+      <img
+        src={imageUrl}
+        alt="Shelf Inspection Display"
+        draggable={false}
+        data-testid="inspect-comparison-image"
+        className="w-full h-full object-fill pointer-events-none"
+      />
 
       {showArLayers &&
         activeAnomalies.map((item) => {
