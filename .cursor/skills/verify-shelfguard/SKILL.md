@@ -78,7 +78,8 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 | `establish-baseline/establish-baseline-camera.png` | Baseline saved; pill shows **Riferimento pronto** |
 | `establish-baseline/establish-baseline-pill.txt` | Exact baseline status text |
 | `inspect-scan/inspect-scan-results.png` | Full inspection result screen |
-| `inspect-scan/inspect-scan.aria.txt` | ARIA tree includes **Conferma e concludi l'ispezione** |
+| `inspect-scan/inspect-scan-fullscreen.png` | Comparison analysis fullscreen overlay with annotations |
+| `inspect-scan/inspect-scan.aria.txt` | ARIA tree includes **Conferma e concludi l'ispezione** and fullscreen dialog |
 | `multi-shelf/multi-shelf-2-empty-baseline.png` | Shelf 2 selected with no baseline yet |
 
 Standards:

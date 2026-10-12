@@ -7,6 +7,7 @@ Compares a new shelf photo against the saved baseline using the in-browser OpenC
 - `gallery-capture` — **Scegli la foto dell'ispezione dalla galleria** uploads the inspection photo
 - `scan-progress` — scanning / processing overlays while the worker runs
 - `result-inspect` — **Risultato dell'ispezione** with **Conferma e concludi l'ispezione**
+- `result-inspect-fullscreen` — tap or **Schermo intero** opens **Analisi comparativa** overlay; **Esci da schermo intero** (✕) closes; AR boxes remain visible
 
 ## How to get to it (user POV)
 
@@ -28,7 +29,8 @@ Preconditions:
 - **Ensure baseline.** Pill shows **Riferimento pronto**.
 - **Upload inspection photo.** Click gallery button by Italian `aria-label`, set `public/test-fixtures/capture-displaced.jpg` on `[data-testid="gallery-input"]`.
 - **Wait for results.** Button **Conferma e concludi l'ispezione** becomes visible (timeout up to 120s for worker init).
-- **Proof.** `inspect-scan-results.png` and `inspect-scan.aria.txt` under artifacts dir.
+- **Open fullscreen.** Click `[data-testid="inspect-image-fullscreen-open"]` (or short tap on `[data-testid="inspect-image-viewport"]`).
+- **Proof.** `inspect-scan-results.png`, `inspect-scan-fullscreen.png`, and `inspect-scan.aria.txt` under artifacts dir.
 
 Command:
 

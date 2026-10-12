@@ -1,40 +1,23 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ArrowLeft,
   Check,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Eye,
   Gauge,
   Layers,
-  RotateCw,
+  Maximize,
   Share2,
   Sliders,
-  Sparkles,
-  Touchpad,
-  Volume2,
-  AlertTriangle,
-  X,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { DetectedAnomaly, Language, ShelfCalibration, ToleranceValue } from '../types';
 import { I18N } from '../lib/constants';
-import { frameBoxStyle } from '../lib/frameBox';
 import { MIN_CONFIDENCE_CEIL, MIN_CONFIDENCE_FLOOR, meetsMinConfidence } from '../lib/vision/confidence';
+import { InspectShelfCanvas } from './InspectShelfCanvas';
+import { InspectImageFullscreen } from './InspectImageFullscreen';
 
-/**
- * Complete class strings per anomaly type, so Tailwind sees every one of them. Outline and text
- * only: a fill or label chip would hide the very object the box points at.
- */
-const TYPE_STYLES: Record<DetectedAnomaly['type'], { box: string; badge: string }> = {
-  MISSING: { box: 'border-2 border-sg-danger', badge: 'text-sg-danger' },
-  MOVED: { box: 'border-2 border-sg-warning', badge: 'text-sg-warning' },
-  ADDED: { box: 'border-2 border-sg-scan', badge: 'text-sg-scan' },
-};
-
-/** Dark halo that keeps colored label text legible on both light and dark photo areas. */
-const LABEL_HALO = { textShadow: '0 0 2px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.6)' };
+const COMPARE_HOLD_MS = 450;
 
 interface ResultInspectViewProps {
   currentCaptureUrl: string;
@@ -77,15 +60,13 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
 }) => {
   const t = I18N[lang];
 
-  // State for Blink Compare (long-press to show baseline)
   const [isBlinkingBaseline, setIsBlinkingBaseline] = useState(false);
+  const [isComparisonFullscreen, setIsComparisonFullscreen] = useState(false);
+  const compareHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const compareHoldActiveRef = useRef(false);
+  const comparePointerDownRef = useRef(false);
   // State for filtering by anomaly type ('ALL' = show all)
   const [filterType, setFilterType] = useState<'ALL' | DetectedAnomaly['type']>('ALL');
-  const badgeLabels: Record<DetectedAnomaly['type'], string> = {
-    MISSING: t.missingBadgeShort,
-    MOVED: t.movedBadgeShort,
-    ADDED: t.addedBadgeShort,
-  };
   // State for toggling AR overlay bounding boxes visibility
   const [showArLayers, setShowArLayers] = useState(true);
   // Dismissed IDs for local smooth shrink animation before state update
@@ -127,6 +108,43 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
     setShowExportToast(true);
     setTimeout(() => setShowExportToast(false), 2600);
   };
+
+  const clearCompareHoldTimer = () => {
+    if (compareHoldTimerRef.current) {
+      clearTimeout(compareHoldTimerRef.current);
+      compareHoldTimerRef.current = null;
+    }
+  };
+
+  const beginComparePointer = () => {
+    comparePointerDownRef.current = true;
+    compareHoldActiveRef.current = false;
+    clearCompareHoldTimer();
+    compareHoldTimerRef.current = setTimeout(() => {
+      compareHoldActiveRef.current = true;
+      setIsBlinkingBaseline(true);
+    }, COMPARE_HOLD_MS);
+  };
+
+  const endComparePointer = () => {
+    if (!comparePointerDownRef.current) return;
+    comparePointerDownRef.current = false;
+    clearCompareHoldTimer();
+    const wasHold = compareHoldActiveRef.current;
+    compareHoldActiveRef.current = false;
+    setIsBlinkingBaseline(false);
+    if (!wasHold) {
+      setIsComparisonFullscreen(true);
+    }
+  };
+
+  const openComparisonFullscreen = () => {
+    setIsBlinkingBaseline(false);
+    clearCompareHoldTimer();
+    setIsComparisonFullscreen(true);
+  };
+
+  const displayImageUrl = isBlinkingBaseline ? baseline.imageDataUrl : currentCaptureUrl;
 
   return (
     <div className="relative w-full min-h-[100dvh] bg-sg-surface flex flex-col justify-between overflow-x-hidden select-none">
@@ -225,74 +243,64 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
         </button>
       </div>
 
-      {/* Main Viewport: Shelf Image & Interactive AR Canvas */}
-      <div
-        className="relative mx-auto overflow-hidden bg-slate-900 cursor-pointer select-none [-webkit-touch-callout:none]"
-        style={frameBoxStyle(baseline.imageDimensions, '72vh')}
-        // Long-press is the compare gesture; the browser's image menu must not take it over.
-        onContextMenu={(e) => e.preventDefault()}
-        onMouseDown={() => setIsBlinkingBaseline(true)}
-        onMouseUp={() => setIsBlinkingBaseline(false)}
-        onMouseLeave={() => setIsBlinkingBaseline(false)}
-        onTouchStart={() => setIsBlinkingBaseline(true)}
-        onTouchEnd={() => setIsBlinkingBaseline(false)}
-        onTouchCancel={() => setIsBlinkingBaseline(false)}
-      >
-        {/* Inspection Still Photo or Baseline when blinking */}
-        <img
-          src={isBlinkingBaseline ? baseline.imageDataUrl : currentCaptureUrl}
-          alt="Shelf Inspection Display"
-          draggable={false}
-          className="w-full h-full object-fill pointer-events-none"
-        />
-
-        {/* AR Bounding Boxes (Hidden during Blink Compare or if layers toggled off) */}
-        {!isBlinkingBaseline && showArLayers && (
-          <>
-            {activeAnomalies.map((item) => {
-              const styles = TYPE_STYLES[item.type];
-              const top = item.boundingBox.y * 100;
-              const left = item.boundingBox.x * 100;
-              const width = item.boundingBox.width * 100;
-              const height = item.boundingBox.height * 100;
-
-              return (
-                <div
-                  key={item.id}
-                  className={`ar-box absolute rounded-xl transition-all duration-200 ${styles.box}`}
-                  style={{
-                    top: `${top}%`,
-                    left: `${left}%`,
-                    width: `${width}%`,
-                    height: `${height}%`,
-                  }}
-                  onClick={(e) => handleDismiss(item.id, e)}
-                >
-                  {/* Label above the box: colored text only */}
-                  <div
-                    className={`absolute -top-5 left-0 flex items-center gap-1 whitespace-nowrap font-mono-numbers text-[11px] font-bold ${styles.badge}`}
-                    style={LABEL_HALO}
-                    title={item.title}
-                  >
-                    <span>
-                      {`${badgeLabels[item.type]} · ${(
-                        ((item.score ?? item.confidence ?? 0) * 100)
-                      ).toFixed(0)}%`}
-                    </span>
-                    <button
-                      onClick={(e) => handleDismiss(item.id, e)}
-                      className="hover:opacity-80"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </>
-        )}
-
+      <div className="relative mx-auto w-full max-w-[100vw]">
+        <div
+          className="relative cursor-pointer"
+          data-testid="inspect-image-viewport"
+          onMouseDown={beginComparePointer}
+          onMouseUp={endComparePointer}
+          onMouseLeave={() => {
+            comparePointerDownRef.current = false;
+            clearCompareHoldTimer();
+            compareHoldActiveRef.current = false;
+            setIsBlinkingBaseline(false);
+          }}
+          onTouchStart={beginComparePointer}
+          onTouchEnd={endComparePointer}
+          onTouchCancel={() => {
+            comparePointerDownRef.current = false;
+            clearCompareHoldTimer();
+            compareHoldActiveRef.current = false;
+            setIsBlinkingBaseline(false);
+          }}
+        >
+          <InspectShelfCanvas
+            imageUrl={displayImageUrl}
+            baseline={baseline}
+            activeAnomalies={isBlinkingBaseline || !showArLayers ? [] : activeAnomalies}
+            showArLayers={!isBlinkingBaseline && showArLayers}
+            lang={lang}
+            onDismissAnomaly={handleDismiss}
+          />
+          <button
+            type="button"
+            data-testid="inspect-image-fullscreen-open"
+            aria-label={t.enterFullscreen}
+            title={t.enterFullscreen}
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              openComparisonFullscreen();
+            }}
+            className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white shadow-lg backdrop-blur-sm active:scale-95"
+          >
+            <Maximize className="h-5 w-5" />
+          </button>
+        </div>
       </div>
+
+      <InspectImageFullscreen
+        open={isComparisonFullscreen}
+        onClose={() => setIsComparisonFullscreen(false)}
+        imageUrl={currentCaptureUrl}
+        baseline={baseline}
+        activeAnomalies={activeAnomalies}
+        showArLayers={showArLayers}
+        lang={lang}
+      />
 
       {/* Compare hint below the photo, so nothing covers it; shows the baseline state while held */}
       <div

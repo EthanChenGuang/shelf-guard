@@ -175,9 +175,14 @@ async function driveInspectScan(page, artifactsDir) {
   });
   await page.getByText(IT.auditResult).waitFor({ timeout: 5_000 });
   await page.screenshot({ path: join(artifactsDir, 'inspect-scan-results.png'), fullPage: true });
+  await page.getByTestId('inspect-image-fullscreen-open').click();
+  await page.getByTestId('inspect-image-fullscreen').waitFor({ state: 'visible', timeout: 5_000 });
+  await page.screenshot({ path: join(artifactsDir, 'inspect-scan-fullscreen.png'), fullPage: true });
+  await page.getByTestId('inspect-image-fullscreen-close').click();
+  await page.getByTestId('inspect-image-fullscreen').waitFor({ state: 'hidden', timeout: 5_000 });
   const aria = await page.locator('body').ariaSnapshot();
   writeFileSync(join(artifactsDir, 'inspect-scan.aria.txt'), aria, 'utf8');
-  return { hasFinish: true };
+  return { hasFinish: true, hasFullscreen: true };
 }
 
 async function driveMultiShelf(page, artifactsDir) {
