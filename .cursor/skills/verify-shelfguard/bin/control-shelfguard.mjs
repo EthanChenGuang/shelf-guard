@@ -651,7 +651,7 @@ async function captureInspectHints(page, artifactsDir, name) {
     [
       `pinch="${pinchText}" pointer-events=${pinchPe}`,
       `hold="${holdText}" pointer-events=${holdPe}`,
-      `frames=0,350,700ms`,
+      `frames=0,400,800ms`,
     ].join('\n') + '\n',
     'utf8',
   );
