@@ -344,6 +344,12 @@ async function applyAddressBarChrome(page) {
   await simulatePersistentTopChrome(page, ADDRESS_BAR_CHROME_PX);
 }
 
+async function hideFakeAddressBar(page) {
+  await page.evaluate(() => {
+    document.getElementById('sg-fake-address-bar')?.remove();
+  });
+}
+
 function assertCenteredBox(box, pageWidth, label) {
   if (!box) throw new Error(`${label}: comparison image has no box`);
   const leftGap = box.x;
@@ -455,6 +461,7 @@ async function driveInspectScan(page, artifactsDir) {
   );
 
   const metrics = [];
+  await hideFakeAddressBar(page);
   const portrait = await measureAndShotResults(page, artifactsDir, 'inspect-scan-results-390x844');
   metrics.push(`390x844 results ${portrait.image} left=${portrait.leftGap} right=${portrait.rightGap} delta=${portrait.delta}`);
 
@@ -486,11 +493,12 @@ async function driveInspectScan(page, artifactsDir) {
     { width: 932, height: 430 },
   ]) {
     await page.setViewportSize(size);
-    await applyAddressBarChrome(page);
+    await hideFakeAddressBar(page);
     await page.waitForTimeout(200);
     const label = `${size.width}x${size.height}`;
     const shot = await measureAndShotResults(page, artifactsDir, `inspect-scan-results-${label}`);
     metrics.push(`${label} results ${shot.image} left=${shot.leftGap} right=${shot.rightGap} delta=${shot.delta}`);
+    await applyAddressBarChrome(page);
     await page.getByTestId('inspect-image-fullscreen-open').click();
     await overlay.waitFor({ state: 'visible', timeout: 5_000 });
     await assertOverlayFitsVisible(page, `${label} fullscreen`);
