@@ -79,6 +79,7 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 | `establish-baseline/establish-baseline-pill.txt` | Exact baseline status text |
 | `inspect-scan/inspect-scan-results.png` | Full inspection result screen |
 | `inspect-scan/inspect-scan.aria.txt` | ARIA tree includes **Conferma e concludi l'ispezione** |
+| `inspect-scan/first-capture-comparison.txt` | First capture with an existing baseline ran comparison (PR #6) |
 | `multi-shelf/multi-shelf-2-empty-baseline.png` | Shelf 2 selected with no baseline yet |
 
 Standards:

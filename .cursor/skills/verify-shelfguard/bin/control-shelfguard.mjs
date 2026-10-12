@@ -143,12 +143,22 @@ async function waitForCameraIdle(page) {
   await dismissOrientationBanner(page);
 }
 
+/** PR #6: do not drive until IndexedDB baseline hydration finishes (pill is empty while loading). */
+async function waitForShelfHydrated(page) {
+  await page
+    .getByTestId('baseline-status-pill')
+    .getByText(/Riferimento pronto|Nessun riferimento/)
+    .waitFor({ timeout: 15_000 });
+}
+
 async function driveEstablishBaseline(page, artifactsDir) {
   mkdirSync(artifactsDir, { recursive: true });
   await waitForCameraIdle(page);
+  await waitForShelfHydrated(page);
   await page.getByTestId('baseline-status-pill').getByText(IT.baselineNotSet).waitFor({
     timeout: 15_000,
   });
+  await page.getByTestId('baseline-photo-input').waitFor({ state: 'attached', timeout: 10_000 });
   await page.getByTestId('baseline-photo-input').setInputFiles(BASELINE_FIXTURE);
   await page.getByTestId('baseline-status-pill').getByText(IT.baselineEstablished).waitFor({
     timeout: 30_000,
@@ -162,27 +172,38 @@ async function driveEstablishBaseline(page, artifactsDir) {
 async function driveInspectScan(page, artifactsDir) {
   mkdirSync(artifactsDir, { recursive: true });
   await waitForCameraIdle(page);
+  await waitForShelfHydrated(page);
   if (await page.getByTestId('baseline-status-pill').getByText(IT.baselineNotSet).isVisible().catch(() => false)) {
     await driveEstablishBaseline(page, join(artifactsDir, 'preflight-baseline'));
   }
   await page.getByTestId('baseline-status-pill').getByText(IT.baselineEstablished).waitFor({
     timeout: 15_000,
   });
+  // First capture after a persisted baseline must compare, not overwrite (PR #6 / STAB-05).
   await page.getByRole('button', { name: IT.pickFromGallery }).click();
   await page.getByTestId('gallery-input').setInputFiles(CAPTURE_FIXTURE);
   await page.getByRole('button', { name: IT.finishInspection }).waitFor({
     timeout: 120_000,
   });
   await page.getByText(IT.auditResult).waitFor({ timeout: 5_000 });
+  if (await page.getByTestId('camera-view').isVisible().catch(() => false)) {
+    throw new Error('First capture stayed on camera idle — comparison did not run');
+  }
   await page.screenshot({ path: join(artifactsDir, 'inspect-scan-results.png'), fullPage: true });
   const aria = await page.locator('body').ariaSnapshot();
   writeFileSync(join(artifactsDir, 'inspect-scan.aria.txt'), aria, 'utf8');
-  return { hasFinish: true };
+  writeFileSync(
+    join(artifactsDir, 'first-capture-comparison.txt'),
+    'PASS: first capture with existing baseline opened Risultato dell\'ispezione (comparison), not a baseline rewrite.\n',
+    'utf8',
+  );
+  return { hasFinish: true, firstCaptureComparison: true };
 }
 
 async function driveMultiShelf(page, artifactsDir) {
   mkdirSync(artifactsDir, { recursive: true });
   await waitForCameraIdle(page);
+  await waitForShelfHydrated(page);
   await page.getByRole('button', { name: 'Shelf 2', exact: true }).click();
   await page.getByRole('button', { name: 'Shelf 2' }).getAttribute('aria-pressed').then((v) => {
     if (v !== 'true') throw new Error('Shelf 2 not selected after click');

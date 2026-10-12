@@ -25,10 +25,10 @@ Preconditions:
 - `/opencv/opencv.js` returns the large Emscripten bundle (doctor checks this)
 - Baseline established in the same browser context (harness runs establish-baseline first if needed)
 
-- **Ensure baseline.** Pill shows **Riferimento pronto**.
-- **Upload inspection photo.** Click gallery button by Italian `aria-label`, set `public/test-fixtures/capture-displaced.jpg` on `[data-testid="gallery-input"]`.
-- **Wait for results.** Button **Conferma e concludi l'ispezione** becomes visible (timeout up to 120s for worker init).
-- **Proof.** `inspect-scan-results.png` and `inspect-scan.aria.txt` under artifacts dir.
+- **Ensure baseline.** After hydration, pill shows **Riferimento pronto**.
+- **First capture (comparison).** Click gallery button by Italian `aria-label`, set `public/test-fixtures/capture-displaced.jpg` on `[data-testid="gallery-input"]`. This is the first capture with a persisted baseline — it must run comparison, not save a new baseline.
+- **Wait for results.** Button **Conferma e concludi l'ispezione** becomes visible (timeout up to 120s for worker init). Camera idle must not remain on screen.
+- **Proof.** `inspect-scan-results.png`, `inspect-scan.aria.txt`, and `first-capture-comparison.txt` under artifacts dir.
 
 Command:
 
@@ -44,3 +44,4 @@ node .cursor/skills/verify-shelfguard/bin/control-shelfguard.mjs browser drive i
 - Headless Chromium may log camera errors; gallery path does not require a working camera
 - Matching baseline/capture aspect matters; use repo fixtures unless intentionally testing mismatch
 - First scan after cold start may take longer while OpenCV initializes in the worker
+- **Wait for IndexedDB hydration** before capturing. While the shelf loads, the baseline pill is blank and the shutter is locked (`Scansione in corso, attendere`). After hydration with an existing baseline, the **first** capture must open **Risultato dell'ispezione** (comparison), not rewrite the baseline (PR #6 / STAB-05)
