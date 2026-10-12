@@ -1,0 +1,15 @@
+{
+  "name": "shelf-guard",
+  "install": "bash .cursor/cloud-agent-install.sh",
+  "start": "exec bun run dev",
+  "ports": [
+    {
+      "name": "vite-dev",
+      "port": 3000
+    },
+    {
+      "name": "vite-preview",
+      "port": 4173
+    }
+  ]
+}
