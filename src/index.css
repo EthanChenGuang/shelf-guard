@@ -115,6 +115,30 @@ html[data-inspect-zoomed="true"] #root > div {
   opacity: 0;
 }
 
+@media (orientation: landscape) {
+  .inspect-pinch-hint {
+    gap: 0.35rem;
+    padding: 0.25rem;
+  }
+
+  .inspect-pinch-hint svg {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .inspect-hint-pill {
+    font-size: 0.7rem;
+    line-height: 1.15;
+    padding: 0.28rem 0.7rem;
+    white-space: nowrap;
+  }
+
+  [data-testid='inspect-hold-hint'] {
+    bottom: 0.35rem;
+    max-width: 98%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .inspect-pinch-finger-a,
   .inspect-pinch-finger-b,

@@ -348,7 +348,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
               aria-hidden="true"
             >
               <PinchHintGraphic />
-              <span className="inspect-hint-pill max-w-[90%] rounded-full bg-black/80 px-4 py-2 text-center text-sm font-bold leading-snug text-white shadow-lg ring-2 ring-white/90 backdrop-blur-sm">
+              <span className="inspect-hint-pill max-w-[90%] truncate rounded-full bg-black/80 px-4 py-2 text-center text-sm font-bold leading-snug text-white shadow-lg ring-2 ring-white/90 backdrop-blur-sm">
                 {t.pinchToZoom}
               </span>
             </div>
@@ -359,7 +359,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
             className="absolute bottom-3 left-1/2 z-10 max-w-[92%] -translate-x-1/2 pointer-events-none"
           >
             <div
-              className={`inspect-hint-pill flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold leading-snug shadow-lg ring-2 backdrop-blur-sm ${
+              className={`inspect-hint-pill flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold leading-snug shadow-lg ring-2 backdrop-blur-sm max-sm:whitespace-normal ${
                 isBlinkingBaseline
                   ? 'bg-emerald-950/85 text-emerald-50 ring-emerald-200/90'
                   : 'bg-black/80 text-white ring-white/90'
