@@ -49,7 +49,7 @@ function prefersReducedMotion(): boolean {
 }
 
 const PinchHintGraphic: React.FC = () => (
-  <svg viewBox="0 0 88 88" className="h-20 w-20 drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)]" aria-hidden="true">
+  <svg viewBox="0 0 88 88" className="h-24 w-24 drop-shadow-[0_2px_10px_rgba(0,0,0,0.75)]" aria-hidden="true">
     <g className="inspect-pinch-finger-a">
       <circle cx="28" cy="32" r="12" fill="white" stroke="#0F172A" strokeWidth="3" />
       <circle cx="28" cy="32" r="4.5" fill="#0F172A" />
