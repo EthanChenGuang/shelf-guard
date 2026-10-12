@@ -7,7 +7,7 @@ Compares a new shelf photo against the saved baseline using the in-browser OpenC
 - `gallery-capture` — **Scegli la foto dell'ispezione dalla galleria** uploads the inspection photo
 - `scan-progress` — scanning / processing overlays while the worker runs
 - `result-inspect` — **Risultato dell'ispezione** with **Conferma e concludi l'ispezione**
-- `result-inspect-fullscreen` — tap or **Schermo intero** opens an opaque **Analisi comparativa** overlay that covers the phone viewport; pinch-zoom; long-press still blink-compares the baseline at the same zoom/pan; **Esci da schermo intero** (✕) closes; AR boxes remain visible
+- `result-inspect-fullscreen` — tap or **Schermo intero** opens an opaque **Analisi comparativa** overlay sized to the **visual viewport** (Fullscreen API when the browser allows it; iOS falls back to visualViewport). Pinch-zoom; long-press still blink-compares the baseline at the same zoom/pan; **Esci da schermo intero** (✕) closes; AR boxes remain visible. Overlay must stay inside the visible area in landscape (no 100dvh overflow under the address bar).
 
 ## How to get to it (user POV)
 
@@ -29,10 +29,11 @@ Preconditions:
 - **Ensure baseline.** Pill shows **Riferimento pronto**.
 - **Upload inspection photo.** Click gallery button by Italian `aria-label`, set `public/test-fixtures/capture-displaced.jpg` on `[data-testid="gallery-input"]`.
 - **Wait for results.** Button **Conferma e concludi l'ispezione** becomes visible (timeout up to 120s for worker init).
-- **Confirm centering.** `[data-testid="inspect-image-viewport"]` is horizontally centered in the 390×844 mobile viewport (`inspect-scan-center.txt`).
-- **Open fullscreen.** Click `[data-testid="inspect-image-fullscreen-open"]` (or short tap on `[data-testid="inspect-image-viewport"]`). Overlay is `100vw×100dvh`.
+- **Confirm centering.** `[data-testid="inspect-image-viewport"]` is `mx-auto` on the sized frame. Left/right gaps match in portrait **and** landscape (`inspect-scan-center.txt`).
+- **Open fullscreen.** Click `[data-testid="inspect-image-fullscreen-open"]`. Overlay box matches `window.visualViewport` (not `100dvh`/`100vw`).
+- **Viewports.** Assert 390×844, 844×390, 932×430, then rotate 844×390 → 390×844 **while fullscreen is open**.
 - **Zoomed blink-compare.** Pinch `[data-testid="inspect-image-fullscreen-stage"]`, then long-press; `[data-showing-baseline="true"]` appears.
-- **Proof.** `inspect-scan-results.png` (viewport), `inspect-scan-fullscreen.png` (viewport fill), `inspect-scan-fullscreen-blink-zoomed.png`, `inspect-scan.aria.txt`.
+- **Proof.** `inspect-scan-results-*.png`, `inspect-scan-fullscreen-*.png`, `inspect-scan-fullscreen-blink-zoomed.png`, `inspect-scan-fullscreen-rotate-390x844.png`.
 
 Command:
 

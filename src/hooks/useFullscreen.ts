@@ -11,6 +11,28 @@ function fullscreenElement(doc: WebkitDocument): Element | null {
   return doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
 }
 
+export async function requestElementFullscreen(el: HTMLElement): Promise<boolean> {
+  const anyEl = el as WebkitElement;
+  const req = el.requestFullscreen?.bind(el) ?? anyEl.webkitRequestFullscreen?.bind(anyEl);
+  if (!req) return false;
+  try {
+    await req();
+    return fullscreenElement(document as WebkitDocument) === el;
+  } catch {
+    return false;
+  }
+}
+
+export async function exitDocumentFullscreen(): Promise<void> {
+  const doc = document as WebkitDocument;
+  if (!fullscreenElement(doc)) return;
+  try {
+    await (doc.exitFullscreen ? doc.exitFullscreen() : doc.webkitExitFullscreen?.());
+  } catch {
+    // iOS / already exited
+  }
+}
+
 /**
  * Whole-page full screen (hides the browser's address and navigation bars). `supported` is false
  * where the page cannot go full screen, e.g. Safari on iPhone.

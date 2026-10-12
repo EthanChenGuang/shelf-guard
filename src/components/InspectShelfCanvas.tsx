@@ -2,7 +2,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { DetectedAnomaly, Language, ShelfCalibration } from '../types';
 import { I18N } from '../lib/constants';
-import { coverViewportStyle, frameBoxStyle } from '../lib/frameBox';
+import { coverViewportStyle } from '../lib/frameBox';
 
 const TYPE_STYLES: Record<DetectedAnomaly['type'], { box: string; badge: string }> = {
   MISSING: { box: 'border-2 border-sg-danger', badge: 'text-sg-danger' },
@@ -19,7 +19,8 @@ export interface InspectShelfCanvasProps {
   showArLayers: boolean;
   lang: Language;
   onDismissAnomaly?: (id: string, e: React.MouseEvent) => void;
-  layout?: 'inline' | 'cover';
+  layout?: 'fill' | 'cover';
+  coverViewport?: { width: number; height: number };
   className?: string;
   showingBaseline?: boolean;
 }
@@ -31,7 +32,8 @@ export const InspectShelfCanvas: React.FC<InspectShelfCanvasProps> = ({
   showArLayers,
   lang,
   onDismissAnomaly,
-  layout = 'inline',
+  layout = 'fill',
+  coverViewport,
   className = '',
   showingBaseline = false,
 }) => {
@@ -43,9 +45,9 @@ export const InspectShelfCanvas: React.FC<InspectShelfCanvasProps> = ({
   };
 
   const layoutStyle =
-    layout === 'cover'
-      ? coverViewportStyle(baseline.imageDimensions)
-      : frameBoxStyle(baseline.imageDimensions, '72vh');
+    layout === 'cover' && coverViewport
+      ? coverViewportStyle(baseline.imageDimensions, coverViewport)
+      : { width: '100%', height: '100%' };
 
   return (
     <div

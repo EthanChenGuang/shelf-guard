@@ -5,6 +5,7 @@ import { DetectedAnomaly, Language, ShelfCalibration } from '../types';
 import { I18N } from '../lib/constants';
 import { usePinchPanZoom } from '../hooks/usePinchPanZoom';
 import { useBlinkCompareHold } from '../hooks/useBlinkCompareHold';
+import { useVisualViewport } from '../hooks/useVisualViewport';
 import { InspectShelfCanvas } from './InspectShelfCanvas';
 import { touchAt } from '../lib/touchAt';
 
@@ -30,6 +31,7 @@ export const InspectImageFullscreen: React.FC<InspectImageFullscreenProps> = ({
   const t = I18N[lang];
   const { transform, reset, style, touchHandlers } = usePinchPanZoom();
   const hold = useBlinkCompareHold();
+  const vv = useVisualViewport();
 
   useEffect(() => {
     if (!open) {
@@ -52,15 +54,24 @@ export const InspectImageFullscreen: React.FC<InspectImageFullscreenProps> = ({
   if (!open) return null;
 
   const displayUrl = hold.isBlinking ? baseline.imageDataUrl : imageUrl;
+  const coverViewport = { width: vv.width, height: vv.height };
 
   const overlay = (
     <div
-      className="fixed inset-0 z-[200] bg-black"
+      className="z-[200] bg-black"
       role="dialog"
       aria-modal="true"
       aria-label={t.comparisonFullscreenTitle}
       data-testid="inspect-image-fullscreen"
-      style={{ width: '100vw', height: '100dvh' }}
+      style={{
+        position: 'fixed',
+        top: vv.offsetTop,
+        left: vv.offsetLeft,
+        width: vv.width,
+        height: vv.height,
+        right: 'auto',
+        bottom: 'auto',
+      }}
     >
       <div
         className="absolute inset-0 flex items-center justify-center overflow-hidden touch-none"
@@ -108,6 +119,7 @@ export const InspectImageFullscreen: React.FC<InspectImageFullscreenProps> = ({
             showArLayers={!hold.isBlinking && showArLayers}
             lang={lang}
             layout="cover"
+            coverViewport={coverViewport}
             showingBaseline={hold.isBlinking}
           />
         </div>
@@ -119,12 +131,12 @@ export const InspectImageFullscreen: React.FC<InspectImageFullscreenProps> = ({
         onClick={onClose}
         aria-label={t.exitFullscreen}
         className="absolute right-3 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-black/55 text-white active:scale-95"
-        style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}
+        style={{ top: 'max(0.75rem, env(safe-area-inset-top, 0px))' }}
       >
         <X className="h-6 w-6" />
       </button>
 
-      <p className="pointer-events-none absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-0 right-0 z-20 px-4 text-center text-xs text-white/80">
+      <p className="pointer-events-none absolute bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))] left-0 right-0 z-20 px-4 text-center text-xs text-white/80">
         {hold.isBlinking ? t.goldenBaseline : t.comparisonFullscreenHint}
       </p>
     </div>

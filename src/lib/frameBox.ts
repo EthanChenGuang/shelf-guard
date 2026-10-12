@@ -7,6 +7,9 @@ function aspectRatio(dims: { width: number; height: number }): number {
 /**
  * Box that keeps the photo's own aspect ratio (so %-positioned overlays line up with the
  * pixels) while fitting within 28rem wide and `maxHeight` tall.
+ *
+ * Width is a definite `min()` so a block with `mx-auto` actually centers — do not wrap this
+ * in `width: fit-content` with a child `min(100%, …)` (100% cyclic sizing left-aligns).
  */
 export function frameBoxStyle(
   dims: { width: number; height: number },
@@ -19,16 +22,28 @@ export function frameBoxStyle(
   };
 }
 
-/**
- * Uniformly scale the photo box so it covers the phone viewport. Overflow is clipped by
- * the fullscreen stage; overlay percentages still match the image pixels.
- */
-export function coverViewportStyle(dims: { width: number; height: number }): CSSProperties {
+/** Uniform cover of a pixel-sized viewport (visual viewport, not 100dvh/100vw). */
+export function coverViewportStyle(
+  dims: { width: number; height: number },
+  viewport: { width: number; height: number },
+): CSSProperties {
   const ratio = aspectRatio(dims);
+  const vw = Math.max(1, viewport.width);
+  const vh = Math.max(1, viewport.height);
+  const containerRatio = vw / vh;
+  if (ratio >= containerRatio) {
+    return {
+      aspectRatio: `${ratio}`,
+      height: `${vh}px`,
+      width: `${vh * ratio}px`,
+      maxWidth: 'none',
+      maxHeight: 'none',
+    };
+  }
   return {
     aspectRatio: `${ratio}`,
-    width: `max(100vw, calc(100dvh * ${ratio.toFixed(4)}))`,
-    height: `max(100dvh, calc(100vw / ${ratio.toFixed(4)}))`,
+    width: `${vw}px`,
+    height: `${vw / ratio}px`,
     maxWidth: 'none',
     maxHeight: 'none',
   };

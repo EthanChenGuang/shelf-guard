@@ -18,6 +18,8 @@ import { InspectShelfCanvas } from './InspectShelfCanvas';
 import { InspectImageFullscreen } from './InspectImageFullscreen';
 import { useBlinkCompareHold } from '../hooks/useBlinkCompareHold';
 import { touchAt } from '../lib/touchAt';
+import { frameBoxStyle } from '../lib/frameBox';
+import { exitDocumentFullscreen, requestElementFullscreen } from '../hooks/useFullscreen';
 
 interface ResultInspectViewProps {
   currentCaptureUrl: string;
@@ -62,7 +64,10 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
 
   const [isComparisonFullscreen, setIsComparisonFullscreen] = useState(false);
   const hold = useBlinkCompareHold({
-    onShortRelease: () => setIsComparisonFullscreen(true),
+    onShortRelease: () => {
+      setIsComparisonFullscreen(true);
+      void requestElementFullscreen(document.documentElement);
+    },
   });
   const isBlinkingBaseline = hold.isBlinking;
   // State for filtering by anomaly type ('ALL' = show all)
@@ -112,6 +117,12 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   const openComparisonFullscreen = () => {
     hold.cancel();
     setIsComparisonFullscreen(true);
+    void requestElementFullscreen(document.documentElement);
+  };
+
+  const closeComparisonFullscreen = () => {
+    setIsComparisonFullscreen(false);
+    void exitDocumentFullscreen();
   };
 
   const displayImageUrl = isBlinkingBaseline ? baseline.imageDataUrl : currentCaptureUrl;
@@ -213,10 +224,11 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
         </button>
       </div>
 
-      <div className="flex w-full justify-center">
+      <div className="w-full">
         <div
-          className="relative w-fit cursor-pointer"
+          className="relative mx-auto cursor-pointer"
           data-testid="inspect-image-viewport"
+          style={frameBoxStyle(baseline.imageDimensions, '72vh')}
           onMouseDown={(e) => hold.begin(e.clientX, e.clientY)}
           onMouseMove={(e) => {
             if (e.buttons) hold.move(e.clientX, e.clientY);
@@ -240,6 +252,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
             activeAnomalies={isBlinkingBaseline || !showArLayers ? [] : activeAnomalies}
             showArLayers={!isBlinkingBaseline && showArLayers}
             lang={lang}
+            layout="fill"
             onDismissAnomaly={handleDismiss}
             showingBaseline={isBlinkingBaseline}
           />
@@ -265,7 +278,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
 
       <InspectImageFullscreen
         open={isComparisonFullscreen}
-        onClose={() => setIsComparisonFullscreen(false)}
+        onClose={closeComparisonFullscreen}
         imageUrl={currentCaptureUrl}
         baseline={baseline}
         activeAnomalies={activeAnomalies}

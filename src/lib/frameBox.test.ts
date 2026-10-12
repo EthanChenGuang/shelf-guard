@@ -12,11 +12,18 @@ describe('frameBoxStyle', () => {
 });
 
 describe('coverViewportStyle', () => {
-  it('covers the full viewport without max-height clipping', () => {
-    const style = coverViewportStyle({ width: 1080, height: 1920 });
-    expect(style.width).toContain('max(100vw');
-    expect(style.height).toContain('max(100dvh');
+  it('covers a landscape visual viewport using pixel sizes, not 100dvh', () => {
+    const style = coverViewportStyle({ width: 1920, height: 1080 }, { width: 844, height: 390 });
+    expect(style.width).toBe('844px');
+    expect(style.height).toBe(`${844 / (1920 / 1080)}px`);
     expect(style.maxHeight).toBe('none');
-    expect(style.maxWidth).toBe('none');
+    expect(String(style.width)).not.toContain('vw');
+    expect(String(style.height)).not.toContain('dvh');
+  });
+
+  it('covers a portrait visual viewport by filling height when the photo is taller', () => {
+    const style = coverViewportStyle({ width: 1080, height: 1920 }, { width: 390, height: 844 });
+    expect(style.height).toBe('844px');
+    expect(style.width).toBe(`${844 * (1080 / 1920)}px`);
   });
 });

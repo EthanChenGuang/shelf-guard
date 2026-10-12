@@ -4,7 +4,7 @@
  * Invoked from .cursor/skills/verify-shelfguard/SKILL.md — do not run against a dev server you did not start for verification.
  */
 import { chromium } from 'playwright';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -223,6 +223,61 @@ async function dispatchHoldStart(page, selector) {
   });
 }
 
+async function readVisualViewport(page) {
+  return page.evaluate(() => {
+    const v = window.visualViewport;
+    if (v) {
+      return { x: v.offsetLeft, y: v.offsetTop, w: v.width, h: v.height };
+    }
+    return { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight };
+  });
+}
+
+function assertCenteredBox(box, pageWidth, label) {
+  if (!box) throw new Error(`${label}: comparison image has no box`);
+  const leftGap = box.x;
+  const rightGap = pageWidth - (box.x + box.width);
+  const delta = Math.abs(leftGap - rightGap);
+  if (delta > 8) {
+    throw new Error(
+      `${label}: comparison image is not centered (left ${leftGap.toFixed(1)} vs right ${rightGap.toFixed(1)})`,
+    );
+  }
+  return { leftGap, rightGap, delta };
+}
+
+async function assertOverlayFitsVisible(page, label) {
+  const overlay = page.getByTestId('inspect-image-fullscreen');
+  const box = await overlay.boundingBox();
+  const vv = await readVisualViewport(page);
+  if (!box) throw new Error(`${label}: fullscreen overlay has no box`);
+  const dw = Math.abs(box.width - vv.w);
+  const dh = Math.abs(box.height - vv.h);
+  const dx = Math.abs(box.x - vv.x);
+  const dy = Math.abs(box.y - vv.y);
+  const overflows = box.y + box.height > vv.y + vv.h + 2 || box.x + box.width > vv.x + vv.w + 2;
+  if (dw > 2 || dh > 2 || dx > 2 || dy > 2 || overflows) {
+    throw new Error(
+      `${label}: overlay ${Math.round(box.x)},${Math.round(box.y)} ${Math.round(box.width)}x${Math.round(box.height)} vs visual ${vv.x},${vv.y} ${vv.w}x${vv.h}`,
+    );
+  }
+  return { overlay: box, visual: vv };
+}
+
+async function measureAndShotResults(page, artifactsDir, name) {
+  const pageSize = page.viewportSize();
+  const viewportBox = await page.getByTestId('inspect-image-viewport').boundingBox();
+  const center = assertCenteredBox(viewportBox, pageSize.width, name);
+  await page.screenshot({ path: join(artifactsDir, `${name}.png`), fullPage: false });
+  return {
+    viewport: `${pageSize.width}x${pageSize.height}`,
+    image: `${Math.round(viewportBox.width)}x${Math.round(viewportBox.height)} @ ${Math.round(viewportBox.x)},${Math.round(viewportBox.y)}`,
+    leftGap: center.leftGap.toFixed(1),
+    rightGap: center.rightGap.toFixed(1),
+    delta: center.delta.toFixed(1),
+  };
+}
+
 async function driveInspectScan(page, artifactsDir) {
   mkdirSync(artifactsDir, { recursive: true });
   await waitForCameraIdle(page);
@@ -239,33 +294,17 @@ async function driveInspectScan(page, artifactsDir) {
   });
   await page.getByText(IT.auditResult).waitFor({ timeout: 5_000 });
 
-  const viewportBox = await page.getByTestId('inspect-image-viewport').boundingBox();
-  const pageSize = page.viewportSize();
-  if (!viewportBox || !pageSize) throw new Error('Could not measure comparison image');
-  const leftGap = viewportBox.x;
-  const rightGap = pageSize.width - (viewportBox.x + viewportBox.width);
-  const centerDelta = Math.abs(leftGap - rightGap);
-  writeFileSync(
-    join(artifactsDir, 'inspect-scan-center.txt'),
-    `viewport=${pageSize.width}x${pageSize.height}\nimage=${Math.round(viewportBox.width)}x${Math.round(viewportBox.height)} @ ${Math.round(viewportBox.x)},${Math.round(viewportBox.y)}\nleftGap=${leftGap.toFixed(1)} rightGap=${rightGap.toFixed(1)} delta=${centerDelta.toFixed(1)}\n`,
-    'utf8',
-  );
-  if (centerDelta > 8) {
-    throw new Error(`Comparison image is not centered (left ${leftGap.toFixed(1)} vs right ${rightGap.toFixed(1)})`);
-  }
-  await page.screenshot({ path: join(artifactsDir, 'inspect-scan-results.png'), fullPage: false });
+  const metrics = [];
+  const portrait = await measureAndShotResults(page, artifactsDir, 'inspect-scan-results-390x844');
+  metrics.push(`390x844 results ${portrait.image} left=${portrait.leftGap} right=${portrait.rightGap} delta=${portrait.delta}`);
 
   await page.getByTestId('inspect-image-fullscreen-open').click();
   const overlay = page.getByTestId('inspect-image-fullscreen');
   await overlay.waitFor({ state: 'visible', timeout: 5_000 });
-  const overlayBox = await overlay.boundingBox();
-  if (!overlayBox) throw new Error('Fullscreen overlay has no box');
-  if (Math.abs(overlayBox.width - pageSize.width) > 2 || Math.abs(overlayBox.height - pageSize.height) > 2) {
-    throw new Error(
-      `Fullscreen overlay does not fill the phone viewport: ${Math.round(overlayBox.width)}x${Math.round(overlayBox.height)} vs ${pageSize.width}x${pageSize.height}`,
-    );
-  }
-  await page.screenshot({ path: join(artifactsDir, 'inspect-scan-fullscreen.png'), fullPage: false });
+  await assertOverlayFitsVisible(page, 'portrait 390x844 fullscreen');
+  await page.screenshot({ path: join(artifactsDir, 'inspect-scan-fullscreen-390x844.png'), fullPage: false });
+  copyFileSync(join(artifactsDir, 'inspect-scan-results-390x844.png'), join(artifactsDir, 'inspect-scan-results.png'));
+  copyFileSync(join(artifactsDir, 'inspect-scan-fullscreen-390x844.png'), join(artifactsDir, 'inspect-scan-fullscreen.png'));
 
   await dispatchPinch(page, '[data-testid="inspect-image-fullscreen-stage"]', 80, 220);
   const scale = await page.getByTestId('inspect-image-fullscreen-stage').getAttribute('data-zoom-scale');
@@ -274,14 +313,43 @@ async function driveInspectScan(page, artifactsDir) {
   }
   await dispatchHoldStart(page, '[data-testid="inspect-image-fullscreen-stage"]');
   await page.waitForTimeout(550);
-  const blinking = await overlay.locator('[data-showing-baseline="true"]').count();
-  if (blinking < 1) {
+  if ((await overlay.locator('[data-showing-baseline="true"]').count()) < 1) {
     throw new Error('Zoomed blink-compare did not show the baseline image');
   }
   await page.screenshot({ path: join(artifactsDir, 'inspect-scan-fullscreen-blink-zoomed.png'), fullPage: false });
-
   await page.getByTestId('inspect-image-fullscreen-close').click();
   await overlay.waitFor({ state: 'hidden', timeout: 5_000 });
+
+  for (const size of [
+    { width: 844, height: 390 },
+    { width: 932, height: 430 },
+  ]) {
+    await page.setViewportSize(size);
+    await page.waitForTimeout(200);
+    const label = `${size.width}x${size.height}`;
+    const shot = await measureAndShotResults(page, artifactsDir, `inspect-scan-results-${label}`);
+    metrics.push(`${label} results ${shot.image} left=${shot.leftGap} right=${shot.rightGap} delta=${shot.delta}`);
+    await page.getByTestId('inspect-image-fullscreen-open').click();
+    await overlay.waitFor({ state: 'visible', timeout: 5_000 });
+    await assertOverlayFitsVisible(page, `${label} fullscreen`);
+    await page.screenshot({ path: join(artifactsDir, `inspect-scan-fullscreen-${label}.png`), fullPage: false });
+    await page.getByTestId('inspect-image-fullscreen-close').click();
+    await overlay.waitFor({ state: 'hidden', timeout: 5_000 });
+  }
+
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.waitForTimeout(200);
+  await page.getByTestId('inspect-image-fullscreen-open').click();
+  await overlay.waitFor({ state: 'visible', timeout: 5_000 });
+  await assertOverlayFitsVisible(page, 'pre-rotate landscape fullscreen');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(250);
+  await assertOverlayFitsVisible(page, 'orientation change while fullscreen open');
+  await page.screenshot({ path: join(artifactsDir, 'inspect-scan-fullscreen-rotate-390x844.png'), fullPage: false });
+  await page.getByTestId('inspect-image-fullscreen-close').click();
+  await overlay.waitFor({ state: 'hidden', timeout: 5_000 });
+
+  writeFileSync(join(artifactsDir, 'inspect-scan-center.txt'), `${metrics.join('\n')}\n`, 'utf8');
   const aria = await page.locator('body').ariaSnapshot();
   writeFileSync(join(artifactsDir, 'inspect-scan.aria.txt'), aria, 'utf8');
   return { hasFinish: true, hasFullscreen: true, centered: true, zoomScale: Number(scale) };
