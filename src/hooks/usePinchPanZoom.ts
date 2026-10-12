@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type CSSProperties, type TouchEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject, type TouchEvent } from 'react';
 import { touchAt } from '../lib/touchAt';
 
 export interface PinchPanTransform {
@@ -11,7 +11,7 @@ const MIN_SCALE = 1;
 const MAX_SCALE = 5;
 const PAN_START_PX = 8;
 
-function touchDistance(touches: TouchEvent['touches']): number {
+function touchDistance(touches: TouchEvent['touches'] | TouchList): number {
   if (touches.length < 2) return 0;
   const t0 = touchAt(touches, 0);
   const t1 = touchAt(touches, 1);
@@ -19,7 +19,11 @@ function touchDistance(touches: TouchEvent['touches']): number {
   return Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
 }
 
-export function usePinchPanZoom(): {
+function remainingCount(e?: TouchEvent | globalThis.TouchEvent): number {
+  return e?.touches?.length ?? 0;
+}
+
+export function usePinchPanZoom(targetRef?: RefObject<HTMLElement | null>): {
   transform: PinchPanTransform;
   reset: () => void;
   style: CSSProperties;
@@ -53,27 +57,35 @@ export function usePinchPanZoom(): {
     gestureRef.current.mode = 'idle';
   }, []);
 
+  const reanchorPinch = (touches: TouchEvent['touches'] | TouchList) => {
+    gestureRef.current = {
+      mode: 'pinch',
+      startTransform: transformRef.current,
+      startX: 0,
+      startY: 0,
+      startDist: touchDistance(touches),
+    };
+  };
+
+  const reanchorPanOrigin = (touches: TouchEvent['touches'] | TouchList) => {
+    const t = touchAt(touches, 0);
+    gestureRef.current = {
+      mode: 'idle',
+      startTransform: transformRef.current,
+      startX: t?.clientX ?? 0,
+      startY: t?.clientY ?? 0,
+      startDist: 0,
+    };
+  };
+
   const onTouchStart = useCallback((e: TouchEvent) => {
     const current = transformRef.current;
     if (e.touches.length >= 2) {
-      gestureRef.current = {
-        mode: 'pinch',
-        startTransform: current,
-        startX: 0,
-        startY: 0,
-        startDist: touchDistance(e.touches),
-      };
+      reanchorPinch(e.touches);
       return;
     }
     if (e.touches.length === 1 && current.scale > 1) {
-      const t = touchAt(e.touches, 0);
-      gestureRef.current = {
-        mode: 'idle',
-        startTransform: current,
-        startX: t?.clientX ?? 0,
-        startY: t?.clientY ?? 0,
-        startDist: 0,
-      };
+      reanchorPanOrigin(e.touches);
     }
   }, []);
 
@@ -83,13 +95,7 @@ export function usePinchPanZoom(): {
     if (e.touches.length >= 2) {
       e.preventDefault();
       if (g.mode !== 'pinch') {
-        gestureRef.current = {
-          mode: 'pinch',
-          startTransform: current,
-          startX: 0,
-          startY: 0,
-          startDist: touchDistance(e.touches),
-        };
+        reanchorPinch(e.touches);
       }
       const dist = touchDistance(e.touches);
       const startDist = gestureRef.current.startDist;
@@ -123,9 +129,34 @@ export function usePinchPanZoom(): {
     }
   }, []);
 
-  const onTouchEnd = useCallback(() => {
+  const onTouchEnd = useCallback((e?: TouchEvent) => {
+    const remaining = remainingCount(e);
+    if (remaining >= 2 && e) {
+      reanchorPinch(e.touches);
+      return;
+    }
+    if (remaining === 1 && e) {
+      reanchorPanOrigin(e.touches);
+      return;
+    }
     gestureRef.current.mode = 'idle';
   }, []);
+
+  useEffect(() => {
+    const el = targetRef?.current;
+    if (!el) return;
+    const preventPageZoom = (ev: globalThis.TouchEvent) => {
+      if (ev.touches.length >= 2 || transformRef.current.scale > 1) {
+        ev.preventDefault();
+      }
+    };
+    el.addEventListener('touchstart', preventPageZoom, { passive: false });
+    el.addEventListener('touchmove', preventPageZoom, { passive: false });
+    return () => {
+      el.removeEventListener('touchstart', preventPageZoom);
+      el.removeEventListener('touchmove', preventPageZoom);
+    };
+  }, [targetRef]);
 
   const style: CSSProperties = {
     transform: `translate(${transform.tx}px, ${transform.ty}px) scale(${transform.scale})`,

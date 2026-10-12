@@ -44,6 +44,7 @@ import {
 } from './lib/nativeCapture';
 import { useCameraStream } from './hooks/useCameraStream';
 import { useDeviceOrientation } from './hooks/useDeviceOrientation';
+import { useLayoutViewportLock } from './hooks/useLayoutViewportLock';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { CameraView } from './components/CameraView';
 import { ResultInspectView } from './components/ResultInspectView';
@@ -136,6 +137,7 @@ export default function App() {
     captureFrame,
   } = useCameraStream();
   const { isInstallable, install } = usePWAInstall();
+  useLayoutViewportLock();
 
   const loadShelfData = useCallback(async (shelfId: number) => {
     setShelfHydrated(false);
@@ -526,7 +528,7 @@ export default function App() {
   const lastAudit = auditHistory.length > 0 ? auditHistory[0] : null;
 
   return (
-    <div className="w-full min-h-[100dvh] bg-[#F8FAFC] text-[#0F172A] flex flex-col items-center justify-center font-sans antialiased">
+    <div className="w-full max-w-full min-h-[100dvh] overflow-x-hidden bg-[#F8FAFC] text-[#0F172A] flex flex-col items-center justify-center font-sans antialiased">
       {/* 1. Camera Live View */}
       {appMode === 'CAMERA_IDLE' && (
         <CameraView

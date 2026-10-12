@@ -112,4 +112,36 @@ describe('ResultInspectView inline pinch-zoom', () => {
     expect(viewport.querySelector('[data-showing-baseline="true"]')).toBeTruthy();
     expect(viewport.getAttribute('data-zoom-scale')).toBe(scaleAfterZoom);
   });
+
+  it('does not blink-compare while a pinch finger is still down', () => {
+    const props = {
+      ...baseProps,
+      baseline: { ...baseProps.baseline, imageDataUrl: 'blob:https://example.com/persisted-baseline' },
+    };
+    render(<ResultInspectView {...props} />);
+    const viewport = screen.getByTestId('inspect-image-viewport');
+
+    fireEvent.touchStart(viewport, {
+      touches: [
+        { identifier: 0, clientX: 100, clientY: 100 },
+        { identifier: 1, clientX: 100, clientY: 160 },
+      ],
+    });
+    fireEvent.touchMove(viewport, {
+      touches: [
+        { identifier: 0, clientX: 100, clientY: 40 },
+        { identifier: 1, clientX: 100, clientY: 220 },
+      ],
+    });
+    fireEvent.touchEnd(viewport, {
+      touches: [{ identifier: 0, clientX: 100, clientY: 40 }],
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(viewport.querySelector('[data-showing-baseline="true"]')).toBeFalsy();
+    expect(Number(viewport.getAttribute('data-zoom-scale'))).toBeGreaterThan(1);
+  });
 });

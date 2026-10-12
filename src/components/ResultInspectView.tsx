@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ArrowLeft,
   Check,
@@ -60,7 +60,8 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
 }) => {
   const t = I18N[lang];
 
-  const { transform, style, touchHandlers } = usePinchPanZoom();
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const { transform, style, touchHandlers } = usePinchPanZoom(viewportRef);
   const hold = useBlinkCompareHold();
   const isBlinkingBaseline = hold.isBlinking;
   // State for filtering by anomaly type ('ALL' = show all)
@@ -110,7 +111,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   const displayImageUrl = isBlinkingBaseline ? baseline.imageDataUrl : currentCaptureUrl;
 
   return (
-    <div className="relative w-full min-h-[100dvh] bg-sg-surface flex flex-col justify-between overflow-x-hidden select-none">
+    <div className="relative w-full max-w-full min-h-[100dvh] bg-sg-surface flex flex-col justify-between overflow-x-hidden select-none">
       {/* Top Header Bar */}
       <header className="sticky top-0 w-full z-40 bg-sg-white border-b border-sg-border/80 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
@@ -208,6 +209,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
 
       <div className="w-full">
         <div
+          ref={viewportRef}
           className="relative mx-auto cursor-pointer overflow-hidden touch-none"
           data-testid="inspect-image-viewport"
           data-zoom-scale={transform.scale.toFixed(2)}
@@ -220,7 +222,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
           onMouseLeave={() => hold.cancel()}
           onTouchStart={(e) => {
             touchHandlers.onTouchStart(e);
-            if (e.touches.length >= 2) {
+            if (e.touches.length !== 1) {
               hold.cancel();
               return;
             }
@@ -229,7 +231,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
           }}
           onTouchMove={(e) => {
             touchHandlers.onTouchMove(e);
-            if (e.touches.length >= 2) {
+            if (e.touches.length !== 1) {
               hold.cancel();
               return;
             }
@@ -238,7 +240,8 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
           }}
           onTouchEnd={(e) => {
             touchHandlers.onTouchEnd(e);
-            hold.end();
+            if (e.touches.length === 0) hold.end();
+            else hold.cancel();
           }}
           onTouchCancel={(e) => {
             touchHandlers.onTouchEnd(e);
