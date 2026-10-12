@@ -81,6 +81,9 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 |----------|--------|
 | `establish-baseline/establish-baseline-camera.png` | Baseline saved; pill shows **Riferimento pronto** |
 | `establish-baseline/establish-baseline-pill.txt` | Exact baseline status text |
+| `inspect-scan/inspect-scan-390x844-hints.png` | Portrait gesture hints: pinch overlay + hold pill, Italian copy |
+| `inspect-scan/inspect-scan-390x844-hints-frame-*.png` | Pinch-hint animation frames at 0 / 350 / 700ms |
+| `inspect-scan/inspect-scan-844x390-hints.png` | Landscape gesture hints before pinch |
 | `inspect-scan/inspect-scan-results-390x844.png` | Portrait results; comparison image centered; no fullscreen control |
 | `inspect-scan/inspect-scan-results-844x390.png` | Landscape phone results; image centered (not left-aligned) |
 | `inspect-scan/inspect-scan-results-932x430.png` | Larger landscape phone results; image centered |
@@ -98,6 +101,7 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 | `inspect-scan/first-capture-comparison.txt` | First capture with an existing baseline ran comparison (PR #6) |
 | `multi-shelf/multi-shelf-2-empty-baseline.png` | Shelf 2 selected with no baseline yet |
 | `inspect-scan-cross-platform/cross-platform-report.txt` | Per-device pinch overflow: iPhone 14/15 Pro Max (WebKit) + Pixel 7/Galaxy S9+ (Chromium), portrait + landscape |
+| `inspect-scan-cross-platform/<device>/inspect-scan-*-hints-frame-*.png` | Per-device pinch-hint animation frames (portrait + landscape) |
 | `inspect-scan-cross-platform/<device>/inspect-scan-*-zoom.png` | Zoomed comparison image on that device profile |
 
 Standards:
