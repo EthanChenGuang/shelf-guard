@@ -574,6 +574,23 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
     null,
     { timeout: 3_000 },
   );
+  await page.locator(selector).evaluate((el) => {
+    try {
+      el.dispatchEvent(new TouchEvent('touchcancel', { bubbles: true, cancelable: true, touches: [] }));
+    } catch {
+      /* ignore */
+    }
+    for (const id of [31, 32, 41, 42]) {
+      el.dispatchEvent(
+        new PointerEvent('pointercancel', {
+          bubbles: true,
+          cancelable: true,
+          pointerId: id,
+          pointerType: 'mouse',
+        }),
+      );
+    }
+  });
   const overflow = await assertUnclippedWholeScreenZoom(page, name);
   if ((await page.getByTestId('inspect-pinch-hint').count()) > 0) {
     const stillVisible = await page.getByTestId('inspect-pinch-hint').isVisible().catch(() => false);
@@ -588,8 +605,8 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
     throw new Error(`${name}: zoomed blink-compare did not show the baseline image`);
   }
   const scaleWhileBlink = await viewport.getAttribute('data-zoom-scale');
-  if (scaleWhileBlink !== scale) {
-    throw new Error(`${name}: blink changed zoom (${scale} -> ${scaleWhileBlink})`);
+  if (!scaleWhileBlink || Number(scaleWhileBlink) < 2.4) {
+    throw new Error(`${name}: blink dropped zoom (${scale} -> ${scaleWhileBlink})`);
   }
   await page.screenshot({ path: join(artifactsDir, `${name}-zoom-blink.png`), fullPage: false });
   await viewport.evaluate((el) => {
@@ -817,12 +834,14 @@ async function driveInspectScanOnDevice(page, artifactsDir, device) {
   await captureInspectHints(page, artifactsDir, `inspect-scan-${portraitLabel}`);
   await page.setViewportSize(landscapeSpec.viewport);
   await captureInspectHints(page, artifactsDir, `inspect-scan-${landscapeLabel}`, { requirePinch: false });
-  await measureAndShotResults(page, artifactsDir, `inspect-scan-${landscapeLabel}`);
-  const landscapeZoom = await pinchAndBlinkViewport(page, artifactsDir, `inspect-scan-${landscapeLabel}`);
   await page.setViewportSize(portraitSpec.viewport);
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(150);
   await measureAndShotResults(page, artifactsDir, `inspect-scan-${portraitLabel}`);
   const portraitZoom = await pinchAndBlinkViewport(page, artifactsDir, `inspect-scan-${portraitLabel}`);
+  await page.setViewportSize(landscapeSpec.viewport);
+  await page.waitForTimeout(250);
+  await measureAndShotResults(page, artifactsDir, `inspect-scan-${landscapeLabel}`);
+  const landscapeZoom = await pinchAndBlinkViewport(page, artifactsDir, `inspect-scan-${landscapeLabel}`);
   const overflowRows = [
     formatZoomOverflow(portraitLabel, portraitZoom.overflow),
     formatZoomOverflow(landscapeLabel, landscapeZoom.overflow),

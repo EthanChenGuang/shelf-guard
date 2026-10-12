@@ -269,7 +269,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
         </button>
       </div>
 
-      <div className="w-full">
+      <div className="relative w-full">
         <div
           ref={viewportRef}
           className={`relative mx-auto cursor-pointer touch-none ${
@@ -357,7 +357,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
         <div
           data-testid="inspect-hold-hint"
           role="status"
-          className="relative z-20 mx-auto -mt-7 mb-2 flex max-w-[min(92%,28rem)] justify-center pointer-events-none"
+          className="absolute bottom-2 left-1/2 z-[21] flex max-w-[min(92%,28rem)] -translate-x-1/2 justify-center pointer-events-none"
         >
           <div
             className={`inspect-hint-pill flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold leading-snug shadow-lg ring-2 backdrop-blur-sm ${
