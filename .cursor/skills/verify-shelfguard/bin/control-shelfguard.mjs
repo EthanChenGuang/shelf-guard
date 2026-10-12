@@ -562,9 +562,34 @@ async function countFlickerDuringPinch(page, selector) {
   });
 }
 
+async function flushInspectPointers(page) {
+  const selector = '[data-testid="inspect-image-viewport"]';
+  await page.locator(selector).evaluate((el) => {
+    try {
+      el.dispatchEvent(new TouchEvent('touchend', { bubbles: true, cancelable: true, touches: [] }));
+      el.dispatchEvent(new TouchEvent('touchcancel', { bubbles: true, cancelable: true, touches: [] }));
+    } catch {
+      /* ignore */
+    }
+    el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+    for (const id of [0, 31, 32, 41, 42]) {
+      el.dispatchEvent(
+        new PointerEvent('pointercancel', {
+          bubbles: true,
+          cancelable: true,
+          pointerId: id,
+          pointerType: 'mouse',
+        }),
+      );
+    }
+  });
+}
+
 async function pinchAndBlinkViewport(page, artifactsDir, name) {
   const selector = '[data-testid="inspect-image-viewport"]';
   const viewport = page.getByTestId('inspect-image-viewport');
+  await flushInspectPointers(page);
+  await page.waitForTimeout(80);
   if (await page.getByTestId('inspect-image-fullscreen').count()) {
     throw new Error(`${name}: comparison fullscreen overlay is still present`);
   }
@@ -817,13 +842,7 @@ async function captureHoldHint(page, artifactsDir, name) {
   }
   const whilePressing = await assertHoldOutsideImage(page, `${name} while-pressing`);
   await saveScreenshot(page, join(artifactsDir, `${name}-hold-status.png`), { fullPage: false });
-  await page.getByTestId('inspect-image-viewport').evaluate((el) => {
-    try {
-      el.dispatchEvent(new TouchEvent('touchend', { bubbles: true, cancelable: true, touches: [] }));
-    } catch {
-      el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
-    }
-  });
+  await flushInspectPointers(page);
   writeFileSync(
     join(artifactsDir, `${name}-hold-geometry.txt`),
     `${before}\n${whilePressing}\n`,

@@ -117,9 +117,9 @@ html[data-inspect-zoomed="true"] #root > div {
 }
 
 :root {
-  --inspect-chrome: 7.75rem;
-  --inspect-hold-strip: 3.75rem;
-  --inspect-frame-max: min(72vh, calc(100dvh - var(--inspect-chrome) - var(--inspect-hold-strip)));
+  --inspect-chrome: 8.75rem;
+  --inspect-hold-strip: 4.35rem;
+  --inspect-frame-max: calc(100dvh - var(--inspect-chrome) - var(--inspect-hold-strip));
 }
 
 .inspect-hold-strip {
