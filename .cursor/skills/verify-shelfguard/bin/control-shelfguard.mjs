@@ -979,27 +979,48 @@ async function driveInspectScanCrossPlatform(url, artifactsDir, { device: onlyDe
   return { devices: devicesOut, report: rows };
 }
 
+async function withLocalArtifacts(destDir, fn) {
+  const tmpArt = join(tmpdir(), `sg-art-${process.pid}-${Date.now()}`);
+  mkdirSync(tmpArt, { recursive: true });
+  mkdirSync(destDir, { recursive: true });
+  let result;
+  let runErr;
+  try {
+    result = await fn(tmpArt);
+  } catch (err) {
+    runErr = err;
+  }
+  const copied = spawnSync('cp', ['-a', `${tmpArt}/.`, destDir]);
+  if (copied.status !== 0) {
+    spawnSync('sleep', ['0.4']);
+    spawnSync('cp', ['-a', `${tmpArt}/.`, destDir]);
+  }
+  spawnSync('rm', ['-rf', tmpArt]);
+  if (runErr) throw runErr;
+  return result;
+}
+
 async function browserDrive(featureId, { url = DEFAULT_URL, artifactsDir, engine, device }) {
   if (!artifactsDir) {
     console.error('browser drive requires --artifacts-dir');
     process.exit(2);
   }
-  if (featureId === 'inspect-scan-cross-platform') {
-    const result = await driveInspectScanCrossPlatform(url, artifactsDir, { device });
-    console.log(JSON.stringify({ featureId, ok: true, ...result }, null, 2));
-    return;
-  }
-  const drivers = {
-    'establish-baseline': driveEstablishBaseline,
-    'inspect-scan': driveInspectScan,
-    'multi-shelf': driveMultiShelf,
-  };
-  const driver = drivers[featureId];
-  if (!driver) {
-    console.error(`Unknown feature id: ${featureId}`);
-    usage();
-  }
-  const result = await withBrowser(url, (page) => driver(page, artifactsDir), { engine, device });
+  const result = await withLocalArtifacts(artifactsDir, async (dir) => {
+    if (featureId === 'inspect-scan-cross-platform') {
+      return driveInspectScanCrossPlatform(url, dir, { device });
+    }
+    const drivers = {
+      'establish-baseline': driveEstablishBaseline,
+      'inspect-scan': driveInspectScan,
+      'multi-shelf': driveMultiShelf,
+    };
+    const driver = drivers[featureId];
+    if (!driver) {
+      console.error(`Unknown feature id: ${featureId}`);
+      usage();
+    }
+    return withBrowser(url, (page) => driver(page, dir), { engine, device });
+  });
   console.log(JSON.stringify({ featureId, ok: true, ...result }, null, 2));
 }
 
