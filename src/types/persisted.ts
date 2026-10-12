@@ -4,7 +4,11 @@ import type {DetectedAnomaly, ToleranceLevel, ToleranceValue} from '../types';
 export interface PersistedBaseline {
   id: string;
   createdAt: number;
-  imageBlob: Blob;
+  /** Preferred. Playwright WebKit cannot structured-clone Blob; then `imageBytes` is used. */
+  imageBlob?: Blob;
+  /** ArrayBuffer fallback when the engine cannot clone Blob (WebKit MiniBrowser). */
+  imageBytes?: ArrayBuffer;
+  imageType?: string;
   imageDimensions: {width: number; height: number};
   lensFocalLength?: number | null;
 }

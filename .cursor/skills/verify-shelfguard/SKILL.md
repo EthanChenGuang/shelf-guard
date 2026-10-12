@@ -12,7 +12,7 @@ ShelfGuard is a **client-only React PWA** (`npm run dev` / Vite). Verification d
 From the repository root:
 
 1. Install deps if needed: `npm install`
-2. Install Playwright Chromium once: `node node_modules/playwright/cli.js install chromium`
+2. Install Playwright browsers once: `node node_modules/playwright/cli.js install chromium webkit`
 3. Start the verification server (build + preview):
 
 ```bash
@@ -56,6 +56,10 @@ node .cursor/skills/verify-shelfguard/bin/control-shelfguard.mjs browser drive i
 node .cursor/skills/verify-shelfguard/bin/control-shelfguard.mjs browser drive multi-shelf \
   --url http://127.0.0.1:4173 \
   --artifacts-dir "${ART}/multi-shelf"
+
+node .cursor/skills/verify-shelfguard/bin/control-shelfguard.mjs browser drive inspect-scan-cross-platform \
+  --url http://127.0.0.1:4173 \
+  --artifacts-dir "${ART}/inspect-scan-cross-platform"
 ```
 
 Read the feature map first: [features/README.md](./features/README.md). Prefer **`data-testid`** and **Italian `aria-label` strings** from `src/lib/constants.ts` (default locale `it`).
@@ -77,10 +81,37 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 |----------|--------|
 | `establish-baseline/establish-baseline-camera.png` | Baseline saved; pill shows **Riferimento pronto** |
 | `establish-baseline/establish-baseline-pill.txt` | Exact baseline status text |
-| `inspect-scan/inspect-scan-results.png` | Full inspection result screen |
+| `inspect-scan/inspect-scan-390x844-pinch-hints.png` | Portrait pinch overlay (Italian, sequenced before hold) |
+| `inspect-scan/inspect-scan-390x844-pinch-frame-*.png` | Pinch animation frames at 0 / 400 / 800ms |
+| `inspect-scan/inspect-scan-390x844-hold-hints.png` | Portrait hold caption **below** the photo (before press) |
+| `inspect-scan/inspect-scan-390x844-hold-status.png` | Portrait **Stai vedendo la foto di riferimento** below the photo while pressing |
+| `inspect-scan/inspect-scan-390x844-hold-frame-*.png` | Hold animation frames at 0 / 400 / 800ms |
+| `inspect-scan/inspect-scan-390x844-hold-geometry.txt` | Hold/status rects do not intersect the image and sit in the viewport |
+| `inspect-scan/inspect-scan-844x390-pinch-hints.png` | Landscape pinch overlay before it sequences to hold |
+| `inspect-scan/inspect-scan-844x390-hold-hints.png` | Landscape hold caption below the photo |
+| `inspect-scan/inspect-scan-844x390-hold-status.png` | Landscape viewing-reference badge below the photo |
+| `inspect-scan/inspect-scan-results-390x844.png` | Portrait results; comparison image centered; no fullscreen control |
+| `inspect-scan/inspect-scan-results-844x390.png` | Landscape phone results; image centered (not left-aligned) |
+| `inspect-scan/inspect-scan-results-932x430.png` | Larger landscape phone results; image centered |
+| `inspect-scan/inspect-scan-center.txt` | Left/right gaps per viewport |
+| `inspect-scan/inspect-scan-zoom-overflow.txt` | At scale ~2.75: layer extends beyond the frame, no ancestor overflow hidden/clip, short viewport axis covered |
+| `inspect-scan/inspect-scan-844x390-zoom.png` | Inline pinch on landscape 844×390 |
+| `inspect-scan/inspect-scan-932x430-zoom.png` | Inline pinch on 932×430 |
+| `inspect-scan/inspect-scan-390x844-zoom-blink.png` | After pinch, long-press shows the baseline at the same zoom (portrait) |
+| `inspect-scan/inspect-scan-844x390-zoom-blink.png` | Zoomed blink-compare at 844×390 |
+| `inspect-scan/inspect-scan-932x430-zoom-blink.png` | Zoomed blink-compare at 932×430 |
+| `inspect-scan/inspect-scan-rotate-offset.txt` | After portrait↔landscape rotates, scrollX is 0 and document width matches the viewport |
+| `inspect-scan/inspect-scan-rotate-*.png` | Results screen after each orientation change (no left white strip) |
+| `establish-baseline/establish-baseline-rotate-offset.txt` | Same offset asserts on the capture screen |
 | `inspect-scan/inspect-scan.aria.txt` | ARIA tree includes **Conferma e concludi l'ispezione** |
 | `inspect-scan/first-capture-comparison.txt` | First capture with an existing baseline ran comparison (PR #6) |
 | `multi-shelf/multi-shelf-2-empty-baseline.png` | Shelf 2 selected with no baseline yet |
+| `inspect-scan-cross-platform/cross-platform-report.txt` | Per-device pinch overflow: iPhone 14/15 Pro Max (WebKit) + Pixel 7/Galaxy S9+ (Chromium), portrait + landscape |
+| `inspect-scan-cross-platform/<device>/inspect-scan-*-pinch-frame-*.png` | Per-device pinch animation frames |
+| `inspect-scan-cross-platform/<device>/inspect-scan-*-hold-frame-*.png` | Per-device hold press/ring animation frames |
+| `inspect-scan-cross-platform/<device>/inspect-scan-*-hold-status.png` | Per-device viewing-reference badge below the photo |
+| `inspect-scan-cross-platform/<device>/inspect-scan-*-hold-geometry.txt` | Per-device hold/status vs image intersection asserts |
+| `inspect-scan-cross-platform/<device>/inspect-scan-*-zoom.png` | Zoomed comparison image on that device profile |
 
 Standards:
 

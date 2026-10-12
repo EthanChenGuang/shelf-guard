@@ -4,10 +4,10 @@ current_phase: 05
 current_phase_name: PRD UI & Multi-Shelf Experience
 current_plan: 7
 status: verifying
-stopped_at: "Completed quick task 260925-r3s: tap-to-focus camera control"
-last_updated: "2026-09-28T21:24:09.534Z"
-last_activity: 2026-09-23
-last_activity_desc: Phase 05 execution started
+stopped_at: "Completed quick task 261012-hld: hold hint and reference status below the photo"
+last_updated: "2026-10-12T21:16:00.000Z"
+last_activity: 2026-10-12
+last_activity_desc: Completed quick task 261012-hld hold hint and reference status below the photo
 state_head: 00e3ca6d3ae55b66613148b6d42d60ecdd23cf5e
 progress:
   total_phases: 5
@@ -157,6 +157,12 @@ None yet.
 | 260928-p4l | 新增物品标为「新增」（对称分类 + 移动配对）；局部视差对齐未达验收标准，未上线 | 2026-09-28 | 9f9390b | [260928-p4l-align-then-diff-report-added-items](./quick/260928-p4l-align-then-diff-report-added-items/) |
 | 12 | 巡检照片可从相册选择（同方向时按基准比例居中裁剪） | 2026-09-28 | 91d3725 | — |
 | 13 | 幽灵覆盖层按实时画面自动对齐（镜头不同也可用）；可在浏览器暴露的后置镜头间切换 | 2026-09-28 | 00e3ca6 | — |
+| 261012-ne9 | Landscape fullscreen: whole photo + close + hint fit inside the visible area under a persistent mobile address bar (contain-fit; WebKit visualViewport lie; chrome-sim verify) | 2026-10-12 | 7d831d9 | [261012-ne9-fix-landscape-fullscreen-overlay-so-imag](./quick/261012-ne9-fix-landscape-fullscreen-overlay-so-imag/) |
+| 261012-of5 | Remove comparison fullscreen overlay; pinch-zoom/pan inline on the centered results image with AR overlays and zoomed blink-compare | 2026-10-12 | 6a42ea6 | [261012-of5-remove-fullscreen-comparison-overlay-ent](./quick/261012-of5-remove-fullscreen-comparison-overlay-ent/) |
+| 261012-ozp | Fix results pinch-zoom flicker and post-rotation white strip on capture and results; boot Android emulator + Mobile MCP when possible | 2026-10-12 | 0d28d7a | [261012-ozp-fix-results-pinch-zoom-flicker-blink-com](./quick/261012-ozp-fix-results-pinch-zoom-flicker-blink-com/) |
+| 261012-qce | Restore whole-screen results pinch-zoom: zoomed comparison image overflows the frame over the phone, not clipped to overflow-hidden | 2026-10-12 | 91fc03e | [261012-qce-restore-whole-screen-results-pinch-zoom-](./quick/261012-qce-restore-whole-screen-results-pinch-zoom-/) |
+| 261012-r7i | Sequenced animated pinch then hold-to-reference hints (finger+ring), pointer-events none, Italian copy, reduced-motion; iOS+Android portrait/landscape verify | 2026-10-12 | b8b5921 | [261012-r7i-add-animated-two-finger-pinch-zoom-hint-](./quick/261012-r7i-add-animated-two-finger-pinch-zoom-hint-/) |
+| 261012-hld | Move hold hint and viewing-reference badge below the comparison image so they never cover the photo; landscape shrinks the frame to fit | 2026-10-12 | 40322ba | [261012-hld-move-hold-hint-below-image](./quick/261012-hld-move-hold-hint-below-image/) |
 
 ## Deferred Items
 
@@ -170,4 +176,4 @@ Last session: 2026-09-25T17:51:01.597Z
 Stopped at: Completed quick task 260925-r3s: tap-to-focus camera control
 Resume file: None
 
-Last activity: 2026-09-28 - Completed quick task 260928-p4l: 新增物品标为新增；局部对齐未上线
+Last activity: 2026-10-12 - Completed quick task 261012-hld: hold hint and reference status below the photo

@@ -5,7 +5,7 @@ Maintained recipes for user-visible behavior. Read this index before driving the
 ## Baseline preconditions
 
 - Preview at `http://127.0.0.1:4173` started via `.cursor/skills/verify-shelfguard/bin/launch-verify-server.sh`
-- Playwright Chromium installed (`node node_modules/playwright/cli.js install chromium`)
+- Playwright Chromium installed (`node node_modules/playwright/cli.js install chromium`); WebKit too for iPhone profiles (`install webkit`)
 - `control-shelfguard doctor` passes for that URL and `/tmp/shelfguard-verify.pid`
 - Each drive uses a **new** browser context (empty IndexedDB)
 - Do not drive a preview instance started outside this verification run
@@ -33,5 +33,6 @@ Each feature file: H1 title, one intro paragraph, then H2 sections **`Sub-featur
 
 - [Establish baseline](./establish-baseline.md) — first reference photo per shelf via library upload
 - [Inspect scan (gallery)](./inspect-scan.md) — compare a capture against baseline through OpenCV worker
+- [Inspect scan (iPhone WebKit + Android Chromium)](./inspect-scan-cross-platform.md) — same flow on iPhone 14 / 15 Pro Max (WebKit) and Pixel 7 / Galaxy S9+ (Chromium), portrait + landscape touch pinch
 - [Multi-shelf switch](./multi-shelf.md) — five shelf slots with independent baselines
 - [Language toggle](./language-toggle.md) — cycle IT / EN / CN from the camera header

@@ -7,6 +7,9 @@ Compares a new shelf photo against the saved baseline using the in-browser OpenC
 - `gallery-capture` — **Scegli la foto dell'ispezione dalla galleria** uploads the inspection photo
 - `scan-progress` — scanning / processing overlays while the worker runs
 - `result-inspect` — **Risultato dell'ispezione** with **Conferma e concludi l'ispezione**
+- `result-inspect-zoom` — two-finger pinch zoom/pan **inline** on `[data-testid="inspect-image-viewport"]` (no fullscreen overlay or expand control). AR boxes transform with the photo. Long-press still blink-compares the baseline at the same zoom/pan. Rapid 1↔2 finger sequences must not toggle blink-compare or reset scale.
+- `result-inspect-hints` — sequenced: first `[data-testid="inspect-pinch-hint"]` overlay on the photo (two-finger pinch + **Pizzica con due dita per ingrandire**), then `[data-testid="inspect-hold-hint"]` in `[data-testid="inspect-hold-strip"]` **below** the frame (finger press + progress ring + **Tieni premuto per vedere il riferimento**; while pressing, **Stai vedendo la foto di riferimento**). Hold/status must not intersect the image rect and must stay inside the viewport. Both use `pointer-events: none`. `prefers-reduced-motion` disables motion.
+- `layout-lock` — after portrait↔landscape rotation on capture and results, `scrollX === 0` and document width equals the viewport (no left white strip).
 
 ## How to get to it (user POV)
 
@@ -28,7 +31,14 @@ Preconditions:
 - **Ensure baseline.** After hydration, pill shows **Riferimento pronto**.
 - **First capture (comparison).** Click gallery button by Italian `aria-label`, set `public/test-fixtures/capture-displaced.jpg` on `[data-testid="gallery-input"]`. This is the first capture with a persisted baseline — it must run comparison, not save a new baseline.
 - **Wait for results.** Button **Conferma e concludi l'ispezione** becomes visible (timeout up to 120s for worker init). Camera idle must not remain on screen.
-- **Proof.** `inspect-scan-results.png`, `inspect-scan.aria.txt`, and `first-capture-comparison.txt` under artifacts dir.
+- **Confirm centering.** `[data-testid="inspect-image-viewport"]` is `mx-auto` on the sized frame. Left/right gaps match in portrait **and** landscape (`inspect-scan-center.txt`). There is no `[data-testid="inspect-image-fullscreen"]` or expand control.
+- **Viewports.** Assert 390×844, 844×390, 932×430.
+- **Inline pinch-zoom.** Two-finger pinch on `[data-testid="inspect-image-viewport"]` to ~2.75. The zoom layer's bounding rect extends beyond the frame and covers the viewport; no ancestor `overflow: hidden/clip`. At rest the frame stays `overflow-hidden` and `mx-auto`.
+- **Zoomed blink-compare.** Long-press after pinch; `[data-showing-baseline="true"]` appears at the same `data-zoom-scale`.
+- **No flicker during pinch.** Rapid 1↔2 finger sequences: blink-state toggle count is 0 and scale does not reset to 1.
+- **No post-rotate offset.** On capture and results, after 390×844 ↔ 844×390 ↔ 932×430: `scrollX === 0`, `documentElement.scrollWidth <= innerWidth`.
+- **Gesture hints.** Sequence pinch (on-image overlay) then hold (below-image strip). Italian copy and `pointer-events: none`. Assert hold/status bounding rects do not intersect the image and are fully in the viewport. Capture `*-pinch-hints.png` / `*-pinch-frame-*.png`, `*-hold-hints.png` / `*-hold-frame-*.png` (before press) and `*-hold-status.png` (while pressing) in portrait and landscape **before** pinch-zoom. Long-press still blink-compares.
+- **Proof.** `inspect-scan-results-*.png`, `inspect-scan-*-pinch-hints.png`, `inspect-scan-*-pinch-frame-*.png`, `inspect-scan-*-hold-hints.png`, `inspect-scan-*-hold-status.png`, `inspect-scan-*-hold-frame-*.png`, `inspect-scan-*-hold-geometry.txt`, `inspect-scan-*-zoom.png`, `inspect-scan-*-zoom-blink.png`, `inspect-scan-zoom-overflow.txt`, `inspect-scan-rotate-*.png`, `inspect-scan.aria.txt`, `first-capture-comparison.txt`.
 
 Command:
 

@@ -1,0 +1,71 @@
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
+import { setInspectZoomed, useLayoutViewportLock } from './useLayoutViewportLock';
+
+describe('useLayoutViewportLock', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    document.documentElement.style.overflowX = '';
+    document.body.style.overflowX = '';
+    document.documentElement.scrollLeft = 24;
+    document.body.scrollLeft = 24;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('snaps scroll to 0 and hides overflow-x on mount and orientationchange', () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+
+    renderHook(() => useLayoutViewportLock());
+
+    expect(document.documentElement.style.overflowX).toBe('hidden');
+    expect(document.body.style.overflowX).toBe('hidden');
+    expect(scrollTo).toHaveBeenCalledWith(0, 0);
+
+    scrollTo.mockClear();
+    document.documentElement.scrollLeft = 48;
+
+    act(() => {
+      window.dispatchEvent(new Event('orientationchange'));
+    });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(document.documentElement.style.overflowX).toBe('hidden');
+    expect(scrollTo).toHaveBeenCalledWith(0, 0);
+    expect(document.documentElement.scrollLeft).toBe(0);
+    expect(document.body.scrollLeft).toBe(0);
+  });
+
+  it('does not re-clip overflow-x while the results image is pinch-zoomed', () => {
+    const root = document.createElement('div');
+    root.id = 'root';
+    const app = document.createElement('div');
+    app.className = 'overflow-x-hidden';
+    root.appendChild(app);
+    document.body.appendChild(root);
+
+    renderHook(() => useLayoutViewportLock());
+    setInspectZoomed(true);
+    expect(document.documentElement.style.overflowX).toBe('visible');
+    expect(root.style.overflowX).toBe('visible');
+    expect(app.style.overflowX).toBe('visible');
+
+    act(() => {
+      window.dispatchEvent(new Event('orientationchange'));
+    });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(document.documentElement.style.overflowX).toBe('visible');
+    expect(app.style.overflowX).toBe('visible');
+    setInspectZoomed(false);
+    expect(document.documentElement.style.overflowX).toBe('hidden');
+    expect(app.style.overflowX).toBe('');
+    root.remove();
+  });
+});

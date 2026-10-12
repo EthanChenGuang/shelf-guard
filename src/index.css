@@ -1,5 +1,36 @@
 @import "tailwindcss";
 
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+}
+
+html {
+  touch-action: pan-y;
+}
+
+html[data-inspect-zoomed="true"] {
+  touch-action: none;
+}
+
+html[data-inspect-zoomed="true"],
+html[data-inspect-zoomed="true"] body,
+html[data-inspect-zoomed="true"] #root,
+html[data-inspect-zoomed="true"] #root > div {
+  overflow: visible !important;
+  -webkit-overflow-scrolling: auto;
+}
+
+[data-testid="inspect-image-viewport"] {
+  touch-action: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
 @theme {
   --color-sg-white: #ffffff;
   --color-sg-surface: #f8fafc;
@@ -28,6 +59,187 @@
 
 .animate-shutter-breathe {
   animation: shutter-breathe 2s ease-in-out infinite;
+}
+
+@keyframes inspect-pinch-a {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(9px, 8px);
+  }
+}
+
+@keyframes inspect-pinch-b {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-9px, -8px);
+  }
+}
+
+@keyframes inspect-hint-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgb(255 255 255 / 0.45);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 10px rgb(255 255 255 / 0);
+  }
+}
+
+.inspect-pinch-finger-a {
+  animation: inspect-pinch-a 1.15s ease-in-out infinite;
+  transform-origin: 28px 32px;
+}
+
+.inspect-pinch-finger-b {
+  animation: inspect-pinch-b 1.15s ease-in-out infinite;
+  transform-origin: 60px 56px;
+}
+
+.inspect-hint-pill {
+  animation: inspect-hint-pulse 1.8s ease-in-out infinite;
+}
+
+.inspect-pinch-hint {
+  transition: opacity 0.4s ease;
+}
+
+.inspect-pinch-hint[data-hint-fading='true'],
+.inspect-hold-hint[data-hint-fading='true'] {
+  opacity: 0;
+}
+
+:root {
+  --inspect-chrome: 8.75rem;
+  --inspect-hold-strip: 4.35rem;
+  --inspect-frame-max: calc(100dvh - var(--inspect-chrome) - var(--inspect-hold-strip));
+}
+
+.inspect-hold-strip {
+  min-height: var(--inspect-hold-strip);
+}
+
+.inspect-hold-hint {
+  transition: opacity 0.4s ease;
+}
+
+.inspect-hold-hint > svg {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+}
+
+.inspect-hold-finger {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: inspect-hold-press 1.6s ease-in-out infinite;
+}
+
+.inspect-hold-ripple {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: inspect-hold-ripple 1.6s ease-out infinite;
+}
+
+.inspect-hold-progress {
+  animation: inspect-hold-ring 1.6s ease-in-out infinite;
+}
+
+@keyframes inspect-hold-press {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  30%,
+  70% {
+    transform: scale(0.86);
+  }
+}
+
+@keyframes inspect-hold-ripple {
+  0% {
+    transform: scale(0.72);
+    opacity: 0.65;
+  }
+  100% {
+    transform: scale(1.75);
+    opacity: 0;
+  }
+}
+
+@keyframes inspect-hold-ring {
+  0% {
+    stroke-dashoffset: 138.2;
+  }
+  70% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (orientation: landscape) {
+  :root {
+    --inspect-chrome: 8.75rem;
+    --inspect-hold-strip: 2.65rem;
+  }
+
+  .inspect-pinch-hint {
+    gap: 0.35rem;
+    padding: 0.25rem;
+  }
+
+  .inspect-pinch-hint > svg {
+    width: 3.25rem;
+    height: 3.25rem;
+    flex-shrink: 0;
+  }
+
+  .inspect-pinch-hint .inspect-hint-pill,
+  .inspect-hold-hint .inspect-hint-pill {
+    font-size: 0.7rem;
+    line-height: 1.2;
+    padding: 0.3rem 0.65rem;
+  }
+
+  .inspect-hold-hint {
+    gap: 0.4rem;
+    padding-top: 0.15rem;
+    padding-bottom: 0.15rem;
+  }
+
+  .inspect-hold-hint > svg {
+    width: 2.1rem;
+    height: 2.1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inspect-pinch-finger-a,
+  .inspect-pinch-finger-b,
+  .inspect-hint-pill,
+  .inspect-hold-finger,
+  .inspect-hold-ripple,
+  .inspect-hold-progress {
+    animation: none;
+  }
+
+  .inspect-hold-progress {
+    stroke-dashoffset: 40;
+  }
+
+  .inspect-pinch-hint,
+  .inspect-hold-hint {
+    transition: none;
+  }
 }
 
 @layer utilities {

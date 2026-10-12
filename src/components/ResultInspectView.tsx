@@ -1,40 +1,24 @@
-import React, { useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   Check,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Eye,
   Gauge,
   Layers,
-  RotateCw,
   Share2,
   Sliders,
-  Sparkles,
-  Touchpad,
-  Volume2,
-  AlertTriangle,
-  X,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { DetectedAnomaly, Language, ShelfCalibration, ToleranceValue } from '../types';
 import { I18N } from '../lib/constants';
-import { frameBoxStyle } from '../lib/frameBox';
 import { MIN_CONFIDENCE_CEIL, MIN_CONFIDENCE_FLOOR, meetsMinConfidence } from '../lib/vision/confidence';
-
-/**
- * Complete class strings per anomaly type, so Tailwind sees every one of them. Outline and text
- * only: a fill or label chip would hide the very object the box points at.
- */
-const TYPE_STYLES: Record<DetectedAnomaly['type'], { box: string; badge: string }> = {
-  MISSING: { box: 'border-2 border-sg-danger', badge: 'text-sg-danger' },
-  MOVED: { box: 'border-2 border-sg-warning', badge: 'text-sg-warning' },
-  ADDED: { box: 'border-2 border-sg-scan', badge: 'text-sg-scan' },
-};
-
-/** Dark halo that keeps colored label text legible on both light and dark photo areas. */
-const LABEL_HALO = { textShadow: '0 0 2px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.6)' };
+import { InspectShelfCanvas } from './InspectShelfCanvas';
+import { useBlinkCompareHold } from '../hooks/useBlinkCompareHold';
+import { setInspectZoomed } from '../hooks/useLayoutViewportLock';
+import { usePinchPanZoom } from '../hooks/usePinchPanZoom';
+import { touchAt } from '../lib/touchAt';
+import { frameBoxStyle } from '../lib/frameBox';
 
 interface ResultInspectViewProps {
   currentCaptureUrl: string;
@@ -55,6 +39,59 @@ interface ResultInspectViewProps {
   onBackToCamera: () => void;
   lang: Language;
 }
+
+const PINCH_HINT_MS = 8000;
+const PINCH_HINT_REDUCED_MS = 1600;
+const HINT_FADE_MS = 400;
+const HOLD_RING = 138.2;
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+}
+
+const PinchHintGraphic: React.FC = () => (
+  <svg viewBox="0 0 88 88" className="h-24 w-24 drop-shadow-[0_2px_10px_rgba(0,0,0,0.75)]" aria-hidden="true">
+    <g className="inspect-pinch-finger-a">
+      <circle cx="28" cy="32" r="12" fill="white" stroke="#0F172A" strokeWidth="3" />
+      <circle cx="28" cy="32" r="4.5" fill="#0F172A" />
+    </g>
+    <g className="inspect-pinch-finger-b">
+      <circle cx="60" cy="56" r="12" fill="white" stroke="#0F172A" strokeWidth="3" />
+      <circle cx="60" cy="56" r="4.5" fill="#0F172A" />
+    </g>
+  </svg>
+);
+
+const HoldHintGraphic: React.FC = () => (
+  <svg
+    viewBox="0 0 88 88"
+    className="h-11 w-11 drop-shadow-[0_1px_4px_rgba(0,0,0,0.35)]"
+    data-testid="inspect-hold-graphic"
+    aria-hidden="true"
+  >
+    <g className="inspect-hold-ripple">
+      <circle cx="44" cy="44" r="20" fill="none" stroke="white" strokeWidth="2.5" />
+    </g>
+    <circle cx="44" cy="44" r="22" fill="none" stroke="white" strokeOpacity="0.3" strokeWidth="4" />
+    <circle
+      className="inspect-hold-progress"
+      cx="44"
+      cy="44"
+      r="22"
+      fill="none"
+      stroke="white"
+      strokeWidth="4"
+      strokeDasharray={HOLD_RING}
+      strokeDashoffset={HOLD_RING}
+      strokeLinecap="round"
+      transform="rotate(-90 44 44)"
+    />
+    <g className="inspect-hold-finger">
+      <circle cx="44" cy="44" r="12" fill="white" stroke="#0F172A" strokeWidth="3" />
+      <circle cx="44" cy="44" r="4.5" fill="#0F172A" />
+    </g>
+  </svg>
+);
 
 export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   currentCaptureUrl,
@@ -77,15 +114,48 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
 }) => {
   const t = I18N[lang];
 
-  // State for Blink Compare (long-press to show baseline)
-  const [isBlinkingBaseline, setIsBlinkingBaseline] = useState(false);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const { transform, style, touchHandlers, pointerHandlers } = usePinchPanZoom(viewportRef);
+  const hold = useBlinkCompareHold();
+  const isZoomed = transform.scale > 1.01;
+
+  useLayoutEffect(() => {
+    setInspectZoomed(isZoomed);
+    return () => setInspectZoomed(false);
+  }, [isZoomed]);
+  const isBlinkingBaseline = hold.isBlinking;
+  const [hintPhase, setHintPhase] = useState<'pinch' | 'hold'>('pinch');
+  const [pinchHintFading, setPinchHintFading] = useState(false);
+  const pinchHintGoneRef = useRef(false);
+  const pinchHintHideRef = useRef<number | null>(null);
+  const reducedMotion = prefersReducedMotion();
+
+  useEffect(() => {
+    const showMs = prefersReducedMotion() ? PINCH_HINT_REDUCED_MS : PINCH_HINT_MS;
+    const fadeId = window.setTimeout(() => {
+      if (pinchHintGoneRef.current) return;
+      setPinchHintFading(true);
+    }, showMs);
+    const holdId = window.setTimeout(() => {
+      pinchHintGoneRef.current = true;
+      setHintPhase('hold');
+    }, showMs + HINT_FADE_MS);
+    return () => {
+      window.clearTimeout(fadeId);
+      window.clearTimeout(holdId);
+      if (pinchHintHideRef.current != null) window.clearTimeout(pinchHintHideRef.current);
+    };
+  }, []);
+
+  const dismissPinchHint = () => {
+    if (pinchHintGoneRef.current) return;
+    pinchHintGoneRef.current = true;
+    setPinchHintFading(true);
+    pinchHintHideRef.current = window.setTimeout(() => setHintPhase('hold'), HINT_FADE_MS);
+  };
+
   // State for filtering by anomaly type ('ALL' = show all)
   const [filterType, setFilterType] = useState<'ALL' | DetectedAnomaly['type']>('ALL');
-  const badgeLabels: Record<DetectedAnomaly['type'], string> = {
-    MISSING: t.missingBadgeShort,
-    MOVED: t.movedBadgeShort,
-    ADDED: t.addedBadgeShort,
-  };
   // State for toggling AR overlay bounding boxes visibility
   const [showArLayers, setShowArLayers] = useState(true);
   // Dismissed IDs for local smooth shrink animation before state update
@@ -128,8 +198,14 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
     setTimeout(() => setShowExportToast(false), 2600);
   };
 
+  const displayImageUrl = isBlinkingBaseline ? baseline.imageDataUrl : currentCaptureUrl;
+
   return (
-    <div className="relative w-full min-h-[100dvh] bg-sg-surface flex flex-col justify-between overflow-x-hidden select-none">
+    <div
+      className={`relative w-full max-w-full min-h-[100dvh] bg-sg-surface flex flex-col justify-between select-none ${
+        isZoomed ? 'overflow-visible' : 'overflow-x-hidden'
+      }`}
+    >
       {/* Top Header Bar */}
       <header className="sticky top-0 w-full z-40 bg-sg-white border-b border-sg-border/80 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
@@ -225,87 +301,124 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
         </button>
       </div>
 
-      {/* Main Viewport: Shelf Image & Interactive AR Canvas */}
-      <div
-        className="relative mx-auto overflow-hidden bg-slate-900 cursor-pointer select-none [-webkit-touch-callout:none]"
-        style={frameBoxStyle(baseline.imageDimensions, '72vh')}
-        // Long-press is the compare gesture; the browser's image menu must not take it over.
-        onContextMenu={(e) => e.preventDefault()}
-        onMouseDown={() => setIsBlinkingBaseline(true)}
-        onMouseUp={() => setIsBlinkingBaseline(false)}
-        onMouseLeave={() => setIsBlinkingBaseline(false)}
-        onTouchStart={() => setIsBlinkingBaseline(true)}
-        onTouchEnd={() => setIsBlinkingBaseline(false)}
-        onTouchCancel={() => setIsBlinkingBaseline(false)}
-      >
-        {/* Inspection Still Photo or Baseline when blinking */}
-        <img
-          src={isBlinkingBaseline ? baseline.imageDataUrl : currentCaptureUrl}
-          alt="Shelf Inspection Display"
-          draggable={false}
-          className="w-full h-full object-fill pointer-events-none"
-        />
-
-        {/* AR Bounding Boxes (Hidden during Blink Compare or if layers toggled off) */}
-        {!isBlinkingBaseline && showArLayers && (
-          <>
-            {activeAnomalies.map((item) => {
-              const styles = TYPE_STYLES[item.type];
-              const top = item.boundingBox.y * 100;
-              const left = item.boundingBox.x * 100;
-              const width = item.boundingBox.width * 100;
-              const height = item.boundingBox.height * 100;
-
-              return (
-                <div
-                  key={item.id}
-                  className={`ar-box absolute rounded-xl transition-all duration-200 ${styles.box}`}
-                  style={{
-                    top: `${top}%`,
-                    left: `${left}%`,
-                    width: `${width}%`,
-                    height: `${height}%`,
-                  }}
-                  onClick={(e) => handleDismiss(item.id, e)}
-                >
-                  {/* Label above the box: colored text only */}
-                  <div
-                    className={`absolute -top-5 left-0 flex items-center gap-1 whitespace-nowrap font-mono-numbers text-[11px] font-bold ${styles.badge}`}
-                    style={LABEL_HALO}
-                    title={item.title}
-                  >
-                    <span>
-                      {`${badgeLabels[item.type]} · ${(
-                        ((item.score ?? item.confidence ?? 0) * 100)
-                      ).toFixed(0)}%`}
-                    </span>
-                    <button
-                      onClick={(e) => handleDismiss(item.id, e)}
-                      className="hover:opacity-80"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </>
-        )}
-
-      </div>
-
-      {/* Compare hint below the photo, so nothing covers it; shows the baseline state while held */}
-      <div
-        className={`flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold transition-colors ${
-          isBlinkingBaseline ? 'text-[#006C49]' : 'text-sg-secondary'
-        }`}
-      >
-        {isBlinkingBaseline ? (
-          <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />
-        ) : (
-          <Eye className="w-3.5 h-3.5 text-[#006C49]" />
-        )}
-        <span>{isBlinkingBaseline ? t.goldenBaseline : t.pressHoldCompare}</span>
+      <div className="relative w-full flex flex-col items-center">
+        <div
+          ref={viewportRef}
+          className={`relative mx-auto cursor-pointer touch-none ${
+            isZoomed ? 'z-[60] overflow-visible' : 'overflow-hidden'
+          }`}
+          data-testid="inspect-image-viewport"
+          data-zoom-scale={transform.scale.toFixed(2)}
+          data-inspect-zoomed={isZoomed ? 'true' : 'false'}
+          style={{ ...frameBoxStyle(baseline.imageDimensions, 'var(--inspect-frame-max)'), touchAction: 'none' }}
+          onMouseDown={(e) => {
+            dismissPinchHint();
+            hold.begin(e.clientX, e.clientY);
+          }}
+          onMouseMove={(e) => {
+            if (e.buttons) hold.move(e.clientX, e.clientY);
+          }}
+          onMouseUp={() => hold.end()}
+          onMouseLeave={() => hold.cancel()}
+          onTouchStart={(e) => {
+            dismissPinchHint();
+            touchHandlers.onTouchStart(e);
+            if (e.touches.length >= 2) {
+              hold.cancel();
+              return;
+            }
+            const t0 = touchAt(e.touches, 0);
+            hold.begin(t0?.clientX ?? 0, t0?.clientY ?? 0);
+          }}
+          onTouchMove={(e) => {
+            touchHandlers.onTouchMove(e);
+            if (e.touches.length >= 2) {
+              hold.cancel();
+              return;
+            }
+            const t0 = touchAt(e.touches, 0);
+            if (t0) hold.move(t0.clientX, t0.clientY);
+          }}
+          onTouchEnd={(e) => {
+            touchHandlers.onTouchEnd(e);
+            if (e.touches.length === 0) hold.end();
+            else hold.cancel();
+          }}
+          onTouchCancel={(e) => {
+            touchHandlers.onTouchEnd(e);
+            hold.cancel();
+          }}
+          onPointerDown={(e) => {
+            dismissPinchHint();
+            pointerHandlers.onPointerDown(e);
+          }}
+          onPointerMove={(e) => pointerHandlers.onPointerMove(e)}
+          onPointerUp={(e) => pointerHandlers.onPointerUp(e)}
+          onPointerCancel={(e) => pointerHandlers.onPointerUp(e)}
+        >
+          <div
+            data-testid="inspect-image-zoom-layer"
+            className="h-full w-full will-change-transform"
+            style={style}
+          >
+            <InspectShelfCanvas
+              imageUrl={displayImageUrl}
+              baseline={baseline}
+              activeAnomalies={isBlinkingBaseline || !showArLayers ? [] : activeAnomalies}
+              showArLayers={!isBlinkingBaseline && showArLayers}
+              lang={lang}
+              onDismissAnomaly={handleDismiss}
+              showingBaseline={isBlinkingBaseline}
+            />
+          </div>
+          {hintPhase === 'pinch' && (
+            <div
+              data-testid="inspect-pinch-hint"
+              data-hint-fading={pinchHintFading ? 'true' : 'false'}
+              data-reduced-motion={reducedMotion ? 'true' : 'false'}
+              className="inspect-pinch-hint absolute inset-0 z-10 pointer-events-none flex flex-col items-center justify-center gap-3 px-4"
+              aria-hidden="true"
+            >
+              <PinchHintGraphic />
+              <span className="inspect-hint-pill max-w-[90%] rounded-full bg-black/80 px-4 py-2 text-center text-sm font-bold leading-snug text-white shadow-lg ring-2 ring-white/90 backdrop-blur-sm">
+                {t.pinchToZoom}
+              </span>
+            </div>
+          )}
+        </div>
+        <div
+          className="inspect-hold-strip z-[70] flex w-full shrink-0 items-center justify-center px-3"
+          data-testid="inspect-hold-strip"
+        >
+          {hintPhase === 'hold' && (
+            <div
+              data-testid="inspect-hold-hint"
+              data-hint-phase="hold"
+              data-hold-placement="below"
+              data-reduced-motion={reducedMotion ? 'true' : 'false'}
+              role="status"
+              className="inspect-hold-hint pointer-events-none flex flex-row items-center justify-center gap-2 py-1.5"
+            >
+              {!isBlinkingBaseline && <HoldHintGraphic />}
+              <div
+                className={`inspect-hint-pill flex max-w-[min(100%,24rem)] items-center gap-2 rounded-full px-4 py-2 text-sm font-bold leading-snug shadow-lg ring-2 backdrop-blur-sm ${
+                  isBlinkingBaseline
+                    ? 'bg-emerald-950/85 text-emerald-50 ring-emerald-200/90'
+                    : 'bg-black/80 text-white ring-white/90'
+                }`}
+              >
+                {isBlinkingBaseline ? (
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-300" />
+                ) : (
+                  <Eye className="h-5 w-5 shrink-0 text-white" />
+                )}
+                <span className="text-center">
+                  {isBlinkingBaseline ? t.goldenBaseline : t.pressHoldCompare}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Bottom Floating Control Drawer */}

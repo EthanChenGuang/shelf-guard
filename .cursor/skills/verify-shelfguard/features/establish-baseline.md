@@ -26,7 +26,8 @@ Preconditions:
 - **Open camera idle.** Run `control-shelfguard browser drive establish-baseline --artifacts-dir <dir>`. `camera-view` is visible and the baseline pill has hydrated (shows **Nessun riferimento**, not a blank chip).
 - **Upload baseline.** The harness sets `public/test-fixtures/baseline-aligned.jpg` on `[data-testid="baseline-photo-input"]` without clicking the shutter (equivalent to picking a file).
 - **Confirm pill.** `[data-testid="baseline-status-pill"]` contains **Riferimento pronto**.
-- **Proof.** Screenshot `establish-baseline-camera.png` and text dump `establish-baseline-pill.txt` under `<dir>`.
+- **No post-rotate offset.** After 390×844 ↔ 844×390 ↔ 932×430, `scrollX === 0` and document width equals the viewport (no left white strip).
+- **Proof.** Screenshot `establish-baseline-camera.png`, text dump `establish-baseline-pill.txt`, and `establish-baseline-rotate-offset.txt` under `<dir>`.
 
 ## Gotchas
 

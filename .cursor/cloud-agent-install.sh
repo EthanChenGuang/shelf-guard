@@ -45,3 +45,17 @@ if ! command -v adb >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
   sudo apt-get update -qq
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq adb
 fi
+
+# Optional: Android SDK + AVD (does not boot qemu — first TCG boot is ~8 min).
+# Nested KVM in Cloud Agent VMs hits kvm_spurious_fault; see .cursor/android-emulator.md.
+if [[ "${INSTALL_ANDROID_EMULATOR:-0}" == "1" ]]; then
+  echo "INSTALL_ANDROID_EMULATOR=1 — installing SDK/AVD (no boot)"
+  # Reuse the bootstrap script but skip the emulator launch by stopping after AVD create:
+  # callers who need a running device should run the full script separately.
+  if [[ ! -x "${ANDROID_SDK_ROOT:-$HOME/android-sdk}/emulator/emulator" ]]; then
+    echo "Android SDK missing; run: bash .cursor/install-android-emulator.sh"
+    echo "(that script falls back from nested KVM to TCG -accel off)"
+  else
+    echo "Android SDK already at ${ANDROID_SDK_ROOT:-$HOME/android-sdk}"
+  fi
+fi

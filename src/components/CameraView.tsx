@@ -224,7 +224,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
   return (
     <div
-      className="relative w-full h-full min-h-[100dvh] bg-[#0F172A] overflow-hidden flex flex-col justify-between select-none"
+      className="relative w-full max-w-full h-full min-h-[100dvh] bg-[#0F172A] overflow-hidden flex flex-col justify-between select-none"
       data-baseline-id={baseline.id}
       data-testid="camera-view"
     >
