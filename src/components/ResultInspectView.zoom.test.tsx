@@ -191,7 +191,7 @@ describe('ResultInspectView inline pinch-zoom', () => {
     render(<ResultInspectView {...baseProps} lang="it" />);
     expect(screen.getByTestId('inspect-pinch-hint')).toBeInTheDocument();
     act(() => {
-      vi.advanceTimersByTime(5201);
+      vi.advanceTimersByTime(8401);
     });
     expect(screen.queryByTestId('inspect-pinch-hint')).not.toBeInTheDocument();
     expect(screen.getByTestId('inspect-hold-hint')).toBeInTheDocument();

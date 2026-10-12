@@ -40,7 +40,7 @@ interface ResultInspectViewProps {
   lang: Language;
 }
 
-const PINCH_HINT_MS = 4800;
+const PINCH_HINT_MS = 8000;
 const PINCH_HINT_REDUCED_MS = 2200;
 const PINCH_HINT_FADE_MS = 400;
 
@@ -359,7 +359,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
             className="absolute bottom-3 left-1/2 z-10 max-w-[92%] -translate-x-1/2 pointer-events-none"
           >
             <div
-              className={`inspect-hint-pill flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold leading-snug shadow-lg ring-2 backdrop-blur-sm max-sm:whitespace-normal ${
+              className={`inspect-hint-pill flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold leading-snug shadow-lg ring-2 backdrop-blur-sm ${
                 isBlinkingBaseline
                   ? 'bg-emerald-950/85 text-emerald-50 ring-emerald-200/90'
                   : 'bg-black/80 text-white ring-white/90'

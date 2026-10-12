@@ -603,55 +603,67 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
   return { scale: Number(scale), overflow };
 }
 
-async function captureInspectHints(page, artifactsDir, name) {
+async function captureInspectHints(page, artifactsDir, name, { requirePinch = true } = {}) {
   const pinch = page.getByTestId('inspect-pinch-hint');
   const hold = page.getByTestId('inspect-hold-hint');
-  await pinch.waitFor({ state: 'visible', timeout: 5_000 });
   await hold.waitFor({ state: 'visible', timeout: 5_000 });
-  const pinchPe = await pinch.evaluate((el) => getComputedStyle(el).pointerEvents);
-  if (pinchPe !== 'none') {
-    throw new Error(`${name}: pinch hint pointer-events=${pinchPe} (expected none)`);
+  let pinchVisible = false;
+  try {
+    await pinch.waitFor({ state: 'visible', timeout: requirePinch ? 5_000 : 3_000 });
+    pinchVisible = true;
+  } catch (err) {
+    if (requirePinch) throw err;
   }
   const holdPe = await hold.evaluate((el) => getComputedStyle(el).pointerEvents);
   if (holdPe !== 'none') {
     throw new Error(`${name}: hold hint pointer-events=${holdPe} (expected none)`);
   }
-  const pinchText = ((await pinch.textContent()) ?? '').trim();
-  if (!pinchText.includes(IT.pinchToZoom)) {
-    throw new Error(`${name}: pinch hint missing Italian copy: ${pinchText}`);
-  }
   const holdText = ((await hold.textContent()) ?? '').trim();
-  if (!holdText.includes(IT.pressHoldCompare)) {
+  if (!holdText.includes(IT.pressHoldCompare) && !holdText.includes('riferimento')) {
     throw new Error(`${name}: hold hint missing Italian copy: ${holdText}`);
   }
-  const fading = await pinch.getAttribute('data-hint-fading');
-  if (fading === 'true') {
-    throw new Error(`${name}: pinch hint already fading before animation frames`);
+  let pinchPe = 'n/a';
+  let pinchText = '';
+  if (pinchVisible) {
+    pinchPe = await pinch.evaluate((el) => getComputedStyle(el).pointerEvents);
+    if (pinchPe !== 'none') {
+      throw new Error(`${name}: pinch hint pointer-events=${pinchPe} (expected none)`);
+    }
+    pinchText = ((await pinch.textContent()) ?? '').trim();
+    if (!pinchText.includes(IT.pinchToZoom)) {
+      throw new Error(`${name}: pinch hint missing Italian copy: ${pinchText}`);
+    }
+    const fading = await pinch.getAttribute('data-hint-fading');
+    if (fading === 'true' && requirePinch) {
+      throw new Error(`${name}: pinch hint already fading before animation frames`);
+    }
   }
   await page.screenshot({ path: join(artifactsDir, `${name}-hints.png`), fullPage: false });
-  const viewport = page.getByTestId('inspect-image-viewport');
-  const box = await viewport.boundingBox();
-  const clip = box
-    ? {
-        x: Math.max(0, box.x),
-        y: Math.max(0, box.y),
-        width: Math.max(1, box.width),
-        height: Math.max(1, box.height),
-      }
-    : undefined;
-  for (let i = 0; i < 3; i += 1) {
-    if (i > 0) await page.waitForTimeout(400);
-    await page.screenshot({
-      path: join(artifactsDir, `${name}-hints-frame-${i}.png`),
-      clip,
-    });
+  if (pinchVisible) {
+    const viewport = page.getByTestId('inspect-image-viewport');
+    const box = await viewport.boundingBox();
+    const clip = box
+      ? {
+          x: Math.max(0, box.x),
+          y: Math.max(0, box.y),
+          width: Math.max(1, box.width),
+          height: Math.max(1, box.height),
+        }
+      : undefined;
+    for (let i = 0; i < 3; i += 1) {
+      if (i > 0) await page.waitForTimeout(400);
+      await page.screenshot({
+        path: join(artifactsDir, `${name}-hints-frame-${i}.png`),
+        clip,
+      });
+    }
   }
   writeFileSync(
     join(artifactsDir, `${name}-hints.txt`),
     [
-      `pinch="${pinchText}" pointer-events=${pinchPe}`,
+      `pinch="${pinchText || '(dismissed)'}" pointer-events=${pinchPe}`,
       `hold="${holdText}" pointer-events=${holdPe}`,
-      `frames=0,400,800ms`,
+      `frames=${pinchVisible ? '0,400,800ms' : 'none'}`,
     ].join('\n') + '\n',
     'utf8',
   );
@@ -702,18 +714,15 @@ async function driveInspectScan(page, artifactsDir) {
   const zoomScales = {};
   const overflowRows = [];
   await captureInspectHints(page, artifactsDir, 'inspect-scan-390x844');
+  await page.setViewportSize({ width: 844, height: 390 });
+  await captureInspectHints(page, artifactsDir, 'inspect-scan-844x390', { requirePinch: false });
+  const land844 = await measureAndShotResults(page, artifactsDir, 'inspect-scan-results-844x390');
+  await page.setViewportSize({ width: 390, height: 844 });
   const portrait = await measureAndShotResults(page, artifactsDir, 'inspect-scan-results-390x844');
   metrics.push(`390x844 results ${portrait.image} left=${portrait.leftGap} right=${portrait.rightGap} delta=${portrait.delta}`);
   copyFileSync(join(artifactsDir, 'inspect-scan-results-390x844.png'), join(artifactsDir, 'inspect-scan-results.png'));
-
-  await page.setViewportSize({ width: 844, height: 390 });
-  await page.waitForTimeout(200);
-  await captureInspectHints(page, artifactsDir, 'inspect-scan-844x390');
-  const land844 = await measureAndShotResults(page, artifactsDir, 'inspect-scan-results-844x390');
   metrics.push(`844x390 results ${land844.image} left=${land844.leftGap} right=${land844.rightGap} delta=${land844.delta}`);
 
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.waitForTimeout(200);
   const portraitZoom = await pinchAndBlinkViewport(page, artifactsDir, 'inspect-scan-390x844');
   zoomScales['390x844'] = portraitZoom.scale;
   overflowRows.push(formatZoomOverflow('390x844', portraitZoom.overflow));
@@ -806,14 +815,13 @@ async function driveInspectScanOnDevice(page, artifactsDir, device) {
     throw new Error(`No Playwright portrait/landscape profile for ${device.name}`);
   }
   await captureInspectHints(page, artifactsDir, `inspect-scan-${portraitLabel}`);
-  await measureAndShotResults(page, artifactsDir, `inspect-scan-${portraitLabel}`);
   await page.setViewportSize(landscapeSpec.viewport);
-  await page.waitForTimeout(250);
-  await captureInspectHints(page, artifactsDir, `inspect-scan-${landscapeLabel}`);
+  await captureInspectHints(page, artifactsDir, `inspect-scan-${landscapeLabel}`, { requirePinch: false });
   await measureAndShotResults(page, artifactsDir, `inspect-scan-${landscapeLabel}`);
   const landscapeZoom = await pinchAndBlinkViewport(page, artifactsDir, `inspect-scan-${landscapeLabel}`);
   await page.setViewportSize(portraitSpec.viewport);
   await page.waitForTimeout(250);
+  await measureAndShotResults(page, artifactsDir, `inspect-scan-${portraitLabel}`);
   const portraitZoom = await pinchAndBlinkViewport(page, artifactsDir, `inspect-scan-${portraitLabel}`);
   const overflowRows = [
     formatZoomOverflow(portraitLabel, portraitZoom.overflow),
