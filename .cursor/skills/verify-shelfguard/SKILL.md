@@ -81,10 +81,10 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 | `inspect-scan/inspect-scan-results-844x390.png` | Landscape phone results; image centered (not left-aligned) |
 | `inspect-scan/inspect-scan-results-932x430.png` | Larger landscape phone results; image centered |
 | `inspect-scan/inspect-scan-center.txt` | Left/right gaps per viewport |
-| `inspect-scan/inspect-scan-fullscreen-390x844.png` | Overlay matches the visual viewport in portrait |
-| `inspect-scan/inspect-scan-fullscreen-844x390.png` | Overlay matches the visual viewport in landscape (no overflow) |
-| `inspect-scan/inspect-scan-fullscreen-932x430.png` | Overlay matches 932×430 |
-| `inspect-scan/inspect-scan-fullscreen-rotate-390x844.png` | Fullscreen still fits after landscape→portrait while open |
+| `inspect-scan/inspect-scan-fullscreen-390x844.png` | Overlay sits below simulated persistent top chrome; close, hint, and the whole photo inside that box (portrait) |
+| `inspect-scan/inspect-scan-fullscreen-844x390.png` | Overlay sits below simulated persistent top chrome with close, hint, and the whole photo inside that box (landscape) |
+| `inspect-scan/inspect-scan-fullscreen-932x430.png` | Overlay sits below simulated persistent top chrome; close, hint, and the whole photo inside that box (932×430) |
+| `inspect-scan/inspect-scan-fullscreen-rotate-390x844.png` | After landscape→portrait while open, overlay still sits below simulated chrome with close, hint, and the whole photo inside that box |
 | `inspect-scan/inspect-scan-fullscreen-blink-zoomed.png` | After pinch-zoom, long-press shows the baseline at the same zoom |
 | `inspect-scan/inspect-scan.aria.txt` | ARIA tree includes **Conferma e concludi l'ispezione** |
 | `multi-shelf/multi-shelf-2-empty-baseline.png` | Shelf 2 selected with no baseline yet |
