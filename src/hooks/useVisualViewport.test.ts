@@ -1,6 +1,10 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { readVisibleViewport, useVisualViewport } from './useVisualViewport';
+import {
+  iosOverlayChromePx,
+  readVisibleViewport,
+  useVisualViewport,
+} from './useVisualViewport';
 
 function stubInner(width: number, height: number) {
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
@@ -38,6 +42,61 @@ describe('readVisibleViewport', () => {
       { width: 0, height: 0 },
     );
     expect(rect).toEqual({ offsetTop: 0, offsetLeft: 0, width: 844, height: 390 });
+  });
+
+  it('insets iOS overlay chrome when every viewport API reports the full layout size', () => {
+    const rect = readVisibleViewport(
+      {
+        innerWidth: 844,
+        innerHeight: 390,
+        visualViewport: { offsetTop: 0, offsetLeft: 0, width: 844, height: 390 },
+      },
+      { width: 844, height: 390 },
+      56,
+    );
+    expect(rect).toEqual({ offsetTop: 56, offsetLeft: 0, width: 844, height: 334 });
+  });
+
+  it('does not double-inset iOS chrome when 100svh already shrank the rect', () => {
+    const rect = readVisibleViewport(
+      {
+        innerWidth: 844,
+        innerHeight: 390,
+        visualViewport: { offsetTop: 0, offsetLeft: 0, width: 844, height: 390 },
+      },
+      { width: 844, height: 334 },
+      56,
+    );
+    expect(rect).toEqual({ offsetTop: 56, offsetLeft: 0, width: 844, height: 334 });
+  });
+});
+
+describe('iosOverlayChromePx', () => {
+  it('returns 56 on iPhone Edge when fullscreen is not active', () => {
+    expect(
+      iosOverlayChromePx(
+        {
+          userAgent:
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 EdgiOS/120.0.0.0 Mobile/15E148',
+        },
+        false,
+      ),
+    ).toBe(56);
+  });
+
+  it('returns 0 on Android and when iOS fullscreen is active', () => {
+    expect(
+      iosOverlayChromePx(
+        { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/120.0.0.0' },
+        false,
+      ),
+    ).toBe(0);
+    expect(
+      iosOverlayChromePx(
+        { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)' },
+        true,
+      ),
+    ).toBe(0);
   });
 });
 
