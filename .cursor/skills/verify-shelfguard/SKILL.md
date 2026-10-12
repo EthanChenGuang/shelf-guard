@@ -83,10 +83,13 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 | `establish-baseline/establish-baseline-pill.txt` | Exact baseline status text |
 | `inspect-scan/inspect-scan-390x844-pinch-hints.png` | Portrait pinch overlay (Italian, sequenced before hold) |
 | `inspect-scan/inspect-scan-390x844-pinch-frame-*.png` | Pinch animation frames at 0 / 400 / 800ms |
-| `inspect-scan/inspect-scan-390x844-hold-hints.png` | Portrait hold overlay: finger press + progress ring |
+| `inspect-scan/inspect-scan-390x844-hold-hints.png` | Portrait hold caption **below** the photo (before press) |
+| `inspect-scan/inspect-scan-390x844-hold-status.png` | Portrait **Stai vedendo la foto di riferimento** below the photo while pressing |
 | `inspect-scan/inspect-scan-390x844-hold-frame-*.png` | Hold animation frames at 0 / 400 / 800ms |
+| `inspect-scan/inspect-scan-390x844-hold-geometry.txt` | Hold/status rects do not intersect the image and sit in the viewport |
 | `inspect-scan/inspect-scan-844x390-pinch-hints.png` | Landscape pinch overlay before it sequences to hold |
-| `inspect-scan/inspect-scan-844x390-hold-hints.png` | Landscape hold overlay |
+| `inspect-scan/inspect-scan-844x390-hold-hints.png` | Landscape hold caption below the photo |
+| `inspect-scan/inspect-scan-844x390-hold-status.png` | Landscape viewing-reference badge below the photo |
 | `inspect-scan/inspect-scan-results-390x844.png` | Portrait results; comparison image centered; no fullscreen control |
 | `inspect-scan/inspect-scan-results-844x390.png` | Landscape phone results; image centered (not left-aligned) |
 | `inspect-scan/inspect-scan-results-932x430.png` | Larger landscape phone results; image centered |
@@ -106,6 +109,8 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 | `inspect-scan-cross-platform/cross-platform-report.txt` | Per-device pinch overflow: iPhone 14/15 Pro Max (WebKit) + Pixel 7/Galaxy S9+ (Chromium), portrait + landscape |
 | `inspect-scan-cross-platform/<device>/inspect-scan-*-pinch-frame-*.png` | Per-device pinch animation frames |
 | `inspect-scan-cross-platform/<device>/inspect-scan-*-hold-frame-*.png` | Per-device hold press/ring animation frames |
+| `inspect-scan-cross-platform/<device>/inspect-scan-*-hold-status.png` | Per-device viewing-reference badge below the photo |
+| `inspect-scan-cross-platform/<device>/inspect-scan-*-hold-geometry.txt` | Per-device hold/status vs image intersection asserts |
 | `inspect-scan-cross-platform/<device>/inspect-scan-*-zoom.png` | Zoomed comparison image on that device profile |
 
 Standards:

@@ -25,6 +25,7 @@ const IT = {
   pickFromGallery: "Scegli la foto dell'ispezione dalla galleria",
   pinchToZoom: 'Pizzica con due dita per ingrandire',
   pressHoldCompare: 'Tieni premuto per vedere il riferimento',
+  goldenBaseline: 'Stai vedendo la foto di riferimento',
 };
 
 const CROSS_PLATFORM_DEVICES = [
@@ -641,6 +642,9 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
   if (!scaleWhileBlink || Number(scaleWhileBlink) < 2.4) {
     throw new Error(`${name}: blink dropped zoom (${scale} -> ${scaleWhileBlink})`);
   }
+  if ((await page.getByTestId('inspect-hold-hint').count()) > 0) {
+    await assertHoldOutsideImage(page, `${name} zoomed-blink`);
+  }
   await saveScreenshot(page, join(artifactsDir, `${name}-zoom-blink.png`), { fullPage: false });
   await viewport.evaluate((el) => {
     try {
@@ -653,19 +657,101 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
   return { scale: Number(scale), overflow };
 }
 
-async function clipInspectViewport(page) {
-  const box = await page.getByTestId('inspect-image-viewport').boundingBox();
+function clipFromBox(box, pageSize) {
   if (!box) return undefined;
+  const x = Math.max(0, box.x);
+  const y = Math.max(0, box.y);
+  const maxW = pageSize?.width ?? box.x + box.width;
+  const maxH = pageSize?.height ?? box.y + box.height;
   return {
-    x: Math.max(0, box.x),
-    y: Math.max(0, box.y),
-    width: Math.max(1, box.width),
-    height: Math.max(1, box.height),
+    x,
+    y,
+    width: Math.max(1, Math.min(box.width, maxW - x)),
+    height: Math.max(1, Math.min(box.height, maxH - y)),
   };
 }
 
+function unionBoxes(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return {
+    x,
+    y,
+    width: Math.max(a.x + a.width, b.x + b.width) - x,
+    height: Math.max(a.y + a.height, b.y + b.height) - y,
+  };
+}
+
+function boxesIntersect(a, b, slop = 1) {
+  return !(
+    a.x + a.width <= b.x + slop ||
+    b.x + b.width <= a.x + slop ||
+    a.y + a.height <= b.y + slop ||
+    b.y + b.height <= a.y + slop
+  );
+}
+
+function boxInsideViewport(box, pageSize, slop = 2) {
+  return (
+    box.x >= -slop &&
+    box.y >= -slop &&
+    box.x + box.width <= pageSize.width + slop &&
+    box.y + box.height <= pageSize.height + slop
+  );
+}
+
+async function clipInspectViewport(page) {
+  const box = await page.getByTestId('inspect-image-viewport').boundingBox();
+  return clipFromBox(box, page.viewportSize());
+}
+
+async function clipInspectHoldStage(page) {
+  const image = await page.getByTestId('inspect-image-viewport').boundingBox();
+  const hold = await page.getByTestId('inspect-hold-hint').boundingBox().catch(() => null);
+  return clipFromBox(unionBoxes(image, hold), page.viewportSize());
+}
+
+function formatHoldGeometry(name, image, hold, pageSize, ok) {
+  return [
+    `${name} image=${Math.round(image.width)}x${Math.round(image.height)}@${Math.round(image.x)},${Math.round(image.y)}`,
+    `hold=${Math.round(hold.width)}x${Math.round(hold.height)}@${Math.round(hold.x)},${Math.round(hold.y)}`,
+    `intersect=${boxesIntersect(image, hold)} below=${hold.y + 1 >= image.y + image.height} inViewport=${boxInsideViewport(hold, pageSize)}`,
+    `ok=${ok}`,
+  ].join(' ');
+}
+
+async function assertHoldOutsideImage(page, name) {
+  const image = await page.getByTestId('inspect-image-viewport').boundingBox();
+  const hold = await page.getByTestId('inspect-hold-hint').boundingBox();
+  const pageSize = page.viewportSize();
+  if (!image || !hold || !pageSize) {
+    throw new Error(`${name}: missing image/hold/viewport boxes`);
+  }
+  if (boxesIntersect(image, hold)) {
+    throw new Error(`${name}: hold/status intersects the image frame`);
+  }
+  if (hold.y + 1 < image.y + image.height) {
+    throw new Error(`${name}: hold/status is not below the image (hold.y=${hold.y} image.bottom=${image.y + image.height})`);
+  }
+  if (!boxInsideViewport(hold, pageSize)) {
+    throw new Error(
+      `${name}: hold/status not fully in viewport hold=${Math.round(hold.x)},${Math.round(hold.y)} ${Math.round(hold.width)}x${Math.round(hold.height)} vp=${pageSize.width}x${pageSize.height}`,
+    );
+  }
+  const insideViewport = await page.getByTestId('inspect-image-viewport').evaluate((el) => {
+    const hint = document.querySelector('[data-testid="inspect-hold-hint"]');
+    return Boolean(hint && el.contains(hint));
+  });
+  if (insideViewport) {
+    throw new Error(`${name}: hold hint is still a descendant of the image viewport`);
+  }
+  return formatHoldGeometry(name, image, hold, pageSize, true);
+}
+
 async function shotHintFrames(page, artifactsDir, name, kind) {
-  const clip = await clipInspectViewport(page);
+  const clip = kind === 'hold' ? await clipInspectHoldStage(page) : await clipInspectViewport(page);
   for (let i = 0; i < 3; i += 1) {
     if (i > 0) await page.waitForTimeout(400);
     await saveScreenshot(page, join(artifactsDir, `${name}-${kind}-frame-${i}.png`), { clip });
@@ -719,9 +805,31 @@ async function captureHoldHint(page, artifactsDir, name) {
   if ((await page.getByTestId('inspect-hold-graphic').count()) < 1) {
     throw new Error(`${name}: hold hint is missing the press/ring graphic`);
   }
+  const before = await assertHoldOutsideImage(page, `${name} before-press`);
   await saveScreenshot(page, join(artifactsDir, `${name}-hold-hints.png`), { fullPage: false });
   await shotHintFrames(page, artifactsDir, name, 'hold');
-  return { holdText, holdPe };
+
+  await dispatchHoldStart(page, '[data-testid="inspect-image-viewport"]');
+  await page.waitForTimeout(550);
+  const statusText = ((await hold.textContent()) ?? '').trim();
+  if (!statusText.includes(IT.goldenBaseline) && !statusText.includes('riferimento')) {
+    throw new Error(`${name}: viewing-reference status missing Italian copy: ${statusText}`);
+  }
+  const whilePressing = await assertHoldOutsideImage(page, `${name} while-pressing`);
+  await saveScreenshot(page, join(artifactsDir, `${name}-hold-status.png`), { fullPage: false });
+  await page.getByTestId('inspect-image-viewport').evaluate((el) => {
+    try {
+      el.dispatchEvent(new TouchEvent('touchend', { bubbles: true, cancelable: true, touches: [] }));
+    } catch {
+      el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+    }
+  });
+  writeFileSync(
+    join(artifactsDir, `${name}-hold-geometry.txt`),
+    `${before}\n${whilePressing}\n`,
+    'utf8',
+  );
+  return { holdText, holdPe, statusText };
 }
 
 async function writeHintLog(artifactsDir, name, pinch, hold) {
@@ -729,7 +837,8 @@ async function writeHintLog(artifactsDir, name, pinch, hold) {
     join(artifactsDir, `${name}-hints.txt`),
     [
       `pinch="${pinch?.pinchText ?? '(dismissed)'}" pointer-events=${pinch?.pinchPe ?? 'n/a'}`,
-      `hold="${hold.holdText}" pointer-events=${hold.holdPe}`,
+      `hold="${hold.holdText}" pointer-events=${hold.holdPe} placement=below`,
+      `status="${hold.statusText ?? ''}"`,
       `sequence=pinch-then-hold`,
       `pinch-frames=0,400,800ms hold-frames=0,400,800ms`,
     ].join('\n') + '\n',
