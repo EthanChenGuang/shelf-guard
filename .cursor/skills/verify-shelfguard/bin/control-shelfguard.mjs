@@ -123,6 +123,9 @@ async function withBrowser(url, fn) {
       isMobile: true,
       hasTouch: true,
       locale: 'it-IT',
+      // iPhone Edge UA so iosOverlayChromePx fires if 100svh also equals innerHeight.
+      userAgent:
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) EdgiOS/120.0.0.0 Mobile/15E148 Safari/604.1',
       permissions: ['camera'],
       reducedMotion: 'reduce',
       serviceWorkers: 'block',
@@ -227,10 +230,13 @@ async function dispatchHoldStart(page, selector) {
 
 async function simulatePersistentTopChrome(page, chromePx) {
   await page.evaluate((chrome) => {
+    // Real iOS Edge/Safari: visualViewport often reports offsetTop 0 and
+    // height === innerHeight while the address bar still overlays the top.
+    // A truthful visualViewport wrap would let the old overlay code pass.
     const prev = window.visualViewport;
     const fake = {
       get offsetTop() {
-        return chrome;
+        return 0;
       },
       get offsetLeft() {
         return 0;
@@ -239,7 +245,7 @@ async function simulatePersistentTopChrome(page, chromePx) {
         return window.innerWidth;
       },
       get height() {
-        return Math.max(0, window.innerHeight - chrome);
+        return window.innerHeight;
       },
       get scale() {
         return prev?.scale ?? 1;
@@ -248,7 +254,7 @@ async function simulatePersistentTopChrome(page, chromePx) {
         return prev?.pageLeft ?? 0;
       },
       get pageTop() {
-        return (prev?.pageTop ?? 0) + chrome;
+        return prev?.pageTop ?? 0;
       },
       addEventListener(type, fn, opts) {
         prev?.addEventListener?.(type, fn, opts);
@@ -269,7 +275,7 @@ async function simulatePersistentTopChrome(page, chromePx) {
       });
     } catch {
       if (prev) {
-        Object.defineProperty(prev, 'offsetTop', { configurable: true, get: () => chrome });
+        Object.defineProperty(prev, 'offsetTop', { configurable: true, get: () => 0 });
         Object.defineProperty(prev, 'offsetLeft', { configurable: true, get: () => 0 });
         Object.defineProperty(prev, 'width', {
           configurable: true,
@@ -277,10 +283,49 @@ async function simulatePersistentTopChrome(page, chromePx) {
         });
         Object.defineProperty(prev, 'height', {
           configurable: true,
-          get: () => Math.max(0, window.innerHeight - chrome),
+          get: () => window.innerHeight,
         });
       }
     }
+
+    window.__sgChromePx = chrome;
+    if (!window.__sgChromeRectPatched) {
+      window.__sgChromeRectPatched = true;
+      const orig = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = function patchedRect() {
+        if (this.getAttribute?.('data-css-small-viewport') === 'true') {
+          const c = window.__sgChromePx || 0;
+          return new DOMRect(0, 0, window.innerWidth, Math.max(0, window.innerHeight - c));
+        }
+        return orig.call(this);
+      };
+    }
+
+    let bar = document.getElementById('sg-fake-address-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'sg-fake-address-bar';
+      bar.setAttribute('data-testid', 'fake-address-bar');
+      document.documentElement.appendChild(bar);
+    }
+    bar.style.cssText = [
+      'position:fixed',
+      'top:0',
+      'left:0',
+      'right:0',
+      `height:${chrome}px`,
+      'z-index:2147483646',
+      'background:#1c1c1e',
+      'color:#f5f5f7',
+      'display:flex',
+      'align-items:center',
+      'padding:0 12px',
+      'font:12px/1.2 -apple-system,system-ui,sans-serif',
+      'pointer-events:none',
+      'box-sizing:border-box',
+    ].join(';');
+    bar.textContent = '🔒 gregis-gmailcoms-projects.vercel.app';
+
     window.dispatchEvent(new Event('resize'));
   }, chromePx);
 }
