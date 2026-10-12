@@ -77,6 +77,7 @@ vi.mock('./lib/shelfStorage', () => ({
   runSchemaMigrationIfNeeded: vi.fn(async () => ({ok: true})),
   loadActiveShelfId: vi.fn(async () => 0),
   loadBaselineRaw: vi.fn(async () => persistedBaseline),
+  materializeImageBlob: vi.fn((p) => p?.imageBlob ?? null),
   loadAuditHistory: vi.fn(async () => []),
   saveActiveShelfId: vi.fn(async () => ({ok: true})),
   saveBaseline: vi.fn(async () => ({ok: true})),

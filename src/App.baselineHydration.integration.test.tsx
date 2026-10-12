@@ -92,6 +92,7 @@ vi.mock('./lib/shelfStorage', () => ({
         releaseBaselineLoad = () => resolve(persistedBaseline);
       }),
   ),
+  materializeImageBlob: vi.fn((p) => p?.imageBlob ?? null),
   loadAuditHistory: vi.fn(async () => []),
   saveActiveShelfId: vi.fn(async () => ({ok: true})),
   saveBaseline: vi.fn(async () => ({ok: true})),
