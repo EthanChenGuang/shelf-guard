@@ -2,20 +2,22 @@
 phase: quick-261012-r7i
 plan: 1
 subsystem: inspect-ui
-tags: [gesture-hints, pinch-zoom, italian, verify-shelfguard]
+tags: [gesture-hints, pinch-zoom, hold-hint, italian, verify-shelfguard]
 
 requires:
   - phase: quick-261012-qce
     provides: whole-screen inline pinch-zoom
 provides:
-  - first-view two-finger pinch overlay (pointer-events none, fades out)
-  - high-contrast Italian hold-to-reference pill on the comparison photo
+  - first-view two-finger pinch overlay (pointer-events none, fades then sequences)
+  - animated hold-to-reference overlay (finger press + ripple/progress ring)
+  - sequenced pinch-then-hold so the two hints never overlap
+  - hold hint stays visible while zoomed
 affects: [inspect-results, verify-shelfguard]
 
 actuals:
-  tokens: 18000
-  tasks: 2
-  commits: 8
+  tokens: 22000
+  tasks: 3
+  commits: 14
 plan_head_before: 25a4ae1
 
 key-files:
@@ -31,9 +33,11 @@ key-files:
 
 key-decisions:
   - "Pinch overlay is a sibling of the zoom layer (not transformed with scale) with pointer-events none so gestures pass through"
-  - "Hold pill is absolutely positioned on the comparison frame so landscape overflow-hidden cannot crop it"
-  - "prefers-reduced-motion disables pinch/pulse animation; overlay still shows then hides"
+  - "Hold overlay sits on the viewport at z-70 so it remains visible while zoomed"
+  - "Sequence pinch (8s) then hold; they never overlap"
+  - "prefers-reduced-motion disables pinch/press/ring/pulse; overlays still show then hide"
   - "Italian copy: Pizzica con due dita per ingrandire / Tieni premuto per vedere il riferimento"
+  - "Landscape CSS sizes only the hint graphic SVG, not the Lucide eye in the pill"
 
 requirements-completed: [QUICK-261012-r7i]
 status: complete
@@ -42,17 +46,23 @@ completed: 2026-10-12
 
 # Phase quick-261012-r7i Summary
 
-Added a first-view two-finger pinch overlay on the results comparison image (`Pizzica con due dita per ingrandire`) and restyled the hold-to-reference hint as a high-contrast pill (`Tieni premuto per vedere il riferimento`). Both use `pointer-events: none`. The pinch overlay fades after 8s or on first interaction. `prefers-reduced-motion` skips pinch/pulse motion.
+Added sequenced, animated, non-blocking gesture hints on the results comparison image.
 
-verify-shelfguard inspect-scan: hints visible with Italian copy and pointer-events none in portrait and landscape; animation frames at 0/400/800ms; pinch scale 2.75 at 390×844 / 844×390 / 932×430; blink-compare, centering, flicker, rotate-offset still pass.
+1. Pinch overlay first (`Pizzica con due dita per ingrandire`) with two-finger animation. Fades after 8s or first interaction.
+2. Hold overlay next (`Tieni premuto per vedere il riferimento`) with finger press, ripple, and progress ring. Stays visible while zoomed (`z-[70]`).
+3. Both `pointer-events: none`. `prefers-reduced-motion` skips motion.
 
-Cross-platform (unclipped zoom, hints captured):
+verify-shelfguard run `1791836751` on preview `:4173`:
+
+inspect-scan: pinch then hold, Italian copy, pointer-events none, frames at 0/400/800ms in portrait and landscape; pinch scale 2.75 at 390×844 / 844×390 / 932×430; blink-compare, centering, flicker, rotate-offset still pass.
+
+Cross-platform (unclipped zoom, pinch+hold frames both orientations):
 
 | Platform | Engine | Device | Portrait | Landscape |
 |---|---|---|---|---|
-| iOS | WebKit | iPhone 14 | 2.75, unclipped | 2.75, unclipped |
-| iOS | WebKit | iPhone 15 Pro Max | 5 (max), unclipped | 2.75, unclipped |
+| iOS | WebKit | iPhone 14 | 5 (max), unclipped | 2.75, unclipped |
+| iOS | WebKit | iPhone 15 Pro Max | 2.75, unclipped | 2.75, unclipped |
 | Android | Chromium | Pixel 7 | 2.75, unclipped | 2.75, unclipped |
 | Android | Chromium | Galaxy S9+ | 2.75, unclipped | 2.75, unclipped |
 
-276 unit tests; `tsc --noEmit` clean. PR #8, do not merge.
+277 unit tests; `tsc --noEmit` clean. PR #8, do not merge.

@@ -4,10 +4,10 @@ current_phase: 05
 current_phase_name: PRD UI & Multi-Shelf Experience
 current_plan: 7
 status: verifying
-stopped_at: "Completed quick task 261012-r7i: pinch overlay and prominent hold hint"
-last_updated: "2026-10-12T19:55:00.000Z"
+stopped_at: "Completed quick task 261012-r7i: sequenced animated pinch and hold hints"
+last_updated: "2026-10-12T20:36:00.000Z"
 last_activity: 2026-10-12
-last_activity_desc: Completed quick task 261012-r7i pinch overlay and prominent hold hint
+last_activity_desc: Completed quick task 261012-r7i sequenced animated pinch and hold hints
 state_head: 00e3ca6d3ae55b66613148b6d42d60ecdd23cf5e
 progress:
   total_phases: 5
@@ -161,7 +161,7 @@ None yet.
 | 261012-of5 | Remove comparison fullscreen overlay; pinch-zoom/pan inline on the centered results image with AR overlays and zoomed blink-compare | 2026-10-12 | 6a42ea6 | [261012-of5-remove-fullscreen-comparison-overlay-ent](./quick/261012-of5-remove-fullscreen-comparison-overlay-ent/) |
 | 261012-ozp | Fix results pinch-zoom flicker and post-rotation white strip on capture and results; boot Android emulator + Mobile MCP when possible | 2026-10-12 | 0d28d7a | [261012-ozp-fix-results-pinch-zoom-flicker-blink-com](./quick/261012-ozp-fix-results-pinch-zoom-flicker-blink-com/) |
 | 261012-qce | Restore whole-screen results pinch-zoom: zoomed comparison image overflows the frame over the phone, not clipped to overflow-hidden | 2026-10-12 | 91fc03e | [261012-qce-restore-whole-screen-results-pinch-zoom-](./quick/261012-qce-restore-whole-screen-results-pinch-zoom-/) |
-| 261012-r7i | Add animated two-finger pinch-zoom hint overlay on comparison image (first view, fade out, pointer-events none) and make hold-to-reference hint more prominent; Italian copy; prefers-reduced-motion; do not break pinch/blink/centering/overflow | 2026-10-12 | a9fe8a6 | [261012-r7i-add-animated-two-finger-pinch-zoom-hint-](./quick/261012-r7i-add-animated-two-finger-pinch-zoom-hint-/) |
+| 261012-r7i | Sequenced animated pinch then hold-to-reference hints (finger+ring), pointer-events none, Italian copy, reduced-motion; iOS+Android portrait/landscape verify | 2026-10-12 | b8b5921 | [261012-r7i-add-animated-two-finger-pinch-zoom-hint-](./quick/261012-r7i-add-animated-two-finger-pinch-zoom-hint-/) |
 
 ## Deferred Items
 
@@ -175,4 +175,4 @@ Last session: 2026-09-25T17:51:01.597Z
 Stopped at: Completed quick task 260925-r3s: tap-to-focus camera control
 Resume file: None
 
-Last activity: 2026-10-12 - Completed quick task 261012-r7i: pinch overlay and prominent hold hint
+Last activity: 2026-10-12 - Completed quick task 261012-r7i: sequenced animated pinch and hold hints
