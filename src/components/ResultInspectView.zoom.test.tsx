@@ -174,4 +174,68 @@ describe('ResultInspectView inline pinch-zoom', () => {
     expect(document.documentElement.getAttribute('data-inspect-zoomed')).toBe('true');
     expect(screen.getByTestId('inspect-image-zoom-layer')).toBeInTheDocument();
   });
+
+  it('shows a non-blocking Italian pinch overlay and a high-contrast hold pill', () => {
+    render(<ResultInspectView {...baseProps} lang="it" />);
+    const pinch = screen.getByTestId('inspect-pinch-hint');
+    const hold = screen.getByTestId('inspect-hold-hint');
+    expect(pinch.className).toContain('pointer-events-none');
+    expect(hold.className).toContain('pointer-events-none');
+    expect(pinch).toHaveTextContent('Pizzica con due dita per ingrandire');
+    expect(hold).toHaveTextContent('Tieni premuto per vedere il riferimento');
+    expect(hold.querySelector('.inspect-hint-pill')?.className).toMatch(/rounded-full/);
+    expect(hold.querySelector('.inspect-hint-pill')?.className).toMatch(/bg-black/);
+  });
+
+  it('fades the pinch hint after a few seconds without removing the hold pill', () => {
+    render(<ResultInspectView {...baseProps} lang="it" />);
+    expect(screen.getByTestId('inspect-pinch-hint')).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(5201);
+    });
+    expect(screen.queryByTestId('inspect-pinch-hint')).not.toBeInTheDocument();
+    expect(screen.getByTestId('inspect-hold-hint')).toBeInTheDocument();
+  });
+
+  it('dismisses the pinch hint on first interaction without blocking later pinch zoom', () => {
+    render(<ResultInspectView {...baseProps} lang="it" />);
+    const viewport = screen.getByTestId('inspect-image-viewport');
+    fireEvent.touchStart(viewport, {
+      touches: [
+        { identifier: 0, clientX: 100, clientY: 100 },
+        { identifier: 1, clientX: 100, clientY: 160 },
+      ],
+    });
+    expect(screen.getByTestId('inspect-pinch-hint').getAttribute('data-hint-fading')).toBe('true');
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(screen.queryByTestId('inspect-pinch-hint')).not.toBeInTheDocument();
+
+    fireEvent.touchMove(viewport, {
+      touches: [
+        { identifier: 0, clientX: 100, clientY: 40 },
+        { identifier: 1, clientX: 100, clientY: 220 },
+      ],
+    });
+    expect(Number(viewport.getAttribute('data-zoom-scale'))).toBeGreaterThan(1);
+  });
+
+  it('skips pinch motion when prefers-reduced-motion is set', () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) =>
+      ({
+        matches: String(query).includes('prefers-reduced-motion'),
+        media: query,
+        onchange: null,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        dispatchEvent: () => false,
+      })) as typeof window.matchMedia;
+    render(<ResultInspectView {...baseProps} lang="it" />);
+    expect(screen.getByTestId('inspect-pinch-hint').getAttribute('data-reduced-motion')).toBe('true');
+    window.matchMedia = original;
+  });
 });
