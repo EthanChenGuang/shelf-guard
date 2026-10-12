@@ -274,6 +274,7 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
   await viewport.evaluate((el) => {
     el.dispatchEvent(new TouchEvent('touchend', { bubbles: true, cancelable: true, touches: [] }));
   });
+  await dispatchPinch(page, selector, 400, 80);
   return Number(scale);
 }
 
