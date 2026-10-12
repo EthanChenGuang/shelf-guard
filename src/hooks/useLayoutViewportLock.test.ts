@@ -41,9 +41,18 @@ describe('useLayoutViewportLock', () => {
   });
 
   it('does not re-clip overflow-x while the results image is pinch-zoomed', () => {
+    const root = document.createElement('div');
+    root.id = 'root';
+    const app = document.createElement('div');
+    app.className = 'overflow-x-hidden';
+    root.appendChild(app);
+    document.body.appendChild(root);
+
     renderHook(() => useLayoutViewportLock());
     setInspectZoomed(true);
     expect(document.documentElement.style.overflowX).toBe('visible');
+    expect(root.style.overflowX).toBe('visible');
+    expect(app.style.overflowX).toBe('visible');
 
     act(() => {
       window.dispatchEvent(new Event('orientationchange'));
@@ -53,7 +62,10 @@ describe('useLayoutViewportLock', () => {
     });
 
     expect(document.documentElement.style.overflowX).toBe('visible');
+    expect(app.style.overflowX).toBe('visible');
     setInspectZoomed(false);
     expect(document.documentElement.style.overflowX).toBe('hidden');
+    expect(app.style.overflowX).toBe('');
+    root.remove();
   });
 });

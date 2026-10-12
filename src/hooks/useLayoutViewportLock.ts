@@ -6,6 +6,11 @@ export function isInspectZoomed(): boolean {
   return document.documentElement.getAttribute(INSPECT_ZOOMED_ATTR) === 'true';
 }
 
+function appShell(): HTMLElement | null {
+  const root = document.getElementById('root');
+  return (root?.firstElementChild as HTMLElement | null) ?? null;
+}
+
 function lockHorizontalViewport() {
   window.scrollTo(0, 0);
   document.documentElement.scrollLeft = 0;
@@ -25,6 +30,7 @@ export function setInspectZoomed(zoomed: boolean): void {
   const html = document.documentElement;
   const body = document.body;
   const root = document.getElementById('root');
+  const app = appShell();
   if (zoomed) {
     html.setAttribute(INSPECT_ZOOMED_ATTR, 'true');
     html.style.overflowX = 'visible';
@@ -35,12 +41,20 @@ export function setInspectZoomed(zoomed: boolean): void {
       root.style.overflowX = 'visible';
       root.style.overflowY = 'visible';
     }
+    if (app) {
+      app.style.overflowX = 'visible';
+      app.style.overflowY = 'visible';
+    }
     return;
   }
   html.removeAttribute(INSPECT_ZOOMED_ATTR);
   html.style.overflowY = '';
   body.style.overflowY = '';
   if (root) root.style.overflowY = '';
+  if (app) {
+    app.style.overflowX = '';
+    app.style.overflowY = '';
+  }
   lockHorizontalViewport();
 }
 
