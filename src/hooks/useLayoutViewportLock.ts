@@ -77,12 +77,18 @@ export function useLayoutViewportLock(): void {
     const preventPagePinch = (ev: TouchEvent) => {
       if (ev.touches.length >= 2) ev.preventDefault();
     };
+    const preventGesture = (ev: Event) => {
+      ev.preventDefault();
+    };
     window.addEventListener('orientationchange', delayed);
     window.addEventListener('resize', delayed);
     window.visualViewport?.addEventListener('resize', run);
     window.visualViewport?.addEventListener('scroll', run);
     document.addEventListener('touchmove', preventPagePinch, { passive: false, capture: true });
     document.addEventListener('touchstart', preventPagePinch, { passive: false, capture: true });
+    // iOS Safari native page-pinch; not the zoom implementation (TouchEvents still drive scale).
+    document.addEventListener('gesturestart', preventGesture, { passive: false, capture: true });
+    document.addEventListener('gesturechange', preventGesture, { passive: false, capture: true });
     run();
     return () => {
       window.removeEventListener('orientationchange', delayed);
@@ -91,6 +97,8 @@ export function useLayoutViewportLock(): void {
       window.visualViewport?.removeEventListener('scroll', run);
       document.removeEventListener('touchmove', preventPagePinch, true);
       document.removeEventListener('touchstart', preventPagePinch, true);
+      document.removeEventListener('gesturestart', preventGesture, true);
+      document.removeEventListener('gesturechange', preventGesture, true);
     };
   }, []);
 }

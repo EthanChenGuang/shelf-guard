@@ -62,7 +62,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   const t = I18N[lang];
 
   const viewportRef = useRef<HTMLDivElement>(null);
-  const { transform, style, touchHandlers } = usePinchPanZoom(viewportRef);
+  const { transform, style, touchHandlers, pointerHandlers } = usePinchPanZoom(viewportRef);
   const hold = useBlinkCompareHold();
   const isZoomed = transform.scale > 1.01;
 
@@ -227,7 +227,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
           data-testid="inspect-image-viewport"
           data-zoom-scale={transform.scale.toFixed(2)}
           data-inspect-zoomed={isZoomed ? 'true' : 'false'}
-          style={frameBoxStyle(baseline.imageDimensions, '72vh')}
+          style={{ ...frameBoxStyle(baseline.imageDimensions, '72vh'), touchAction: 'none' }}
           onMouseDown={(e) => hold.begin(e.clientX, e.clientY)}
           onMouseMove={(e) => {
             if (e.buttons) hold.move(e.clientX, e.clientY);
@@ -261,6 +261,10 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
             touchHandlers.onTouchEnd(e);
             hold.cancel();
           }}
+          onPointerDown={(e) => pointerHandlers.onPointerDown(e)}
+          onPointerMove={(e) => pointerHandlers.onPointerMove(e)}
+          onPointerUp={(e) => pointerHandlers.onPointerUp(e)}
+          onPointerCancel={(e) => pointerHandlers.onPointerUp(e)}
         >
           <div
             data-testid="inspect-image-zoom-layer"

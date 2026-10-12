@@ -13,11 +13,22 @@ html {
   touch-action: pan-y;
 }
 
+html[data-inspect-zoomed="true"] {
+  touch-action: none;
+}
+
 html[data-inspect-zoomed="true"],
 html[data-inspect-zoomed="true"] body,
 html[data-inspect-zoomed="true"] #root,
 html[data-inspect-zoomed="true"] #root > div {
   overflow: visible !important;
+  -webkit-overflow-scrolling: auto;
+}
+
+[data-testid="inspect-image-viewport"] {
+  touch-action: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 @theme {

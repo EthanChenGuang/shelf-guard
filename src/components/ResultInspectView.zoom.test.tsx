@@ -169,6 +169,8 @@ describe('ResultInspectView inline pinch-zoom', () => {
     expect(viewport.getAttribute('data-inspect-zoomed')).toBe('true');
     expect(viewport.className).toContain('overflow-visible');
     expect(viewport.className).toContain('z-[60]');
+    expect(viewport.className).toContain('touch-none');
+    expect(viewport.style.touchAction).toBe('none');
     expect(document.documentElement.getAttribute('data-inspect-zoomed')).toBe('true');
     expect(screen.getByTestId('inspect-image-zoom-layer')).toBeInTheDocument();
   });
