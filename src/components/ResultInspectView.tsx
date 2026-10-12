@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   Check,
@@ -15,6 +15,7 @@ import { I18N } from '../lib/constants';
 import { MIN_CONFIDENCE_CEIL, MIN_CONFIDENCE_FLOOR, meetsMinConfidence } from '../lib/vision/confidence';
 import { InspectShelfCanvas } from './InspectShelfCanvas';
 import { useBlinkCompareHold } from '../hooks/useBlinkCompareHold';
+import { setInspectZoomed } from '../hooks/useLayoutViewportLock';
 import { usePinchPanZoom } from '../hooks/usePinchPanZoom';
 import { touchAt } from '../lib/touchAt';
 import { frameBoxStyle } from '../lib/frameBox';
@@ -63,6 +64,12 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   const viewportRef = useRef<HTMLDivElement>(null);
   const { transform, style, touchHandlers } = usePinchPanZoom(viewportRef);
   const hold = useBlinkCompareHold();
+  const isZoomed = transform.scale > 1.01;
+
+  useEffect(() => {
+    setInspectZoomed(isZoomed);
+    return () => setInspectZoomed(false);
+  }, [isZoomed]);
   const isBlinkingBaseline = hold.isBlinking;
   // State for filtering by anomaly type ('ALL' = show all)
   const [filterType, setFilterType] = useState<'ALL' | DetectedAnomaly['type']>('ALL');
@@ -111,7 +118,11 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   const displayImageUrl = isBlinkingBaseline ? baseline.imageDataUrl : currentCaptureUrl;
 
   return (
-    <div className="relative w-full max-w-full min-h-[100dvh] bg-sg-surface flex flex-col justify-between overflow-x-hidden select-none">
+    <div
+      className={`relative w-full max-w-full min-h-[100dvh] bg-sg-surface flex flex-col justify-between select-none ${
+        isZoomed ? 'overflow-visible' : 'overflow-x-hidden'
+      }`}
+    >
       {/* Top Header Bar */}
       <header className="sticky top-0 w-full z-40 bg-sg-white border-b border-sg-border/80 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
@@ -210,9 +221,12 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
       <div className="w-full">
         <div
           ref={viewportRef}
-          className="relative mx-auto cursor-pointer overflow-hidden touch-none"
+          className={`relative mx-auto cursor-pointer touch-none ${
+            isZoomed ? 'z-[60] overflow-visible' : 'overflow-hidden'
+          }`}
           data-testid="inspect-image-viewport"
           data-zoom-scale={transform.scale.toFixed(2)}
+          data-inspect-zoomed={isZoomed ? 'true' : 'false'}
           style={frameBoxStyle(baseline.imageDimensions, '72vh')}
           onMouseDown={(e) => hold.begin(e.clientX, e.clientY)}
           onMouseMove={(e) => {
@@ -248,7 +262,11 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
             hold.cancel();
           }}
         >
-          <div className="h-full w-full will-change-transform" style={style}>
+          <div
+            data-testid="inspect-image-zoom-layer"
+            className="h-full w-full will-change-transform"
+            style={style}
+          >
             <InspectShelfCanvas
               imageUrl={displayImageUrl}
               baseline={baseline}

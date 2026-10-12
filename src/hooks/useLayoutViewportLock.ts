@@ -1,18 +1,47 @@
 import { useEffect } from 'react';
 
+export const INSPECT_ZOOMED_ATTR = 'data-inspect-zoomed';
+
+export function isInspectZoomed(): boolean {
+  return document.documentElement.getAttribute(INSPECT_ZOOMED_ATTR) === 'true';
+}
+
 function lockHorizontalViewport() {
+  window.scrollTo(0, 0);
+  document.documentElement.scrollLeft = 0;
+  document.body.scrollLeft = 0;
+  const root = document.getElementById('root');
+  if (root) root.scrollLeft = 0;
+  if (isInspectZoomed()) return;
   const html = document.documentElement;
   const body = document.body;
   html.style.overflowX = 'hidden';
   body.style.overflowX = 'hidden';
-  html.scrollLeft = 0;
-  body.scrollLeft = 0;
-  window.scrollTo(0, 0);
+  if (root) root.style.overflowX = 'hidden';
+}
+
+/** While the results image is pinch-zoomed, lift overflow clipping so it can paint over the screen. */
+export function setInspectZoomed(zoomed: boolean): void {
+  const html = document.documentElement;
+  const body = document.body;
   const root = document.getElementById('root');
-  if (root) {
-    root.style.overflowX = 'hidden';
-    root.scrollLeft = 0;
+  if (zoomed) {
+    html.setAttribute(INSPECT_ZOOMED_ATTR, 'true');
+    html.style.overflowX = 'visible';
+    html.style.overflowY = 'visible';
+    body.style.overflowX = 'visible';
+    body.style.overflowY = 'visible';
+    if (root) {
+      root.style.overflowX = 'visible';
+      root.style.overflowY = 'visible';
+    }
+    return;
   }
+  html.removeAttribute(INSPECT_ZOOMED_ATTR);
+  html.style.overflowY = '';
+  body.style.overflowY = '';
+  if (root) root.style.overflowY = '';
+  lockHorizontalViewport();
 }
 
 /**

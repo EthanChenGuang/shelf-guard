@@ -144,4 +144,32 @@ describe('ResultInspectView inline pinch-zoom', () => {
     expect(viewport.querySelector('[data-showing-baseline="true"]')).toBeFalsy();
     expect(Number(viewport.getAttribute('data-zoom-scale'))).toBeGreaterThan(1);
   });
+
+  it('clips the photo to the frame at rest and lets it overflow while zoomed', () => {
+    render(<ResultInspectView {...baseProps} />);
+    const viewport = screen.getByTestId('inspect-image-viewport');
+    expect(viewport.className).toContain('overflow-hidden');
+    expect(viewport.className).not.toContain('overflow-visible');
+    expect(viewport.getAttribute('data-inspect-zoomed')).toBe('false');
+
+    fireEvent.touchStart(viewport, {
+      touches: [
+        { identifier: 0, clientX: 100, clientY: 100 },
+        { identifier: 1, clientX: 100, clientY: 160 },
+      ],
+    });
+    fireEvent.touchMove(viewport, {
+      touches: [
+        { identifier: 0, clientX: 100, clientY: 40 },
+        { identifier: 1, clientX: 100, clientY: 220 },
+      ],
+    });
+
+    expect(Number(viewport.getAttribute('data-zoom-scale'))).toBeGreaterThan(1);
+    expect(viewport.getAttribute('data-inspect-zoomed')).toBe('true');
+    expect(viewport.className).toContain('overflow-visible');
+    expect(viewport.className).toContain('z-[60]');
+    expect(document.documentElement.getAttribute('data-inspect-zoomed')).toBe('true');
+    expect(screen.getByTestId('inspect-image-zoom-layer')).toBeInTheDocument();
+  });
 });

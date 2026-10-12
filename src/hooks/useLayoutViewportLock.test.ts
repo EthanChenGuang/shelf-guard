@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { useLayoutViewportLock } from './useLayoutViewportLock';
+import { setInspectZoomed, useLayoutViewportLock } from './useLayoutViewportLock';
 
 describe('useLayoutViewportLock', () => {
   beforeEach(() => {
@@ -38,5 +38,22 @@ describe('useLayoutViewportLock', () => {
     expect(scrollTo).toHaveBeenCalledWith(0, 0);
     expect(document.documentElement.scrollLeft).toBe(0);
     expect(document.body.scrollLeft).toBe(0);
+  });
+
+  it('does not re-clip overflow-x while the results image is pinch-zoomed', () => {
+    renderHook(() => useLayoutViewportLock());
+    setInspectZoomed(true);
+    expect(document.documentElement.style.overflowX).toBe('visible');
+
+    act(() => {
+      window.dispatchEvent(new Event('orientationchange'));
+    });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(document.documentElement.style.overflowX).toBe('visible');
+    setInspectZoomed(false);
+    expect(document.documentElement.style.overflowX).toBe('hidden');
   });
 });

@@ -13,6 +13,14 @@ html {
   touch-action: pan-y;
 }
 
+html[data-inspect-zoomed="true"],
+html[data-inspect-zoomed="true"] body,
+html[data-inspect-zoomed="true"] #root,
+html[data-inspect-zoomed="true"] #root > div {
+  overflow-x: visible;
+  overflow-y: visible;
+}
+
 @theme {
   --color-sg-white: #ffffff;
   --color-sg-surface: #f8fafc;
