@@ -23,7 +23,7 @@ Preconditions:
 - `doctor` passes
 - New browser context (default for each `browser drive`)
 
-- **Open camera idle.** Run `control-shelfguard browser drive establish-baseline --artifacts-dir <dir>`. `camera-view` is visible.
+- **Open camera idle.** Run `control-shelfguard browser drive establish-baseline --artifacts-dir <dir>`. `camera-view` is visible and the baseline pill has hydrated (shows **Nessun riferimento**, not a blank chip).
 - **Upload baseline.** The harness sets `public/test-fixtures/baseline-aligned.jpg` on `[data-testid="baseline-photo-input"]` without clicking the shutter (equivalent to picking a file).
 - **Confirm pill.** `[data-testid="baseline-status-pill"]` contains **Riferimento pronto**.
 - **Proof.** Screenshot `establish-baseline-camera.png` and text dump `establish-baseline-pill.txt` under `<dir>`.

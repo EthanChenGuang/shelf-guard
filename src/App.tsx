@@ -68,6 +68,7 @@ export default function App() {
   // Baseline calibration
   const [baseline, setBaseline] = useState<ShelfCalibration>(DEFAULT_CALIBRATION);
   const [hasPersistedBaseline, setHasPersistedBaseline] = useState<boolean>(false);
+  const [shelfHydrated, setShelfHydrated] = useState<boolean>(false);
   // Language
   const [lang, setLang] = useState<Language>('it');
   // Tolerance slider 0–100 (D-11)
@@ -107,6 +108,10 @@ export default function App() {
   const appModeRef = useRef(appMode);
   appModeRef.current = appMode;
   const workerPrewarmedRef = useRef(false);
+  const shelfHydratedRef = useRef(false);
+  const hasPersistedBaselineRef = useRef(false);
+  const baselineRef = useRef(baseline);
+  baselineRef.current = baseline;
   const [isShutterLocked, setIsShutterLocked] = useState(false);
   const [showAnalysisError, setShowAnalysisError] = useState(false);
   const [captureRejection, setCaptureRejection] = useState<'framing' | 'lens' | null>(null);
@@ -133,6 +138,9 @@ export default function App() {
   const { isInstallable, install } = usePWAInstall();
 
   const loadShelfData = useCallback(async (shelfId: number) => {
+    setShelfHydrated(false);
+    shelfHydratedRef.current = false;
+
     const registry = urlRegistryRef.current;
     const persisted = await loadBaselineRaw(shelfId);
     let nextBaseline: ShelfCalibration;
@@ -147,9 +155,15 @@ export default function App() {
       registry.set(`history:${shelfId}:${recordId}`, blob),
     );
 
-    setHasPersistedBaseline(persisted !== null);
+    const nextHasPersistedBaseline = persisted !== null;
+    hasPersistedBaselineRef.current = nextHasPersistedBaseline;
+    baselineRef.current = nextBaseline;
+    shelfHydratedRef.current = true;
+
+    setHasPersistedBaseline(nextHasPersistedBaseline);
     setBaseline(nextBaseline);
     setAuditHistory(nextHistory);
+    setShelfHydrated(true);
   }, []);
 
   // Load migration, active shelf, and shelf-scoped data on mount
@@ -264,7 +278,10 @@ export default function App() {
     registry.revoke(`baseline:${activeShelfId}`);
     const blob = await fetch(calibration.imageDataUrl).then((r) => r.blob());
     const displayUrl = registry.set(`baseline:${activeShelfId}`, blob);
-    setBaseline({ ...calibration, imageDataUrl: displayUrl });
+    const nextBaseline = { ...calibration, imageDataUrl: displayUrl };
+    baselineRef.current = nextBaseline;
+    hasPersistedBaselineRef.current = true;
+    setBaseline(nextBaseline);
     setHasPersistedBaseline(true);
     return true;
   };
@@ -275,7 +292,7 @@ export default function App() {
       { dataUrl: string; width: number; height: number; focalLength: number | null } | string
     >,
   ) => {
-    if (isCaptureLocked(appMode, captureLockRef.current)) return;
+    if (isCaptureLocked(appMode, captureLockRef.current, shelfHydratedRef.current)) return;
 
     captureLockRef.current = true;
     setIsShutterLocked(true);
@@ -290,11 +307,17 @@ export default function App() {
           frame = acquired;
         } else {
           frame = acquired.dataUrl;
-          if (hasPersistedBaseline && !isFramingCompatible(acquired, baseline.imageDimensions)) {
+          if (
+            hasPersistedBaselineRef.current &&
+            !isFramingCompatible(acquired, baselineRef.current.imageDimensions)
+          ) {
             setCaptureRejection('framing');
             return;
           }
-          if (hasPersistedBaseline && !isSameLens(acquired.focalLength, baseline.lensFocalLength)) {
+          if (
+            hasPersistedBaselineRef.current &&
+            !isSameLens(acquired.focalLength, baselineRef.current.lensFocalLength)
+          ) {
             setCaptureRejection('lens');
             return;
           }
@@ -304,10 +327,11 @@ export default function App() {
         return;
       }
 
-      if (!hasPersistedBaseline) {
+      if (!hasPersistedBaselineRef.current) {
+        if (!shelfHydratedRef.current) return;
         const dimensions = await loadImageDimensions(frame);
         await persistBaseline({
-          ...baseline,
+          ...baselineRef.current,
           id: `baseline-${activeShelfId}-${Date.now()}`,
           createdAt: Date.now(),
           imageDataUrl: frame,
@@ -327,7 +351,7 @@ export default function App() {
       }
 
       let analysisDone = false;
-      const analysisPromise = analyzeShelfCapture(frame, baseline, tolerance).then(
+      const analysisPromise = analyzeShelfCapture(frame, baselineRef.current, tolerance).then(
         (result) => {
           analysisDone = true;
           return result;
@@ -434,6 +458,8 @@ export default function App() {
       return;
     }
     urlRegistryRef.current.revoke(`baseline:${activeShelfId}`);
+    hasPersistedBaselineRef.current = false;
+    baselineRef.current = DEFAULT_CALIBRATION;
     setHasPersistedBaseline(false);
     setBaseline(DEFAULT_CALIBRATION);
     setShowResetModal(false);
@@ -445,6 +471,7 @@ export default function App() {
    * is recorded, so later inspections know to open the OS camera on the same lens.
    */
   const saveBaselinePhoto = async (file: File) => {
+    if (!shelfHydratedRef.current) return;
     let photo: Awaited<ReturnType<typeof normalizeNativePhoto>>;
     try {
       photo = await normalizeNativePhoto(file);
@@ -454,7 +481,7 @@ export default function App() {
       return;
     }
     const saved = await persistBaseline({
-      ...baseline,
+      ...baselineRef.current,
       id: `custom-baseline-${Date.now()}`,
       imageDataUrl: photo.dataUrl,
       imageDimensions: { width: photo.width, height: photo.height },
@@ -512,7 +539,8 @@ export default function App() {
           onDismissQuotaError={() => setQuotaError(false)}
           onLanguageToggle={handleLanguageToggle}
           onShutterClick={handleShutterClick}
-          isShutterLocked={isShutterLocked}
+          isShutterLocked={isShutterLocked || !shelfHydrated}
+          shelfHydrated={shelfHydrated}
           hasTorch={hasTorch}
           onOpenHistory={() => setShowHistoryModal(true)}
           onResetBaselinePrompt={() => setShowResetModal(true)}

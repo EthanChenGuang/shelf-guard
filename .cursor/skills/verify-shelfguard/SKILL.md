@@ -87,6 +87,7 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 | `inspect-scan/inspect-scan-fullscreen-rotate-390x844.png` | After landscape→portrait while open, overlay still sits below the painted bar |
 | `inspect-scan/inspect-scan-fullscreen-blink-zoomed.png` | After pinch-zoom, long-press shows the baseline at the same zoom |
 | `inspect-scan/inspect-scan.aria.txt` | ARIA tree includes **Conferma e concludi l'ispezione** |
+| `inspect-scan/first-capture-comparison.txt` | First capture with an existing baseline ran comparison (PR #6) |
 | `multi-shelf/multi-shelf-2-empty-baseline.png` | Shelf 2 selected with no baseline yet |
 
 Standards:
