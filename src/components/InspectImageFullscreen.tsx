@@ -9,6 +9,9 @@ import { useVisualViewport } from '../hooks/useVisualViewport';
 import { InspectShelfCanvas } from './InspectShelfCanvas';
 import { touchAt } from '../lib/touchAt';
 
+const CLOSE_RESERVE_PX = 56;
+const HINT_RESERVE_PX = 40;
+
 export interface InspectImageFullscreenProps {
   open: boolean;
   onClose: () => void;
@@ -54,7 +57,10 @@ export const InspectImageFullscreen: React.FC<InspectImageFullscreenProps> = ({
   if (!open) return null;
 
   const displayUrl = hold.isBlinking ? baseline.imageDataUrl : imageUrl;
-  const coverViewport = { width: vv.width, height: vv.height };
+  const coverViewport = {
+    width: vv.width,
+    height: Math.max(1, vv.height - CLOSE_RESERVE_PX - HINT_RESERVE_PX),
+  };
 
   const overlay = (
     <div
@@ -77,6 +83,7 @@ export const InspectImageFullscreen: React.FC<InspectImageFullscreenProps> = ({
         className="absolute inset-0 flex items-center justify-center overflow-hidden touch-none"
         data-testid="inspect-image-fullscreen-stage"
         data-zoom-scale={transform.scale.toFixed(2)}
+        style={{ paddingTop: CLOSE_RESERVE_PX, paddingBottom: HINT_RESERVE_PX }}
         onTouchStart={(e) => {
           touchHandlers.onTouchStart(e);
           if (e.touches.length >= 2) {
@@ -118,7 +125,7 @@ export const InspectImageFullscreen: React.FC<InspectImageFullscreenProps> = ({
             activeAnomalies={hold.isBlinking ? [] : activeAnomalies}
             showArLayers={!hold.isBlinking && showArLayers}
             lang={lang}
-            layout="cover"
+            layout="contain"
             coverViewport={coverViewport}
             showingBaseline={hold.isBlinking}
           />
@@ -136,7 +143,10 @@ export const InspectImageFullscreen: React.FC<InspectImageFullscreenProps> = ({
         <X className="h-6 w-6" />
       </button>
 
-      <p className="pointer-events-none absolute bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))] left-0 right-0 z-20 px-4 text-center text-xs text-white/80">
+      <p
+        data-testid="inspect-image-fullscreen-hint"
+        className="pointer-events-none absolute bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))] left-0 right-0 z-20 px-4 text-center text-xs text-white/80"
+      >
         {hold.isBlinking ? t.goldenBaseline : t.comparisonFullscreenHint}
       </p>
     </div>

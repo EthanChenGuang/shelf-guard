@@ -24,6 +24,35 @@ const baseProps = {
   lang: 'en' as const,
 };
 
+function stubInner(width: number, height: number) {
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
+  Object.defineProperty(window, 'innerHeight', { configurable: true, value: height });
+}
+
+function stubCssSmallViewport(size: { width: number; height: number }) {
+  const orig = HTMLElement.prototype.getBoundingClientRect;
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    if (this.getAttribute('data-css-small-viewport') === 'true') {
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: size.width,
+        bottom: size.height,
+        width: size.width,
+        height: size.height,
+        toJSON() {
+          return {};
+        },
+      } as DOMRect;
+    }
+    return orig.call(this);
+  });
+}
+
 describe('ResultInspectView comparison fullscreen', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -130,6 +159,7 @@ describe('ResultInspectView comparison fullscreen', () => {
       },
       removeEventListener: vi.fn(),
     };
+    stubInner(844, 340);
     vi.stubGlobal('visualViewport', vv);
 
     const user = userEvent.setup();
@@ -147,7 +177,7 @@ describe('ResultInspectView comparison fullscreen', () => {
     expect(overlay.className).toContain('bg-black');
 
     const canvas = overlay.querySelector('[data-testid="inspect-shelf-canvas"]') as HTMLElement;
-    expect(canvas.dataset.layout).toBe('cover');
+    expect(canvas.dataset.layout).toBe('contain');
     expect(canvas.style.width).toMatch(/px$/);
     expect(canvas.style.height).toMatch(/px$/);
     expect(canvas.style.width).not.toContain('vw');
@@ -156,6 +186,7 @@ describe('ResultInspectView comparison fullscreen', () => {
     vv.offsetTop = 0;
     vv.width = 390;
     vv.height = 844;
+    stubInner(390, 844);
     act(() => {
       listeners.resize?.();
     });
@@ -202,5 +233,54 @@ describe('ResultInspectView comparison fullscreen', () => {
     expect(img.src).toContain('persisted-baseline');
     expect(overlay.querySelector('[data-showing-baseline="true"]')).toBeTruthy();
     expect(stage.getAttribute('data-zoom-scale')).toBe(scaleAfterZoom);
+  });
+
+  it('sizes the WebKit-lie overlay to the measured small viewport and contain-fits the photo', async () => {
+    vi.useRealTimers();
+    const listeners: Record<string, () => void> = {};
+    const vv = {
+      offsetTop: 0,
+      offsetLeft: 0,
+      width: 844,
+      height: 390,
+      addEventListener: (type: string, fn: () => void) => {
+        listeners[type] = fn;
+      },
+      removeEventListener: vi.fn(),
+    };
+    stubInner(844, 390);
+    stubCssSmallViewport({ width: 844, height: 334 });
+    vi.stubGlobal('visualViewport', vv);
+
+    const user = userEvent.setup();
+    render(<ResultInspectView {...baseProps} />);
+    await user.click(screen.getByTestId('inspect-image-fullscreen-open'));
+
+    const overlay = screen.getByTestId('inspect-image-fullscreen');
+    expect(overlay.style.top).toBe('56px');
+    expect(overlay.style.height).toBe('334px');
+    expect(overlay.style.width).toBe('844px');
+
+    const canvas = overlay.querySelector('[data-testid="inspect-shelf-canvas"]') as HTMLElement;
+    expect(canvas.dataset.layout).toBe('contain');
+    expect(canvas.style.width).toMatch(/px$/);
+    expect(canvas.style.height).toMatch(/px$/);
+    const canvasW = parseFloat(canvas.style.width);
+    const canvasH = parseFloat(canvas.style.height);
+    expect(canvasW).toBeLessThanOrEqual(334 - 96);
+    expect(canvasH).toBeLessThanOrEqual(334 - 96);
+    expect(screen.getByTestId('inspect-image-fullscreen-hint')).toBeInTheDocument();
+  });
+
+  it('opens the overlay when documentElement.requestFullscreen rejects', async () => {
+    vi.useRealTimers();
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: vi.fn(() => Promise.reject(new Error('fullscreen denied'))),
+    });
+    const user = userEvent.setup();
+    render(<ResultInspectView {...baseProps} />);
+    await user.click(screen.getByTestId('inspect-image-fullscreen-open'));
+    expect(screen.getByTestId('inspect-image-fullscreen')).toBeInTheDocument();
   });
 });

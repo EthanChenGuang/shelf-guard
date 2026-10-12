@@ -48,3 +48,30 @@ export function coverViewportStyle(
     maxHeight: 'none',
   };
 }
+
+/** Letterbox the photo inside a pixel box (both axes <= viewport). */
+export function containViewportStyle(
+  dims: { width: number; height: number },
+  viewport: { width: number; height: number },
+): CSSProperties {
+  const ratio = aspectRatio(dims);
+  const vw = Math.max(1, viewport.width);
+  const vh = Math.max(1, viewport.height);
+  const containerRatio = vw / vh;
+  if (ratio >= containerRatio) {
+    return {
+      aspectRatio: `${ratio}`,
+      width: `${vw}px`,
+      height: `${vw / ratio}px`,
+      maxWidth: 'none',
+      maxHeight: 'none',
+    };
+  }
+  return {
+    aspectRatio: `${ratio}`,
+    height: `${vh}px`,
+    width: `${vh * ratio}px`,
+    maxWidth: 'none',
+    maxHeight: 'none',
+  };
+}
