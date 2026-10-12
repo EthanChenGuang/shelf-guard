@@ -5,7 +5,7 @@ import type {
   PersistedBaseline,
   StorageWriteResult,
 } from '../types/persisted';
-import {compressToJpegBlob, dataUrlToBlob, isQuotaError} from './blobUtils';
+import {compressToJpegBlob, dataUrlToBlob, isQuotaError, isStructuredCloneError} from './blobUtils';
 import {DEFAULT_CALIBRATION} from './constants';
 
 const LEGACY_KEY_BASELINE = 'shelfguard_baseline';
@@ -63,17 +63,35 @@ function isBaselineRecord(data: PersistedBaseline | undefined): data is Persiste
   return !!data && data.imageDimensions?.width > 0 && data.imageDimensions?.height > 0;
 }
 
+export function materializeImageBlob(data: PersistedBaseline): Blob | null {
+  if (typeof Blob !== 'undefined' && data.imageBlob instanceof Blob) return data.imageBlob;
+  if (data.imageBytes) {
+    const bytes = data.imageBytes instanceof ArrayBuffer
+      ? data.imageBytes
+      : new Uint8Array(data.imageBytes as ArrayLike<number>).buffer;
+    return new Blob([bytes], { type: data.imageType || 'image/jpeg' });
+  }
+  return null;
+}
+
 async function viewToPersistedBaseline(
   view: ShelfCalibration,
+  asBytes: boolean,
 ): Promise<PersistedBaseline> {
   const imageBlob = await dataUrlToBlob(view.imageDataUrl);
-
-  return {
+  const base = {
     id: view.id,
     createdAt: view.createdAt,
-    imageBlob,
     imageDimensions: view.imageDimensions,
     lensFocalLength: view.lensFocalLength ?? null,
+  };
+  if (!asBytes) {
+    return { ...base, imageBlob };
+  }
+  return {
+    ...base,
+    imageBytes: await imageBlob.arrayBuffer(),
+    imageType: imageBlob.type || 'image/jpeg',
   };
 }
 
@@ -176,7 +194,8 @@ export async function loadBaselineRaw(
   try {
     const data = await get<PersistedBaseline>(baselineKey(id));
     if (isBaselineRecord(data)) {
-      return data;
+      const imageBlob = materializeImageBlob(data);
+      return imageBlob ? { ...data, imageBlob } : data;
     }
   } catch (err) {
     console.warn(
@@ -220,9 +239,19 @@ export async function saveBaseline(
 ): Promise<StorageWriteResult> {
   const id = validateShelfId(shelfId);
   try {
-    const persisted = await viewToPersistedBaseline(viewCalibration);
-    await set(baselineKey(id), persisted);
-    return {ok: true};
+    try {
+      await set(baselineKey(id), await viewToPersistedBaseline(viewCalibration, false));
+      return {ok: true};
+    } catch (err) {
+      if (isQuotaError(err)) {
+        return {ok: false, error: 'QUOTA_EXCEEDED'};
+      }
+      if (!isStructuredCloneError(err) && !/BlobURL/i.test(String(err))) {
+        throw err;
+      }
+      await set(baselineKey(id), await viewToPersistedBaseline(viewCalibration, true));
+      return {ok: true};
+    }
   } catch (err) {
     if (isQuotaError(err)) {
       return {ok: false, error: 'QUOTA_EXCEEDED'};

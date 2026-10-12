@@ -24,6 +24,7 @@ import {
   loadAuditHistory,
   loadAuditHistoryRaw,
   loadBaselineRaw,
+  materializeImageBlob,
   runSchemaMigrationIfNeeded,
   saveActiveShelfId,
   saveBaseline,
@@ -147,7 +148,8 @@ export default function App() {
     const persisted = await loadBaselineRaw(shelfId);
     let nextBaseline: ShelfCalibration;
     if (persisted) {
-      const displayUrl = registry.set(`baseline:${shelfId}`, persisted.imageBlob);
+      const imageBlob = materializeImageBlob(persisted);
+      const displayUrl = imageBlob ? registry.set(`baseline:${shelfId}`, imageBlob) : '';
       nextBaseline = toViewBaseline(persisted, displayUrl);
     } else {
       nextBaseline = DEFAULT_CALIBRATION;

@@ -167,6 +167,8 @@ async function dismissOrientationBanner(page) {
 async function waitForCameraIdle(page) {
   await page.getByTestId('camera-view').waitFor({ state: 'visible', timeout: 30_000 });
   await dismissOrientationBanner(page);
+  await page.waitForTimeout(400);
+  await dismissOrientationBanner(page);
 }
 
 /** PR #6: do not drive until IndexedDB baseline hydration finishes (pill is empty while loading). */

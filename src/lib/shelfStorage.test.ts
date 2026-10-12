@@ -18,6 +18,8 @@ import {
   loadActiveShelfId,
   loadAuditHistoryRaw,
   loadBaseline,
+  loadBaselineRaw,
+  materializeImageBlob,
   runSchemaMigrationIfNeeded,
   saveActiveShelfId,
   saveBaseline,
@@ -204,6 +206,45 @@ describe('loadBaseline / saveBaseline (DATA-01, DATA-02)', () => {
     await saveBaseline(0, makeCalibration('blob-check'));
     const raw = await get('shelf:0:baseline');
     expectBlob((raw as {imageBlob: unknown}).imageBlob);
+  });
+
+  it('stores ArrayBuffer when IndexedDB cannot clone Blob (WebKit)', async () => {
+    const actualSet = (await vi.importActual<typeof import('idb-keyval')>('idb-keyval')).set;
+    vi.mocked(set)
+      .mockRejectedValueOnce(
+        new DOMException('BlobURLs are not yet supported.', 'DataCloneError'),
+      )
+      .mockImplementation(actualSet);
+
+    const result = await saveBaseline(0, makeCalibration('webkit-bytes'));
+    expect(result).toEqual({ok: true});
+    const raw = (await get('shelf:0:baseline')) as {
+      imageBlob?: Blob;
+      imageBytes?: ArrayBuffer;
+      imageType?: string;
+    };
+    expect(raw.imageBlob).toBeUndefined();
+    expect(raw.imageBytes).toBeDefined();
+    expect((raw.imageBytes as ArrayBuffer).byteLength).toBeGreaterThan(0);
+    expect(raw.imageType).toMatch(/image\//);
+
+    const loaded = await loadBaselineRaw(0);
+    expect(loaded?.imageBlob).toBeInstanceOf(Blob);
+    expect((loaded?.imageBlob as Blob).size).toBeGreaterThan(0);
+  });
+
+  it('rebuilds a Blob from imageBytes on load', () => {
+    const imageBytes = new Uint8Array([10, 20, 30]).buffer;
+    const blob = materializeImageBlob({
+      id: 'bytes',
+      createdAt: 1,
+      imageBytes,
+      imageType: 'image/jpeg',
+      imageDimensions: {width: 1, height: 1},
+    });
+    expect(blob).toBeInstanceOf(Blob);
+    expect(blob?.size).toBe(3);
+    expect(blob?.type).toBe('image/jpeg');
   });
 });
 

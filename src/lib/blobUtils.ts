@@ -4,6 +4,12 @@ export async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
   return res.blob();
 }
 
+export function isStructuredCloneError(err: unknown): boolean {
+  const name = err instanceof Error ? err.name : '';
+  const msg = err instanceof Error ? err.message : String(err);
+  return name === 'DataCloneError' || /BlobURL/i.test(msg);
+}
+
 /** Detect IndexedDB quota exhaustion from idb-keyval write failures (D-19). */
 export function isQuotaError(err: unknown): boolean {
   return err instanceof DOMException && err.name === 'QuotaExceededError';
