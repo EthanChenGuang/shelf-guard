@@ -134,9 +134,10 @@ html[data-inspect-zoomed="true"] #root > div {
   flex-wrap: nowrap;
 }
 
-.inspect-hold-hint > svg {
-  width: 2.25rem;
-  height: 2.25rem;
+.inspect-hold-hint > svg,
+.inspect-hold-hint .inspect-hint-pill > svg {
+  width: 1.65rem;
+  height: 1.65rem;
   flex-shrink: 0;
 }
 
@@ -151,7 +152,8 @@ html[data-inspect-zoomed="true"] #root > div {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: clamp(0.625rem, 2.7vw, 0.8125rem);
+  letter-spacing: -0.015em;
+  font-size: clamp(0.5rem, 2.45vw, 0.8125rem);
   line-height: 1.2;
 }
 
@@ -235,13 +237,14 @@ html[data-inspect-zoomed="true"] #root > div {
     padding-bottom: 0.15rem;
   }
 
-  .inspect-hold-hint > svg {
-    width: 1.85rem;
-    height: 1.85rem;
+  .inspect-hold-hint > svg,
+  .inspect-hold-hint .inspect-hint-pill > svg {
+    width: 1.5rem;
+    height: 1.5rem;
   }
 
   .inspect-hold-hint .inspect-hint-caption {
-    font-size: clamp(0.625rem, 1.35vw, 0.75rem);
+    font-size: clamp(0.5625rem, 1.25vw, 0.75rem);
   }
 }
 

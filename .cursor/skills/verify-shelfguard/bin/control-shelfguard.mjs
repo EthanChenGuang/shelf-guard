@@ -761,6 +761,8 @@ async function assertHoldCaptionSingleLine(page, name) {
       fontSize: cs.fontSize,
       rectCount: rects.length,
       captionHeight: caption.getBoundingClientRect().height,
+      scrollWidth: Math.round(caption.scrollWidth),
+      clientWidth: Math.round(caption.clientWidth),
     };
   });
   if (metrics.error) {
@@ -780,6 +782,8 @@ async function assertHoldCaptionSingleLine(page, name) {
     `overflow=${metrics.overflow}`,
     `textOverflow=${metrics.textOverflow}`,
     `height=${Math.round(metrics.captionHeight)}`,
+    `fits=${metrics.scrollWidth <= metrics.clientWidth + 1}`,
+    `scrollW=${metrics.scrollWidth}/${metrics.clientWidth}`,
   ].join(' ');
 }
 

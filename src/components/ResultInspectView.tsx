@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   Check,
   CheckCircle2,
-  Eye,
   Gauge,
   Layers,
   Share2,
@@ -387,7 +386,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
           )}
         </div>
         <div
-          className="inspect-hold-strip z-[70] flex w-full shrink-0 items-center justify-center px-3"
+          className="inspect-hold-strip z-[70] flex w-full shrink-0 items-center justify-center px-2"
           data-testid="inspect-hold-strip"
         >
           {hintPhase === 'hold' && (
@@ -397,11 +396,10 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
               data-hold-placement="below"
               data-reduced-motion={reducedMotion ? 'true' : 'false'}
               role="status"
-              className="inspect-hold-hint pointer-events-none flex w-full min-w-0 flex-row flex-nowrap items-center justify-center gap-2 py-1.5"
+              className="inspect-hold-hint pointer-events-none flex w-full min-w-0 flex-row flex-nowrap items-center justify-center py-1.5"
             >
-              {!isBlinkingBaseline && <HoldHintGraphic />}
               <div
-                className={`inspect-hint-pill flex min-w-0 max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold leading-none shadow-lg ring-2 backdrop-blur-sm ${
+                className={`inspect-hint-pill flex min-w-0 max-w-full items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-bold leading-none shadow-lg ring-2 backdrop-blur-sm ${
                   isBlinkingBaseline
                     ? 'bg-emerald-950/85 text-emerald-50 ring-emerald-200/90'
                     : 'bg-black/80 text-white ring-white/90'
@@ -410,7 +408,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
                 {isBlinkingBaseline ? (
                   <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-300" />
                 ) : (
-                  <Eye className="h-4 w-4 shrink-0 text-white" />
+                  <HoldHintGraphic />
                 )}
                 <span className="inspect-hint-caption">
                   {isBlinkingBaseline ? t.goldenBaseline : t.pressHoldCompare}
