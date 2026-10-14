@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Online Market",
-  "short_name": "Online Market",
+  "name": "Online Marketplace",
+  "short_name": "Online Marketplace",
   "description": "Ispezione istantanea degli scaffali - Instant Retail Shelf & Planogram Inspection PWA",
   "start_url": "/",
   "scope": "/",

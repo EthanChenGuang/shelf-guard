@@ -1,6 +1,6 @@
 ---
 name: verify-shelfguard
-description: Drive ShelfGuard (Online Market shelf inspection PWA) in a real browser — launch preview, set baselines, run gallery inspections, switch shelves. Use after UI, camera, vision, or IndexedDB changes when you need user-level proof, not just Vitest.
+description: Drive ShelfGuard (Online Marketplace shelf inspection PWA) in a real browser — launch preview, set baselines, run gallery inspections, switch shelves. Use after UI, camera, vision, or IndexedDB changes when you need user-level proof, not just Vitest.
 ---
 
 # Verify ShelfGuard
@@ -81,14 +81,13 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 |----------|--------|
 | `establish-baseline/establish-baseline-camera.png` | Baseline saved; pill shows **Riferimento pronto** |
 | `establish-baseline/establish-baseline-pill.txt` | Exact baseline status text |
-| `inspect-scan/inspect-scan-390x844-pinch-hints.png` | Portrait pinch overlay (Italian, sequenced before hold) |
-| `inspect-scan/inspect-scan-390x844-pinch-frame-*.png` | Pinch animation frames at 0 / 400 / 800ms |
-| `inspect-scan/inspect-scan-390x844-hold-hints.png` | Portrait hold caption **below** the photo (before press) |
+| `inspect-scan/inspect-scan-360-portrait-header.png` | Camera header **Online Marketplace** on one line at 360×800 |
+| `inspect-scan/inspect-scan-360-landscape-header.png` | Camera header on one line at 800×360 |
+| `inspect-scan/inspect-scan-390x844-hold-hints.png` | Portrait hold caption **Puoi ingrandire · Tieni premuto…** on one line **below** the photo (immediate, before press) |
 | `inspect-scan/inspect-scan-390x844-hold-status.png` | Portrait **Stai vedendo la foto di riferimento** below the photo while pressing |
 | `inspect-scan/inspect-scan-390x844-hold-frame-*.png` | Hold animation frames at 0 / 400 / 800ms |
 | `inspect-scan/inspect-scan-390x844-hold-geometry.txt` | Hold/status rects do not intersect the image and sit in the viewport |
-| `inspect-scan/inspect-scan-844x390-pinch-hints.png` | Landscape pinch overlay before it sequences to hold |
-| `inspect-scan/inspect-scan-844x390-hold-hints.png` | Landscape hold caption below the photo |
+| `inspect-scan/inspect-scan-844x390-hold-hints.png` | Landscape hold caption on one line below the photo (immediate) |
 | `inspect-scan/inspect-scan-844x390-hold-status.png` | Landscape viewing-reference badge below the photo |
 | `inspect-scan/inspect-scan-results-390x844.png` | Portrait results; comparison image centered; no fullscreen control |
 | `inspect-scan/inspect-scan-results-844x390.png` | Landscape phone results; image centered (not left-aligned) |

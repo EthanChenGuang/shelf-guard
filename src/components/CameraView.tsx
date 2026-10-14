@@ -387,13 +387,13 @@ export const CameraView: React.FC<CameraViewProps> = ({
       <div className="relative z-20">
         <div
           data-testid="app-title"
-          className="relative z-20 flex items-center justify-center gap-2 px-4 pt-[max(0.75rem,env(safe-area-inset-top))]"
+          className="relative z-20 flex min-w-0 flex-nowrap items-center justify-center gap-1.5 px-3 pt-[max(0.75rem,env(safe-area-inset-top))]"
         >
-          <img src="/icon.svg" alt="" className="h-6 w-6 shrink-0 rounded-md shadow-md ring-1 ring-white/20" />
-          <span className="truncate text-[15px] font-bold tracking-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">
+          <img src="/icon.svg" alt={APP_NAME} className="h-5 w-5 shrink-0 rounded-md shadow-md ring-1 ring-white/20" />
+          <span className="app-title-name min-w-0 whitespace-nowrap text-[13px] font-bold tracking-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">
             {APP_NAME}
           </span>
-          <span className="truncate text-[11px] font-medium text-white/75 drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
+          <span className="app-title-subtitle min-w-0 whitespace-nowrap text-[10px] font-medium text-white/75 drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
             · {t.appSubtitle}
           </span>
         </div>

@@ -19,7 +19,7 @@ Preconditions:
 
 Manual Playwright steps (no dedicated `browser drive` yet):
 
-- Click `[data-testid="language-toggle"]` until `[data-testid="app-title"]` reflects English copy (**Online Market** shelf inspection title from `I18N.en`)
+- Click `[data-testid="language-toggle"]` until `[data-testid="app-title"]` reflects English copy (**Online Marketplace** shelf inspection title from `I18N.en`)
 - Screenshot for proof
 
 ## Gotchas

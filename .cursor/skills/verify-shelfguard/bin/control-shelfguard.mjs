@@ -23,8 +23,7 @@ const IT = {
   finishInspection: "Conferma e concludi l'ispezione",
   auditResult: "Risultato dell'ispezione",
   pickFromGallery: "Scegli la foto dell'ispezione dalla galleria",
-  pinchToZoom: 'Pizzica con due dita per ingrandire',
-  pressHoldCompare: 'Tieni premuto per vedere il riferimento',
+  pressHoldCompare: 'Puoi ingrandire · Tieni premuto per vedere il riferimento',
   goldenBaseline: 'Stai vedendo la foto di riferimento',
 };
 
@@ -98,7 +97,7 @@ function doctor({ url = DEFAULT_URL, pidFile }) {
   }
   const html = spawnSync('curl', ['-sf', url], { encoding: 'utf8' });
   if (html.status !== 0) errors.push(`Could not fetch ${url} body`);
-  else if (!/Online Market|shelfguard/i.test(html.stdout) && !html.stdout.includes('root')) {
+  else if (!/Online Marketplace|shelfguard/i.test(html.stdout) && !html.stdout.includes('root')) {
     errors.push('Page body does not look like the ShelfGuard Vite shell');
   }
   if (pidFile) {
@@ -213,6 +212,74 @@ async function waitForShelfHydrated(page) {
     .getByTestId('baseline-status-pill')
     .getByText(/Riferimento pronto|Nessun riferimento/)
     .waitFor({ timeout: 15_000 });
+}
+
+async function captureAppHeader(page, artifactsDir, name) {
+  const title = page.getByTestId('app-title');
+  await title.waitFor({ state: 'visible', timeout: 10_000 });
+  const metrics = await title.evaluate((el) => {
+    const nameEl = el.querySelector('.app-title-name');
+    const subEl = el.querySelector('.app-title-subtitle');
+    const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
+    const nameText = (nameEl?.textContent ?? '').trim();
+    const rects = el.getClientRects();
+    const nameRects = nameEl?.getClientRects() ?? [];
+    const box = el.getBoundingClientRect();
+    return {
+      text,
+      nameText,
+      alt: el.querySelector('img')?.getAttribute('alt') ?? '',
+      whiteSpace: nameEl ? getComputedStyle(nameEl).whiteSpace : '',
+      rectCount: rects.length,
+      nameRectCount: nameRects.length,
+      width: Math.round(box.width),
+      height: Math.round(box.height),
+      inViewport: box.top >= 0 && box.left >= 0 && box.right <= window.innerWidth + 1 && box.bottom <= window.innerHeight + 1,
+    };
+  });
+  if (!metrics.nameText.includes('Online Marketplace')) {
+    throw new Error(`${name}: header missing Online Marketplace: ${metrics.text}`);
+  }
+  if (metrics.alt !== 'Online Marketplace') {
+    throw new Error(`${name}: icon alt=${metrics.alt} (expected Online Marketplace)`);
+  }
+  if (metrics.whiteSpace !== 'nowrap' || metrics.rectCount !== 1 || metrics.nameRectCount !== 1) {
+    throw new Error(
+      `${name}: header wrapped whiteSpace=${metrics.whiteSpace} rects=${metrics.rectCount} nameRects=${metrics.nameRectCount}`,
+    );
+  }
+  if (!metrics.inViewport) {
+    throw new Error(`${name}: header overflowed the viewport`);
+  }
+  const box = await title.boundingBox();
+  const pageSize = page.viewportSize();
+  const clip = box
+    ? {
+        x: Math.max(0, Math.floor(box.x) - 8),
+        y: Math.max(0, Math.floor(box.y) - 8),
+        width: Math.min(pageSize.width, Math.ceil(box.width) + 16),
+        height: Math.min(pageSize.height, Math.ceil(box.height) + 16),
+      }
+    : undefined;
+  await saveScreenshot(page, join(artifactsDir, `${name}-header.png`), { fullPage: false, clip });
+  writeFileSync(
+    join(artifactsDir, `${name}-header.txt`),
+    `${name} text="${metrics.text}" nowrap=${metrics.whiteSpace} rects=${metrics.rectCount} ${metrics.width}x${metrics.height} inViewport=${metrics.inViewport}\n`,
+    'utf8',
+  );
+  return metrics;
+}
+
+async function captureAppHeaderOrientations(page, artifactsDir, prefix, portraitSize, landscapeSize) {
+  const previous = page.viewportSize();
+  await page.setViewportSize(portraitSize);
+  await page.waitForTimeout(120);
+  const portrait = await captureAppHeader(page, artifactsDir, `${prefix}-portrait`);
+  await page.setViewportSize(landscapeSize);
+  await page.waitForTimeout(120);
+  const landscape = await captureAppHeader(page, artifactsDir, `${prefix}-landscape`);
+  if (previous) await page.setViewportSize(previous);
+  return { portrait, landscape };
 }
 
 async function driveEstablishBaseline(page, artifactsDir) {
@@ -733,12 +800,7 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
     }
   });
   const overflow = await assertUnclippedWholeScreenZoom(page, name, originalFrame);
-  if ((await page.getByTestId('inspect-pinch-hint').count()) > 0) {
-    const stillVisible = await page.getByTestId('inspect-pinch-hint').isVisible().catch(() => false);
-    if (stillVisible) {
-      throw new Error(`${name}: pinch hint still visible after pinch (must not block zoom)`);
-    }
-  }
+  await assertNoPinchOverlay(page, `${name} after-pinch`);
   await saveScreenshot(page, join(artifactsDir, `${name}-zoom.png`), { fullPage: false });
   await dispatchHoldStart(page, selector);
   await page.waitForTimeout(550);
@@ -829,6 +891,46 @@ function formatHoldGeometry(name, image, hold, pageSize, ok) {
   ].join(' ');
 }
 
+async function assertHoldCaptionSingleLine(page, name) {
+  const metrics = await page.getByTestId('inspect-hold-hint').evaluate((el) => {
+    const caption = el.querySelector('.inspect-hint-caption');
+    if (!caption) return { error: 'missing .inspect-hint-caption' };
+    const cs = getComputedStyle(caption);
+    const rects = caption.getClientRects();
+    return {
+      text: (caption.textContent ?? '').trim(),
+      whiteSpace: cs.whiteSpace,
+      overflow: cs.overflowX || cs.overflow,
+      textOverflow: cs.textOverflow,
+      fontSize: cs.fontSize,
+      rectCount: rects.length,
+      captionHeight: caption.getBoundingClientRect().height,
+      scrollWidth: Math.round(caption.scrollWidth),
+      clientWidth: Math.round(caption.clientWidth),
+    };
+  });
+  if (metrics.error) {
+    throw new Error(`${name}: ${metrics.error}`);
+  }
+  if (metrics.whiteSpace !== 'nowrap') {
+    throw new Error(`${name}: hold caption white-space=${metrics.whiteSpace} (expected nowrap)`);
+  }
+  if (metrics.rectCount !== 1) {
+    throw new Error(`${name}: hold caption wrapped to ${metrics.rectCount} line boxes`);
+  }
+  return [
+    `${name} caption="${metrics.text}"`,
+    `whiteSpace=${metrics.whiteSpace}`,
+    `rects=${metrics.rectCount}`,
+    `fontSize=${metrics.fontSize}`,
+    `overflow=${metrics.overflow}`,
+    `textOverflow=${metrics.textOverflow}`,
+    `height=${Math.round(metrics.captionHeight)}`,
+    `fits=${metrics.scrollWidth <= metrics.clientWidth + 1}`,
+    `scrollW=${metrics.scrollWidth}/${metrics.clientWidth}`,
+  ].join(' ');
+}
+
 async function assertHoldOutsideImage(page, name) {
   const image = await page.getByTestId('inspect-image-viewport').boundingBox();
   const hold = await page.getByTestId('inspect-hold-hint').boundingBox();
@@ -865,53 +967,31 @@ async function shotHintFrames(page, artifactsDir, name, kind) {
   }
 }
 
-async function capturePinchHint(page, artifactsDir, name) {
-  const pinch = page.getByTestId('inspect-pinch-hint');
-  await pinch.waitFor({ state: 'visible', timeout: 5_000 });
-  if (await page.getByTestId('inspect-hold-hint').isVisible().catch(() => false)) {
-    throw new Error(`${name}: hold hint overlapped the pinch hint`);
+async function assertNoPinchOverlay(page, name) {
+  const count = await page.getByTestId('inspect-pinch-hint').count();
+  if (count === 0) return;
+  const visible = await page.getByTestId('inspect-pinch-hint').isVisible().catch(() => false);
+  if (visible) {
+    throw new Error(`${name}: pinch overlay must not appear on inspect results`);
   }
-  const pinchPe = await pinch.evaluate((el) => getComputedStyle(el).pointerEvents);
-  if (pinchPe !== 'none') {
-    throw new Error(`${name}: pinch hint pointer-events=${pinchPe} (expected none)`);
-  }
-  const pinchText = ((await pinch.textContent()) ?? '').trim();
-  if (!pinchText.includes(IT.pinchToZoom)) {
-    throw new Error(`${name}: pinch hint missing Italian copy: ${pinchText}`);
-  }
-  const fading = await pinch.getAttribute('data-hint-fading');
-  if (fading === 'true') {
-    throw new Error(`${name}: pinch hint already fading before animation frames`);
-  }
-  await saveScreenshot(page, join(artifactsDir, `${name}-pinch-hints.png`), { fullPage: false });
-  await shotHintFrames(page, artifactsDir, name, 'pinch');
-  copyFileSync(join(artifactsDir, `${name}-pinch-hints.png`), join(artifactsDir, `${name}-hints.png`));
-  for (let i = 0; i < 3; i += 1) {
-    copyFileSync(
-      join(artifactsDir, `${name}-pinch-frame-${i}.png`),
-      join(artifactsDir, `${name}-hints-frame-${i}.png`),
-    );
-  }
-  return { pinchText, pinchPe };
 }
 
 async function captureHoldHint(page, artifactsDir, name) {
+  await assertNoPinchOverlay(page, `${name} before-hold-capture`);
   const hold = page.getByTestId('inspect-hold-hint');
   await hold.waitFor({ state: 'visible', timeout: 12_000 });
-  if (await page.getByTestId('inspect-pinch-hint').isVisible().catch(() => false)) {
-    throw new Error(`${name}: pinch hint still visible during hold`);
-  }
   const holdPe = await hold.evaluate((el) => getComputedStyle(el).pointerEvents);
   if (holdPe !== 'none') {
     throw new Error(`${name}: hold hint pointer-events=${holdPe} (expected none)`);
   }
   const holdText = ((await hold.textContent()) ?? '').trim();
-  if (!holdText.includes(IT.pressHoldCompare) && !holdText.includes('riferimento')) {
+  if (!holdText.includes(IT.pressHoldCompare)) {
     throw new Error(`${name}: hold hint missing Italian copy: ${holdText}`);
   }
   if ((await page.getByTestId('inspect-hold-graphic').count()) < 1) {
     throw new Error(`${name}: hold hint is missing the press/ring graphic`);
   }
+  const captionLine = await assertHoldCaptionSingleLine(page, `${name} before-press`);
   const before = await assertHoldOutsideImage(page, `${name} before-press`);
   await saveScreenshot(page, join(artifactsDir, `${name}-hold-hints.png`), { fullPage: false });
   await shotHintFrames(page, artifactsDir, name, 'hold');
@@ -927,51 +1007,37 @@ async function captureHoldHint(page, artifactsDir, name) {
   await flushInspectPointers(page);
   writeFileSync(
     join(artifactsDir, `${name}-hold-geometry.txt`),
-    `${before}\n${whilePressing}\n`,
+    `${before}\n${whilePressing}\n${captionLine}\n`,
     'utf8',
   );
   return { holdText, holdPe, statusText };
 }
 
-async function writeHintLog(artifactsDir, name, pinch, hold) {
+async function writeHintLog(artifactsDir, name, hold) {
   writeFileSync(
     join(artifactsDir, `${name}-hints.txt`),
     [
-      `pinch="${pinch?.pinchText ?? '(dismissed)'}" pointer-events=${pinch?.pinchPe ?? 'n/a'}`,
       `hold="${hold.holdText}" pointer-events=${hold.holdPe} placement=below`,
       `status="${hold.statusText ?? ''}"`,
-      `sequence=pinch-then-hold`,
-      `pinch-frames=0,400,800ms hold-frames=0,400,800ms`,
+      `sequence=hold-immediate`,
+      `hold-frames=0,400,800ms`,
     ].join('\n') + '\n',
     'utf8',
   );
 }
 
-async function captureSequencedHints(page, artifactsDir, portraitName, landscapeName, portraitSize, landscapeSize) {
-  await page.getByTestId('inspect-pinch-hint').waitFor({ state: 'visible', timeout: 5_000 });
-  // Landscape still first, while the pinch overlay is still on-screen, then portrait still.
-  await page.setViewportSize(landscapeSize);
-  await page.waitForTimeout(120);
-  const landscapePinch = await capturePinchHint(page, artifactsDir, landscapeName);
+async function captureHoldHints(page, artifactsDir, portraitName, landscapeName, portraitSize, landscapeSize) {
+  await page.getByTestId('inspect-hold-hint').waitFor({ state: 'visible', timeout: 12_000 });
+  await assertNoPinchOverlay(page, 'results initial');
   await page.setViewportSize(portraitSize);
   await page.waitForTimeout(120);
-  let portraitPinch = null;
-  try {
-    portraitPinch = await capturePinchHint(page, artifactsDir, portraitName);
-  } catch (err) {
-    writeFileSync(
-      join(artifactsDir, `${portraitName}-pinch-hints.txt`),
-      `SKIP portrait pinch frames: ${err.message}\n`,
-      'utf8',
-    );
-  }
   const portraitHold = await captureHoldHint(page, artifactsDir, portraitName);
-  await writeHintLog(artifactsDir, portraitName, portraitPinch, portraitHold);
+  await writeHintLog(artifactsDir, portraitName, portraitHold);
   await page.setViewportSize(landscapeSize);
   await page.waitForTimeout(120);
   const landscapeHold = await captureHoldHint(page, artifactsDir, landscapeName);
-  await writeHintLog(artifactsDir, landscapeName, landscapePinch, landscapeHold);
-  return { portraitPinch, portraitHold, landscapePinch, landscapeHold };
+  await writeHintLog(artifactsDir, landscapeName, landscapeHold);
+  return { portraitHold, landscapeHold };
 }
 
 async function measureAndShotResults(page, artifactsDir, name) {
@@ -998,6 +1064,13 @@ async function driveInspectScan(page, artifactsDir) {
   await page.getByTestId('baseline-status-pill').getByText(IT.baselineEstablished).waitFor({
     timeout: 15_000,
   });
+  await captureAppHeaderOrientations(
+    page,
+    artifactsDir,
+    'inspect-scan-360',
+    { width: 360, height: 800 },
+    { width: 800, height: 360 },
+  );
   // First capture after a persisted baseline must compare, not overwrite (PR #6 / STAB-05).
   await page.getByRole('button', { name: IT.pickFromGallery }).click();
   await page.getByTestId('gallery-input').setInputFiles(CAPTURE_FIXTURE);
@@ -1017,7 +1090,7 @@ async function driveInspectScan(page, artifactsDir) {
   const metrics = [];
   const zoomScales = {};
   const overflowRows = [];
-  await captureSequencedHints(
+  await captureHoldHints(
     page,
     artifactsDir,
     'inspect-scan-390x844',
@@ -1087,7 +1160,7 @@ async function driveMultiShelf(page, artifactsDir) {
   return { shelf: 2 };
 }
 
-async function reachInspectResults(page, artifactsDir) {
+async function reachInspectResults(page, artifactsDir, headerSizes) {
   await waitForCameraIdle(page);
   await waitForShelfHydrated(page);
   if (await page.getByTestId('baseline-status-pill').getByText(IT.baselineNotSet).isVisible().catch(() => false)) {
@@ -1104,6 +1177,15 @@ async function reachInspectResults(page, artifactsDir) {
   await page.getByTestId('baseline-status-pill').getByText(IT.baselineEstablished).waitFor({
     timeout: 15_000,
   });
+  if (headerSizes) {
+    await captureAppHeaderOrientations(
+      page,
+      artifactsDir,
+      headerSizes.prefix,
+      headerSizes.portrait,
+      headerSizes.landscape,
+    );
+  }
   await page.getByRole('button', { name: IT.pickFromGallery }).click();
   await page.getByTestId('gallery-input').setInputFiles(CAPTURE_FIXTURE);
   await page.getByRole('button', { name: IT.finishInspection }).waitFor({
@@ -1114,7 +1196,6 @@ async function reachInspectResults(page, artifactsDir) {
 
 async function driveInspectScanOnDevice(page, artifactsDir, device) {
   mkdirSync(artifactsDir, { recursive: true });
-  await reachInspectResults(page, artifactsDir);
   const slug = deviceSlug(device.name);
   const portraitLabel = `${slug}-portrait`;
   const landscapeLabel = `${slug}-landscape`;
@@ -1123,7 +1204,12 @@ async function driveInspectScanOnDevice(page, artifactsDir, device) {
   if (!portraitSpec?.viewport || !landscapeSpec?.viewport) {
     throw new Error(`No Playwright portrait/landscape profile for ${device.name}`);
   }
-  await captureSequencedHints(
+  await reachInspectResults(page, artifactsDir, {
+    prefix: `inspect-scan-${slug}`,
+    portrait: portraitSpec.viewport,
+    landscape: landscapeSpec.viewport,
+  });
+  await captureHoldHints(
     page,
     artifactsDir,
     `inspect-scan-${portraitLabel}`,

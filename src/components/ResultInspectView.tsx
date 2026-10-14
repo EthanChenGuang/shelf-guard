@@ -1,9 +1,8 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   Check,
   CheckCircle2,
-  Eye,
   Gauge,
   Layers,
   Share2,
@@ -40,27 +39,11 @@ interface ResultInspectViewProps {
   lang: Language;
 }
 
-const PINCH_HINT_MS = 8000;
-const PINCH_HINT_REDUCED_MS = 1600;
-const HINT_FADE_MS = 400;
 const HOLD_RING = 138.2;
 
 function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
 }
-
-const PinchHintGraphic: React.FC = () => (
-  <svg viewBox="0 0 88 88" className="h-24 w-24 drop-shadow-[0_2px_10px_rgba(0,0,0,0.75)]" aria-hidden="true">
-    <g className="inspect-pinch-finger-a">
-      <circle cx="28" cy="32" r="12" fill="white" stroke="#0F172A" strokeWidth="3" />
-      <circle cx="28" cy="32" r="4.5" fill="#0F172A" />
-    </g>
-    <g className="inspect-pinch-finger-b">
-      <circle cx="60" cy="56" r="12" fill="white" stroke="#0F172A" strokeWidth="3" />
-      <circle cx="60" cy="56" r="4.5" fill="#0F172A" />
-    </g>
-  </svg>
-);
 
 const HoldHintGraphic: React.FC = () => (
   <svg
@@ -124,35 +107,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
     return () => setInspectZoomed(false);
   }, [isZoomed]);
   const isBlinkingBaseline = hold.isBlinking;
-  const [hintPhase, setHintPhase] = useState<'pinch' | 'hold'>('pinch');
-  const [pinchHintFading, setPinchHintFading] = useState(false);
-  const pinchHintGoneRef = useRef(false);
-  const pinchHintHideRef = useRef<number | null>(null);
   const reducedMotion = prefersReducedMotion();
-
-  useEffect(() => {
-    const showMs = prefersReducedMotion() ? PINCH_HINT_REDUCED_MS : PINCH_HINT_MS;
-    const fadeId = window.setTimeout(() => {
-      if (pinchHintGoneRef.current) return;
-      setPinchHintFading(true);
-    }, showMs);
-    const holdId = window.setTimeout(() => {
-      pinchHintGoneRef.current = true;
-      setHintPhase('hold');
-    }, showMs + HINT_FADE_MS);
-    return () => {
-      window.clearTimeout(fadeId);
-      window.clearTimeout(holdId);
-      if (pinchHintHideRef.current != null) window.clearTimeout(pinchHintHideRef.current);
-    };
-  }, []);
-
-  const dismissPinchHint = () => {
-    if (pinchHintGoneRef.current) return;
-    pinchHintGoneRef.current = true;
-    setPinchHintFading(true);
-    pinchHintHideRef.current = window.setTimeout(() => setHintPhase('hold'), HINT_FADE_MS);
-  };
 
   // State for filtering by anomaly type ('ALL' = show all)
   const [filterType, setFilterType] = useState<'ALL' | DetectedAnomaly['type']>('ALL');
@@ -312,7 +267,6 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
           data-inspect-zoomed={isZoomed ? 'true' : 'false'}
           style={{ ...frameBoxStyle(baseline.imageDimensions, 'var(--inspect-frame-max)'), touchAction: 'none' }}
           onMouseDown={(e) => {
-            dismissPinchHint();
             hold.begin(e.clientX, e.clientY);
           }}
           onMouseMove={(e) => {
@@ -321,7 +275,6 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
           onMouseUp={() => hold.end()}
           onMouseLeave={() => hold.cancel()}
           onTouchStart={(e) => {
-            dismissPinchHint();
             touchHandlers.onTouchStart(e);
             if (e.touches.length >= 2) {
               hold.cancel();
@@ -349,7 +302,6 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
             hold.cancel();
           }}
           onPointerDown={(e) => {
-            dismissPinchHint();
             pointerHandlers.onPointerDown(e);
           }}
           onPointerMove={(e) => pointerHandlers.onPointerMove(e)}
@@ -371,53 +323,36 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
               showingBaseline={isBlinkingBaseline}
             />
           </div>
-          {hintPhase === 'pinch' && (
-            <div
-              data-testid="inspect-pinch-hint"
-              data-hint-fading={pinchHintFading ? 'true' : 'false'}
-              data-reduced-motion={reducedMotion ? 'true' : 'false'}
-              className="inspect-pinch-hint absolute inset-0 z-10 pointer-events-none flex flex-col items-center justify-center gap-3 px-4"
-              aria-hidden="true"
-            >
-              <PinchHintGraphic />
-              <span className="inspect-hint-pill max-w-[90%] rounded-full bg-black/80 px-4 py-2 text-center text-sm font-bold leading-snug text-white shadow-lg ring-2 ring-white/90 backdrop-blur-sm">
-                {t.pinchToZoom}
-              </span>
-            </div>
-          )}
         </div>
         <div
-          className="inspect-hold-strip z-[70] flex w-full shrink-0 items-center justify-center px-3"
+          className="inspect-hold-strip z-[70] flex w-full shrink-0 items-center justify-center px-2"
           data-testid="inspect-hold-strip"
         >
-          {hintPhase === 'hold' && (
+          <div
+            data-testid="inspect-hold-hint"
+            data-hint-phase="hold"
+            data-hold-placement="below"
+            data-reduced-motion={reducedMotion ? 'true' : 'false'}
+            role="status"
+            className="inspect-hold-hint pointer-events-none flex w-full min-w-0 flex-row flex-nowrap items-center justify-center py-1.5"
+          >
             <div
-              data-testid="inspect-hold-hint"
-              data-hint-phase="hold"
-              data-hold-placement="below"
-              data-reduced-motion={reducedMotion ? 'true' : 'false'}
-              role="status"
-              className="inspect-hold-hint pointer-events-none flex flex-row items-center justify-center gap-2 py-1.5"
+              className={`inspect-hint-pill flex min-w-0 max-w-full items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-bold leading-none shadow-lg ring-2 backdrop-blur-sm ${
+                isBlinkingBaseline
+                  ? 'bg-emerald-950/85 text-emerald-50 ring-emerald-200/90'
+                  : 'bg-black/80 text-white ring-white/90'
+              }`}
             >
-              {!isBlinkingBaseline && <HoldHintGraphic />}
-              <div
-                className={`inspect-hint-pill flex max-w-[min(100%,24rem)] items-center gap-2 rounded-full px-4 py-2 text-sm font-bold leading-snug shadow-lg ring-2 backdrop-blur-sm ${
-                  isBlinkingBaseline
-                    ? 'bg-emerald-950/85 text-emerald-50 ring-emerald-200/90'
-                    : 'bg-black/80 text-white ring-white/90'
-                }`}
-              >
-                {isBlinkingBaseline ? (
-                  <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-300" />
-                ) : (
-                  <Eye className="h-5 w-5 shrink-0 text-white" />
-                )}
-                <span className="text-center">
-                  {isBlinkingBaseline ? t.goldenBaseline : t.pressHoldCompare}
-                </span>
-              </div>
+              {isBlinkingBaseline ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-300" />
+              ) : (
+                <HoldHintGraphic />
+              )}
+              <span className="inspect-hint-caption">
+                {isBlinkingBaseline ? t.goldenBaseline : t.pressHoldCompare}
+              </span>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
