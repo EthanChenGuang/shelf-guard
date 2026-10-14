@@ -145,6 +145,29 @@ describe('ResultInspectView inline pinch-zoom', () => {
     expect(Number(viewport.getAttribute('data-zoom-scale'))).toBeGreaterThan(1);
   });
 
+  it('marks the frame zoomed on two-finger start before the scale changes', () => {
+    render(<ResultInspectView {...baseProps} />);
+    const viewport = screen.getByTestId('inspect-image-viewport');
+    fireEvent.touchStart(viewport, {
+      touches: [
+        { identifier: 0, clientX: 100, clientY: 100 },
+        { identifier: 1, clientX: 100, clientY: 160 },
+      ],
+    });
+
+    expect(Number(viewport.getAttribute('data-zoom-scale'))).toBe(1);
+    expect(viewport.getAttribute('data-inspect-zoomed')).toBe('true');
+    expect(viewport.className).toContain('z-[60]');
+    expect(viewport.className).toContain('overflow-visible');
+    expect(document.documentElement.getAttribute('data-inspect-zoomed')).toBe('true');
+
+    fireEvent.touchEnd(viewport, { touches: [] });
+    expect(Number(viewport.getAttribute('data-zoom-scale'))).toBe(1);
+    expect(viewport.getAttribute('data-inspect-zoomed')).toBe('false');
+    expect(viewport.className).not.toContain('z-[60]');
+    expect(document.documentElement.getAttribute('data-inspect-zoomed')).toBeNull();
+  });
+
   it('never clips the inspect transform ancestor, at rest or while zoomed', () => {
     render(<ResultInspectView {...baseProps} />);
     const viewport = screen.getByTestId('inspect-image-viewport');
