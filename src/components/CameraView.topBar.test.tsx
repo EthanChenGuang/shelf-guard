@@ -54,8 +54,12 @@ describe('CameraView PRD top bar (CAM-04)', () => {
     render(<CameraView {...baseProps} lang="cn" />);
 
     const title = screen.getByTestId('app-title');
-    expect(title).toHaveTextContent(APP_NAME);
+    expect(APP_NAME).toBe('Online Marketplace');
+    expect(title).toHaveTextContent('Online Marketplace');
     expect(title).toHaveTextContent(I18N.cn.appSubtitle);
+    expect(title.querySelector('img')?.getAttribute('alt')).toBe('Online Marketplace');
+    expect(title.className).toMatch(/flex-nowrap/);
+    expect(title.querySelector('.app-title-name')?.className).toMatch(/whitespace-nowrap/);
   });
 
   it('renders IT on language toggle when lang is it', () => {

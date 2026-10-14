@@ -61,11 +61,11 @@ export const INITIAL_MOCK_ANOMALIES: DetectedAnomaly[] = [
 ];
 
 /** Brand name, the same in every language (page title, manifest, camera header). */
-export const APP_NAME = 'Online Market';
+export const APP_NAME = 'Online Marketplace';
 
 export const I18N = {
   it: {
-    appTitle: 'Online Market Ispezione Scaffali',
+    appTitle: 'Online Marketplace Ispezione Scaffali',
     appSubtitle: 'Ispezione Scaffali',
     baselineEstablished: 'Riferimento pronto',
     baselineNotSet: 'Nessun riferimento',
@@ -121,7 +121,7 @@ export const I18N = {
     cameraPermissionDenied: 'Accesso alla fotocamera negato',
     retryCamera: 'Riprova fotocamera',
     cameraErrorIosGuide:
-      'Apri la pagina in Safari → Impostazioni → [Online Market] → consenti la Fotocamera, oppure reinstalla da Safari con "Aggiungi alla schermata Home".',
+      'Apri la pagina in Safari → Impostazioni → [Online Marketplace] → consenti la Fotocamera, oppure reinstalla da Safari con "Aggiungi alla schermata Home".',
     offlineMode: 'Modalità offline · cache locale pronta',
     switchCamera: 'Passa alla fotocamera anteriore / posteriore',
     pickFromGallery: "Scegli la foto dell'ispezione dalla galleria",
@@ -157,7 +157,7 @@ export const I18N = {
     exitFullscreen: 'Esci da schermo intero',
   },
   cn: {
-    appTitle: 'Online Market 展架即时巡检',
+    appTitle: 'Online Marketplace 展架即时巡检',
     appSubtitle: '展架即时巡检',
     baselineEstablished: '基准图 (已建立)',
     baselineNotSet: '基准图 (未建立)',
@@ -212,7 +212,7 @@ export const I18N = {
     cameraPermissionDenied: '无法访问摄像头',
     retryCamera: '重试摄像头',
     cameraErrorIosGuide:
-      '请在 Safari 中打开本页 → 设置 → [Online Market] → 允许相机；或从 Safari「添加到主屏幕」重新安装。',
+      '请在 Safari 中打开本页 → 设置 → [Online Marketplace] → 允许相机；或从 Safari「添加到主屏幕」重新安装。',
     offlineMode: '离线模式 · 本地缓存已就绪',
     switchCamera: '切换前/后置摄像头',
     pickFromGallery: '从相册选择巡检照片',
@@ -246,7 +246,7 @@ export const I18N = {
     exitFullscreen: '退出全屏',
   },
   en: {
-    appTitle: 'Online Market Planogram Audit',
+    appTitle: 'Online Marketplace Planogram Audit',
     appSubtitle: 'Planogram Audit',
     baselineEstablished: 'Baseline (Set)',
     baselineNotSet: 'Baseline (Empty)',
@@ -302,7 +302,7 @@ export const I18N = {
     cameraPermissionDenied: 'Camera access denied',
     retryCamera: 'Retry camera',
     cameraErrorIosGuide:
-      'Open in Safari → Settings → [Online Market] → allow Camera, or reinstall via Safari Add to Home Screen.',
+      'Open in Safari → Settings → [Online Marketplace] → allow Camera, or reinstall via Safari Add to Home Screen.',
     offlineMode: 'Offline mode · Local cache ready',
     switchCamera: 'Switch front / rear camera',
     pickFromGallery: 'Choose inspection photo from library',
