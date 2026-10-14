@@ -415,47 +415,120 @@ function formatZoomOverflow(label, info) {
     `layer=${info.layer.w.toFixed(0)}x${info.layer.h.toFixed(0)}@${info.layer.x.toFixed(0)},${info.layer.y.toFixed(0)}`,
     `beyondFrame=${info.extendsBeyondFrame}`,
     `clips=${info.clips.length}`,
+    `clipList=${JSON.stringify(info.clips)}`,
+    `contain=${info.contain}`,
+    `hit=${info.hit}`,
     `shortCover=${(info.shortCover * 100).toFixed(0)}%`,
     `area=${(info.coverage * 100).toFixed(0)}%`,
   ].join(' ');
 }
 
-async function assertUnclippedWholeScreenZoom(page, label) {
-  const info = await page.evaluate(() => {
+const ZOOM_HIT_TARGETS = new Set([
+  'inspect-comparison-image',
+  'inspect-shelf-canvas',
+  'inspect-image-zoom-layer',
+]);
+
+async function readInspectFrameRect(page) {
+  return page.locator('[data-testid="inspect-image-viewport"]').evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return { x: r.x, y: r.y, w: r.width, h: r.height };
+  });
+}
+
+async function assertUnclippedWholeScreenZoom(page, label, originalFrame) {
+  const info = await page.evaluate((orig) => {
     const frame = document.querySelector('[data-testid="inspect-image-viewport"]');
     const layer = document.querySelector('[data-testid="inspect-image-zoom-layer"]');
     if (!frame || !layer) return { error: 'missing frame or zoom layer' };
+    if (!orig) return { error: 'missing original frame rect' };
     const fr = frame.getBoundingClientRect();
     const lr = layer.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
+    const clipValues = ['hidden', 'clip', 'auto', 'scroll'];
     const clips = [];
     let el = layer.parentElement;
     while (el) {
       const st = getComputedStyle(el);
-      const hidden = ['hidden', 'clip'];
-      if (hidden.includes(st.overflowX) || hidden.includes(st.overflowY) || hidden.includes(st.overflow)) {
+      const overflows = [st.overflowX, st.overflowY, st.overflow];
+      if (overflows.some((value) => clipValues.includes(value))) {
         clips.push({
           id: el.id || el.getAttribute('data-testid') || el.tagName,
+          overflow: st.overflow,
           overflowX: st.overflowX,
           overflowY: st.overflowY,
         });
       }
       el = el.parentElement;
     }
+    const contain = getComputedStyle(frame).contain;
     const intersectW = Math.max(0, Math.min(lr.right, vw) - Math.max(lr.left, 0));
     const intersectH = Math.max(0, Math.min(lr.bottom, vh) - Math.max(lr.top, 0));
     const coverage = vw * vh > 0 ? (intersectW * intersectH) / (vw * vh) : 0;
     const shortCover = vh <= vw ? intersectH / vh : intersectW / vw;
     const geomPossible =
       vw * vh > 0 ? (Math.min(lr.width, vw) * Math.min(lr.height, vh)) / (vw * vh) : 0;
+    const cx = orig.x + orig.w / 2;
+    const cy = orig.y + orig.h / 2;
+    const candidates = [
+      { x: cx, y: orig.y - 12 },
+      { x: cx, y: (Math.max(lr.top, 0) + orig.y) / 2 },
+      { x: orig.x - 12, y: cy },
+      { x: (Math.max(lr.left, 0) + orig.x) / 2, y: cy },
+      { x: orig.x + orig.w + 12, y: cy },
+      { x: (orig.x + orig.w + Math.min(lr.right, vw)) / 2, y: cy },
+      { x: cx, y: orig.y + orig.h + 12 },
+      { x: cx, y: (orig.y + orig.h + Math.min(lr.bottom, vh)) / 2 },
+    ];
+    const allowed = ['inspect-comparison-image', 'inspect-shelf-canvas', 'inspect-image-zoom-layer'];
+    const hitOf = (node) => {
+      let cur = node;
+      while (cur) {
+        const id = cur.getAttribute?.('data-testid');
+        if (id && allowed.includes(id)) return id;
+        cur = cur.parentElement;
+      }
+      return node?.getAttribute?.('data-testid') || node?.tagName || 'none';
+    };
+    const attempts = [];
+    let hit = 'none';
+    for (const point of candidates) {
+      const inViewport = point.x >= 1 && point.y >= 1 && point.x <= vw - 2 && point.y <= vh - 2;
+      const outsideFrame =
+        point.x < orig.x - 0.5 ||
+        point.x > orig.x + orig.w + 0.5 ||
+        point.y < orig.y - 0.5 ||
+        point.y > orig.y + orig.h + 0.5;
+      const insideLayer =
+        point.x > lr.left + 0.5 &&
+        point.x < lr.right - 0.5 &&
+        point.y > lr.top + 0.5 &&
+        point.y < lr.bottom - 0.5;
+      if (!inViewport || !outsideFrame || !insideLayer) {
+        attempts.push({ x: Number(point.x.toFixed(1)), y: Number(point.y.toFixed(1)), skip: true });
+        continue;
+      }
+      const node = document.elementFromPoint(point.x, point.y);
+      const target = hitOf(node);
+      attempts.push({ x: Number(point.x.toFixed(1)), y: Number(point.y.toFixed(1)), hit: target });
+      if (allowed.includes(target)) {
+        hit = target;
+        break;
+      }
+      if (hit === 'none') hit = target;
+    }
     return {
       scale: Number(frame.getAttribute('data-zoom-scale') || '1'),
       zoomedAttr: frame.getAttribute('data-inspect-zoomed'),
       frame: { x: fr.x, y: fr.y, w: fr.width, h: fr.height },
+      originalFrame: orig,
       layer: { x: lr.x, y: lr.y, w: lr.width, h: lr.height },
       viewport: { w: vw, h: vh },
       clips,
+      contain,
+      hit,
+      attempts,
       coverage,
       shortCover,
       geomPossible,
@@ -467,7 +540,7 @@ async function assertUnclippedWholeScreenZoom(page, label) {
         lr.top < fr.top - 2 &&
         lr.bottom > fr.bottom + 2,
     };
-  });
+  }, originalFrame);
   if (info.error) throw new Error(`${label}: ${info.error}`);
   if (info.scale < 2.4) {
     throw new Error(`${label}: expected scale ~2.75, got ${info.scale}`);
@@ -480,9 +553,17 @@ async function assertUnclippedWholeScreenZoom(page, label) {
       `${label}: zoomed image is still clipped to the frame (frame ${info.frame.w.toFixed(0)}x${info.frame.h.toFixed(0)} layer ${info.layer.w.toFixed(0)}x${info.layer.h.toFixed(0)} at ${info.layer.x.toFixed(0)},${info.layer.y.toFixed(0)})`,
     );
   }
+  if (String(info.contain || '').includes('paint')) {
+    throw new Error(`${label}: inspect-image-viewport contain includes paint (${info.contain})`);
+  }
   if (info.clips.length) {
     throw new Error(
       `${label}: zoomed image is clipped by ancestors ${JSON.stringify(info.clips)}`,
+    );
+  }
+  if (!ZOOM_HIT_TARGETS.has(info.hit)) {
+    throw new Error(
+      `${label}: elementFromPoint outside the original frame hit ${info.hit}, not the comparison image (${JSON.stringify(info.attempts)})`,
     );
   }
   // Area ≥70% is only possible when the scaled photo is that large (portrait).
@@ -606,6 +687,7 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
   if (flicker.showingBaseline) {
     throw new Error(`${name}: baseline was showing after a multi-touch pinch`);
   }
+  const originalFrame = await readInspectFrameRect(page);
   await dispatchPinch(page, selector, 400, 80);
   await dispatchPinch(page, selector, 80, 220);
   let scale = await viewport.getAttribute('data-zoom-scale');
@@ -650,7 +732,7 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
       );
     }
   });
-  const overflow = await assertUnclippedWholeScreenZoom(page, name);
+  const overflow = await assertUnclippedWholeScreenZoom(page, name, originalFrame);
   if ((await page.getByTestId('inspect-pinch-hint').count()) > 0) {
     const stillVisible = await page.getByTestId('inspect-pinch-hint').isVisible().catch(() => false);
     if (stillVisible) {
@@ -1070,12 +1152,18 @@ async function driveInspectScanOnDevice(page, artifactsDir, device) {
       scale: portraitZoom.scale,
       shortCover: portraitZoom.overflow.shortCover,
       clips: portraitZoom.overflow.clips.length,
+      clipList: portraitZoom.overflow.clips,
+      contain: portraitZoom.overflow.contain,
+      hit: portraitZoom.overflow.hit,
       beyondFrame: portraitZoom.overflow.extendsBeyondFrame,
     },
     landscape: {
       scale: landscapeZoom.scale,
       shortCover: landscapeZoom.overflow.shortCover,
       clips: landscapeZoom.overflow.clips.length,
+      clipList: landscapeZoom.overflow.clips,
+      contain: landscapeZoom.overflow.contain,
+      hit: landscapeZoom.overflow.hit,
       beyondFrame: landscapeZoom.overflow.extendsBeyondFrame,
     },
   };
@@ -1100,7 +1188,7 @@ async function driveInspectScanCrossPlatform(url, artifactsDir, { device: onlyDe
     );
     devicesOut.push(result);
     rows.push(
-      `${result.platform}/${result.engine} ${result.device} portrait scale=${result.portrait.scale} beyond=${result.portrait.beyondFrame} clips=${result.portrait.clips} short=${(result.portrait.shortCover * 100).toFixed(0)}% | landscape scale=${result.landscape.scale} beyond=${result.landscape.beyondFrame} clips=${result.landscape.clips} short=${(result.landscape.shortCover * 100).toFixed(0)}%`,
+      `${result.platform}/${result.engine} ${result.device} portrait scale=${result.portrait.scale} beyond=${result.portrait.beyondFrame} clips=${result.portrait.clips} clipList=${JSON.stringify(result.portrait.clipList)} contain=${result.portrait.contain} hit=${result.portrait.hit} short=${(result.portrait.shortCover * 100).toFixed(0)}% | landscape scale=${result.landscape.scale} beyond=${result.landscape.beyondFrame} clips=${result.landscape.clips} clipList=${JSON.stringify(result.landscape.clipList)} contain=${result.landscape.contain} hit=${result.landscape.hit} short=${(result.landscape.shortCover * 100).toFixed(0)}%`,
     );
   }
   writeFileSync(join(artifactsDir, 'cross-platform-report.txt'), `${rows.join('\n')}\n`, 'utf8');
