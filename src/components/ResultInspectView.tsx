@@ -304,8 +304,8 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
       <div className="relative w-full flex flex-col items-center">
         <div
           ref={viewportRef}
-          className={`relative mx-auto cursor-pointer touch-none ${
-            isZoomed ? 'z-[60] overflow-visible' : 'overflow-hidden'
+          className={`relative mx-auto cursor-pointer touch-none overflow-visible${
+            isZoomed ? ' z-[60]' : ''
           }`}
           data-testid="inspect-image-viewport"
           data-zoom-scale={transform.scale.toFixed(2)}
@@ -358,7 +358,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
         >
           <div
             data-testid="inspect-image-zoom-layer"
-            className="h-full w-full will-change-transform"
+            className="h-full w-full"
             style={style}
           >
             <InspectShelfCanvas
