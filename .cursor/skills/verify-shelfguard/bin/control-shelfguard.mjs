@@ -97,7 +97,7 @@ function doctor({ url = DEFAULT_URL, pidFile }) {
   }
   const html = spawnSync('curl', ['-sf', url], { encoding: 'utf8' });
   if (html.status !== 0) errors.push(`Could not fetch ${url} body`);
-  else if (!/Online Market|shelfguard/i.test(html.stdout) && !html.stdout.includes('root')) {
+  else if (!/Online Marketplace|shelfguard/i.test(html.stdout) && !html.stdout.includes('root')) {
     errors.push('Page body does not look like the ShelfGuard Vite shell');
   }
   if (pidFile) {
@@ -212,6 +212,74 @@ async function waitForShelfHydrated(page) {
     .getByTestId('baseline-status-pill')
     .getByText(/Riferimento pronto|Nessun riferimento/)
     .waitFor({ timeout: 15_000 });
+}
+
+async function captureAppHeader(page, artifactsDir, name) {
+  const title = page.getByTestId('app-title');
+  await title.waitFor({ state: 'visible', timeout: 10_000 });
+  const metrics = await title.evaluate((el) => {
+    const nameEl = el.querySelector('.app-title-name');
+    const subEl = el.querySelector('.app-title-subtitle');
+    const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
+    const nameText = (nameEl?.textContent ?? '').trim();
+    const rects = el.getClientRects();
+    const nameRects = nameEl?.getClientRects() ?? [];
+    const box = el.getBoundingClientRect();
+    return {
+      text,
+      nameText,
+      alt: el.querySelector('img')?.getAttribute('alt') ?? '',
+      whiteSpace: nameEl ? getComputedStyle(nameEl).whiteSpace : '',
+      rectCount: rects.length,
+      nameRectCount: nameRects.length,
+      width: Math.round(box.width),
+      height: Math.round(box.height),
+      inViewport: box.top >= 0 && box.left >= 0 && box.right <= window.innerWidth + 1 && box.bottom <= window.innerHeight + 1,
+    };
+  });
+  if (!metrics.nameText.includes('Online Marketplace')) {
+    throw new Error(`${name}: header missing Online Marketplace: ${metrics.text}`);
+  }
+  if (metrics.alt !== 'Online Marketplace') {
+    throw new Error(`${name}: icon alt=${metrics.alt} (expected Online Marketplace)`);
+  }
+  if (metrics.whiteSpace !== 'nowrap' || metrics.rectCount !== 1 || metrics.nameRectCount !== 1) {
+    throw new Error(
+      `${name}: header wrapped whiteSpace=${metrics.whiteSpace} rects=${metrics.rectCount} nameRects=${metrics.nameRectCount}`,
+    );
+  }
+  if (!metrics.inViewport) {
+    throw new Error(`${name}: header overflowed the viewport`);
+  }
+  const box = await title.boundingBox();
+  const pageSize = page.viewportSize();
+  const clip = box
+    ? {
+        x: Math.max(0, Math.floor(box.x) - 8),
+        y: Math.max(0, Math.floor(box.y) - 8),
+        width: Math.min(pageSize.width, Math.ceil(box.width) + 16),
+        height: Math.min(pageSize.height, Math.ceil(box.height) + 16),
+      }
+    : undefined;
+  await saveScreenshot(page, join(artifactsDir, `${name}-header.png`), { fullPage: false, clip });
+  writeFileSync(
+    join(artifactsDir, `${name}-header.txt`),
+    `${name} text="${metrics.text}" nowrap=${metrics.whiteSpace} rects=${metrics.rectCount} ${metrics.width}x${metrics.height} inViewport=${metrics.inViewport}\n`,
+    'utf8',
+  );
+  return metrics;
+}
+
+async function captureAppHeaderOrientations(page, artifactsDir, prefix, portraitSize, landscapeSize) {
+  const previous = page.viewportSize();
+  await page.setViewportSize(portraitSize);
+  await page.waitForTimeout(120);
+  const portrait = await captureAppHeader(page, artifactsDir, `${prefix}-portrait`);
+  await page.setViewportSize(landscapeSize);
+  await page.waitForTimeout(120);
+  const landscape = await captureAppHeader(page, artifactsDir, `${prefix}-landscape`);
+  if (previous) await page.setViewportSize(previous);
+  return { portrait, landscape };
 }
 
 async function driveEstablishBaseline(page, artifactsDir) {
@@ -914,6 +982,13 @@ async function driveInspectScan(page, artifactsDir) {
   await page.getByTestId('baseline-status-pill').getByText(IT.baselineEstablished).waitFor({
     timeout: 15_000,
   });
+  await captureAppHeaderOrientations(
+    page,
+    artifactsDir,
+    'inspect-scan-360',
+    { width: 360, height: 800 },
+    { width: 800, height: 360 },
+  );
   // First capture after a persisted baseline must compare, not overwrite (PR #6 / STAB-05).
   await page.getByRole('button', { name: IT.pickFromGallery }).click();
   await page.getByTestId('gallery-input').setInputFiles(CAPTURE_FIXTURE);
@@ -1003,7 +1078,7 @@ async function driveMultiShelf(page, artifactsDir) {
   return { shelf: 2 };
 }
 
-async function reachInspectResults(page, artifactsDir) {
+async function reachInspectResults(page, artifactsDir, headerSizes) {
   await waitForCameraIdle(page);
   await waitForShelfHydrated(page);
   if (await page.getByTestId('baseline-status-pill').getByText(IT.baselineNotSet).isVisible().catch(() => false)) {
@@ -1020,6 +1095,15 @@ async function reachInspectResults(page, artifactsDir) {
   await page.getByTestId('baseline-status-pill').getByText(IT.baselineEstablished).waitFor({
     timeout: 15_000,
   });
+  if (headerSizes) {
+    await captureAppHeaderOrientations(
+      page,
+      artifactsDir,
+      headerSizes.prefix,
+      headerSizes.portrait,
+      headerSizes.landscape,
+    );
+  }
   await page.getByRole('button', { name: IT.pickFromGallery }).click();
   await page.getByTestId('gallery-input').setInputFiles(CAPTURE_FIXTURE);
   await page.getByRole('button', { name: IT.finishInspection }).waitFor({
@@ -1030,7 +1114,6 @@ async function reachInspectResults(page, artifactsDir) {
 
 async function driveInspectScanOnDevice(page, artifactsDir, device) {
   mkdirSync(artifactsDir, { recursive: true });
-  await reachInspectResults(page, artifactsDir);
   const slug = deviceSlug(device.name);
   const portraitLabel = `${slug}-portrait`;
   const landscapeLabel = `${slug}-landscape`;
@@ -1039,6 +1122,11 @@ async function driveInspectScanOnDevice(page, artifactsDir, device) {
   if (!portraitSpec?.viewport || !landscapeSpec?.viewport) {
     throw new Error(`No Playwright portrait/landscape profile for ${device.name}`);
   }
+  await reachInspectResults(page, artifactsDir, {
+    prefix: `inspect-scan-${slug}`,
+    portrait: portraitSpec.viewport,
+    landscape: landscapeSpec.viewport,
+  });
   await captureHoldHints(
     page,
     artifactsDir,
