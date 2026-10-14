@@ -4,10 +4,10 @@ current_phase: 05
 current_phase_name: PRD UI & Multi-Shelf Experience
 current_plan: 7
 status: verifying
-stopped_at: "Completed quick task 261012-hld: hold hint and reference status below the photo"
-last_updated: "2026-10-12T21:16:00.000Z"
-last_activity: 2026-10-12
-last_activity_desc: Completed quick task 261012-hld hold hint and reference status below the photo
+stopped_at: "Completed quick task 261014-ts2: prepend zoom phrase to one-line hold-to-reference hint"
+last_updated: "2026-10-14T21:50:00.000Z"
+last_activity: 2026-10-14
+last_activity_desc: Completed quick task 261014-ts2 prepend zoom phrase to one-line hold-to-reference hint
 state_head: 00e3ca6d3ae55b66613148b6d42d60ecdd23cf5e
 progress:
   total_phases: 5
@@ -163,6 +163,7 @@ None yet.
 | 261012-qce | Restore whole-screen results pinch-zoom: zoomed comparison image overflows the frame over the phone, not clipped to overflow-hidden | 2026-10-12 | 91fc03e | [261012-qce-restore-whole-screen-results-pinch-zoom-](./quick/261012-qce-restore-whole-screen-results-pinch-zoom-/) |
 | 261012-r7i | Sequenced animated pinch then hold-to-reference hints (finger+ring), pointer-events none, Italian copy, reduced-motion; iOS+Android portrait/landscape verify | 2026-10-12 | b8b5921 | [261012-r7i-add-animated-two-finger-pinch-zoom-hint-](./quick/261012-r7i-add-animated-two-finger-pinch-zoom-hint-/) |
 | 261012-hld | Move hold hint and viewing-reference badge below the comparison image so they never cover the photo; landscape shrinks the frame to fit | 2026-10-12 | 40322ba | [261012-hld-move-hold-hint-below-image](./quick/261012-hld-move-hold-hint-below-image/) |
+| 261014-ts2 | Prepend zoom phrase to hold-to-reference hint (it/zh/en); keep one line on phones portrait+landscape | 2026-10-14 | 545b9cd | [261014-ts2-prepend-zoom-phrase-to-hold-to-reference](./quick/261014-ts2-prepend-zoom-phrase-to-hold-to-reference/) |
 
 ## Deferred Items
 
@@ -176,4 +177,4 @@ Last session: 2026-09-25T17:51:01.597Z
 Stopped at: Completed quick task 260925-r3s: tap-to-focus camera control
 Resume file: None
 
-Last activity: 2026-10-12 - Completed quick task 261012-hld: hold hint and reference status below the photo
+Last activity: 2026-10-14 - Completed quick task 261014-ts2: prepend zoom phrase to one-line hold-to-reference hint
