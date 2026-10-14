@@ -23,7 +23,6 @@ const IT = {
   finishInspection: "Conferma e concludi l'ispezione",
   auditResult: "Risultato dell'ispezione",
   pickFromGallery: "Scegli la foto dell'ispezione dalla galleria",
-  pinchToZoom: 'Pizzica con due dita per ingrandire',
   pressHoldCompare: 'Puoi ingrandire · Tieni premuto per vedere il riferimento',
   goldenBaseline: 'Stai vedendo la foto di riferimento',
 };
@@ -651,12 +650,7 @@ async function pinchAndBlinkViewport(page, artifactsDir, name) {
     }
   });
   const overflow = await assertUnclippedWholeScreenZoom(page, name);
-  if ((await page.getByTestId('inspect-pinch-hint').count()) > 0) {
-    const stillVisible = await page.getByTestId('inspect-pinch-hint').isVisible().catch(() => false);
-    if (stillVisible) {
-      throw new Error(`${name}: pinch hint still visible after pinch (must not block zoom)`);
-    }
-  }
+  await assertNoPinchOverlay(page, `${name} after-pinch`);
   await saveScreenshot(page, join(artifactsDir, `${name}-zoom.png`), { fullPage: false });
   await dispatchHoldStart(page, selector);
   await page.waitForTimeout(550);
@@ -823,42 +817,19 @@ async function shotHintFrames(page, artifactsDir, name, kind) {
   }
 }
 
-async function capturePinchHint(page, artifactsDir, name) {
-  const pinch = page.getByTestId('inspect-pinch-hint');
-  await pinch.waitFor({ state: 'visible', timeout: 5_000 });
-  if (await page.getByTestId('inspect-hold-hint').isVisible().catch(() => false)) {
-    throw new Error(`${name}: hold hint overlapped the pinch hint`);
+async function assertNoPinchOverlay(page, name) {
+  const count = await page.getByTestId('inspect-pinch-hint').count();
+  if (count === 0) return;
+  const visible = await page.getByTestId('inspect-pinch-hint').isVisible().catch(() => false);
+  if (visible) {
+    throw new Error(`${name}: pinch overlay must not appear on inspect results`);
   }
-  const pinchPe = await pinch.evaluate((el) => getComputedStyle(el).pointerEvents);
-  if (pinchPe !== 'none') {
-    throw new Error(`${name}: pinch hint pointer-events=${pinchPe} (expected none)`);
-  }
-  const pinchText = ((await pinch.textContent()) ?? '').trim();
-  if (!pinchText.includes(IT.pinchToZoom)) {
-    throw new Error(`${name}: pinch hint missing Italian copy: ${pinchText}`);
-  }
-  const fading = await pinch.getAttribute('data-hint-fading');
-  if (fading === 'true') {
-    throw new Error(`${name}: pinch hint already fading before animation frames`);
-  }
-  await saveScreenshot(page, join(artifactsDir, `${name}-pinch-hints.png`), { fullPage: false });
-  await shotHintFrames(page, artifactsDir, name, 'pinch');
-  copyFileSync(join(artifactsDir, `${name}-pinch-hints.png`), join(artifactsDir, `${name}-hints.png`));
-  for (let i = 0; i < 3; i += 1) {
-    copyFileSync(
-      join(artifactsDir, `${name}-pinch-frame-${i}.png`),
-      join(artifactsDir, `${name}-hints-frame-${i}.png`),
-    );
-  }
-  return { pinchText, pinchPe };
 }
 
 async function captureHoldHint(page, artifactsDir, name) {
+  await assertNoPinchOverlay(page, `${name} before-hold-capture`);
   const hold = page.getByTestId('inspect-hold-hint');
   await hold.waitFor({ state: 'visible', timeout: 12_000 });
-  if (await page.getByTestId('inspect-pinch-hint').isVisible().catch(() => false)) {
-    throw new Error(`${name}: pinch hint still visible during hold`);
-  }
   const holdPe = await hold.evaluate((el) => getComputedStyle(el).pointerEvents);
   if (holdPe !== 'none') {
     throw new Error(`${name}: hold hint pointer-events=${holdPe} (expected none)`);
@@ -892,45 +863,31 @@ async function captureHoldHint(page, artifactsDir, name) {
   return { holdText, holdPe, statusText };
 }
 
-async function writeHintLog(artifactsDir, name, pinch, hold) {
+async function writeHintLog(artifactsDir, name, hold) {
   writeFileSync(
     join(artifactsDir, `${name}-hints.txt`),
     [
-      `pinch="${pinch?.pinchText ?? '(dismissed)'}" pointer-events=${pinch?.pinchPe ?? 'n/a'}`,
       `hold="${hold.holdText}" pointer-events=${hold.holdPe} placement=below`,
       `status="${hold.statusText ?? ''}"`,
-      `sequence=pinch-then-hold`,
-      `pinch-frames=0,400,800ms hold-frames=0,400,800ms`,
+      `sequence=hold-immediate`,
+      `hold-frames=0,400,800ms`,
     ].join('\n') + '\n',
     'utf8',
   );
 }
 
-async function captureSequencedHints(page, artifactsDir, portraitName, landscapeName, portraitSize, landscapeSize) {
-  await page.getByTestId('inspect-pinch-hint').waitFor({ state: 'visible', timeout: 5_000 });
-  // Landscape still first, while the pinch overlay is still on-screen, then portrait still.
-  await page.setViewportSize(landscapeSize);
-  await page.waitForTimeout(120);
-  const landscapePinch = await capturePinchHint(page, artifactsDir, landscapeName);
+async function captureHoldHints(page, artifactsDir, portraitName, landscapeName, portraitSize, landscapeSize) {
+  await page.getByTestId('inspect-hold-hint').waitFor({ state: 'visible', timeout: 12_000 });
+  await assertNoPinchOverlay(page, 'results initial');
   await page.setViewportSize(portraitSize);
   await page.waitForTimeout(120);
-  let portraitPinch = null;
-  try {
-    portraitPinch = await capturePinchHint(page, artifactsDir, portraitName);
-  } catch (err) {
-    writeFileSync(
-      join(artifactsDir, `${portraitName}-pinch-hints.txt`),
-      `SKIP portrait pinch frames: ${err.message}\n`,
-      'utf8',
-    );
-  }
   const portraitHold = await captureHoldHint(page, artifactsDir, portraitName);
-  await writeHintLog(artifactsDir, portraitName, portraitPinch, portraitHold);
+  await writeHintLog(artifactsDir, portraitName, portraitHold);
   await page.setViewportSize(landscapeSize);
   await page.waitForTimeout(120);
   const landscapeHold = await captureHoldHint(page, artifactsDir, landscapeName);
-  await writeHintLog(artifactsDir, landscapeName, landscapePinch, landscapeHold);
-  return { portraitPinch, portraitHold, landscapePinch, landscapeHold };
+  await writeHintLog(artifactsDir, landscapeName, landscapeHold);
+  return { portraitHold, landscapeHold };
 }
 
 async function measureAndShotResults(page, artifactsDir, name) {
@@ -976,7 +933,7 @@ async function driveInspectScan(page, artifactsDir) {
   const metrics = [];
   const zoomScales = {};
   const overflowRows = [];
-  await captureSequencedHints(
+  await captureHoldHints(
     page,
     artifactsDir,
     'inspect-scan-390x844',
@@ -1082,7 +1039,7 @@ async function driveInspectScanOnDevice(page, artifactsDir, device) {
   if (!portraitSpec?.viewport || !landscapeSpec?.viewport) {
     throw new Error(`No Playwright portrait/landscape profile for ${device.name}`);
   }
-  await captureSequencedHints(
+  await captureHoldHints(
     page,
     artifactsDir,
     `inspect-scan-${portraitLabel}`,
