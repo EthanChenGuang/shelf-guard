@@ -98,9 +98,9 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   const t = I18N[lang];
 
   const viewportRef = useRef<HTMLDivElement>(null);
-  const { transform, style, touchHandlers, pointerHandlers } = usePinchPanZoom(viewportRef);
+  const { transform, style, touchHandlers, pointerHandlers, isPinching } = usePinchPanZoom(viewportRef);
   const hold = useBlinkCompareHold();
-  const isZoomed = transform.scale > 1.01;
+  const isZoomed = transform.scale > 1.01 || isPinching;
 
   useLayoutEffect(() => {
     setInspectZoomed(isZoomed);
@@ -259,8 +259,8 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
       <div className="relative w-full flex flex-col items-center">
         <div
           ref={viewportRef}
-          className={`relative mx-auto cursor-pointer touch-none ${
-            isZoomed ? 'z-[60] overflow-visible' : 'overflow-hidden'
+          className={`relative mx-auto cursor-pointer touch-none overflow-visible${
+            isZoomed ? ' z-[60]' : ''
           }`}
           data-testid="inspect-image-viewport"
           data-zoom-scale={transform.scale.toFixed(2)}
@@ -310,7 +310,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
         >
           <div
             data-testid="inspect-image-zoom-layer"
-            className="h-full w-full will-change-transform"
+            className="h-full w-full"
             style={style}
           >
             <InspectShelfCanvas

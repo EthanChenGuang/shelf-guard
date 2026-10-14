@@ -6,7 +6,7 @@ Same gallery inspection as [inspect-scan](./inspect-scan.md), driven on Playwrig
 
 - `webkit-iphone` — `iPhone 14` and `iPhone 15 Pro Max` (Playwright WebKit, `hasTouch`)
 - `chromium-android` — `Pixel 7` and `Galaxy S9+` (Playwright Chromium Android UA, `hasTouch`)
-- `result-inspect-zoom` — two-finger **touch** pinch on `[data-testid="inspect-image-viewport"]` in portrait **and** landscape; zoom layer overflows the frame; no ancestor `overflow: hidden/clip`
+- `result-inspect-zoom` — two-finger **touch** pinch on `[data-testid="inspect-image-viewport"]` in portrait **and** landscape. At rest the frame is `mx-auto` with overflow visible (the photo already fits). While zoomed, the layer overflows the frame; ancestors are not `overflow` hidden/clip/auto/scroll; `elementFromPoint` outside the original frame hits the photo. The report records `hit`, `contain`, and `clipList`.
 
 ## How to get to it (user POV)
 

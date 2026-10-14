@@ -165,6 +165,7 @@ None yet.
 | 261012-hld | Move hold hint and viewing-reference badge below the comparison image so they never cover the photo; landscape shrinks the frame to fit | 2026-10-12 | 40322ba | [261012-hld-move-hold-hint-below-image](./quick/261012-hld-move-hold-hint-below-image/) |
 | 261014-ts2 | Prepend zoom phrase to hold-to-reference hint (it/zh/en); keep one line on phones portrait+landscape | 2026-10-14 | 545b9cd | [261014-ts2-prepend-zoom-phrase-to-hold-to-reference](./quick/261014-ts2-prepend-zoom-phrase-to-hold-to-reference/) |
 | 261014-uh2 | Remove first-view pinch overlay; show hold hint immediately (zoom copy in pressHoldCompare) | 2026-10-14 | 2a9c266 | [261014-uh2-remove-first-view-pinch-overlay-show-hol](./quick/261014-uh2-remove-first-view-pinch-overlay-show-hol/) |
+| 261014-tol | Fix Android Chrome results pinch-zoom clipped to image frame (compositor clip + pinch-start zoomed attr; harness elementFromPoint) | 2026-10-14 | e554d24 | [261014-tol-fix-android-chrome-pinch-zoom-on-inspect](./quick/261014-tol-fix-android-chrome-pinch-zoom-on-inspect/) |
 
 ## Deferred Items
 
@@ -178,4 +179,4 @@ Last session: 2026-09-25T17:51:01.597Z
 Stopped at: Completed quick task 260925-r3s: tap-to-focus camera control
 Resume file: None
 
-Last activity: 2026-10-14 - Completed quick task 261014-uh2: remove pinch overlay; hold hint immediate
+Last activity: 2026-10-14 - Merged main (261014-tol pinch clip fix) into PR #10 branch (261014-uh2 hold hint + Online Marketplace)
