@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { setInspectZoomed, useLayoutViewportLock } from './useLayoutViewportLock';
+import { useLayoutViewportLock } from './useLayoutViewportLock';
 
 describe('useLayoutViewportLock', () => {
   beforeEach(() => {
@@ -13,6 +13,7 @@ describe('useLayoutViewportLock', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('snaps scroll to 0 and hides overflow-x on mount and orientationchange', () => {
@@ -40,61 +41,24 @@ describe('useLayoutViewportLock', () => {
     expect(document.body.scrollLeft).toBe(0);
   });
 
-  it('does not re-clip overflow-x while the results image is pinch-zoomed', () => {
-    const root = document.createElement('div');
-    root.id = 'root';
-    const app = document.createElement('div');
-    app.className = 'overflow-x-hidden';
-    root.appendChild(app);
-    document.body.appendChild(root);
+  it('keeps the vertical scroll position on resize (Android URL bar) and rotation', () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(420);
 
     renderHook(() => useLayoutViewportLock());
-    setInspectZoomed(true);
-    expect(document.documentElement.style.overflowX).toBe('visible');
-    expect(root.style.overflowX).toBe('visible');
-    expect(app.style.overflowX).toBe('visible');
+    scrollTo.mockClear();
 
     act(() => {
+      window.dispatchEvent(new Event('resize'));
       window.dispatchEvent(new Event('orientationchange'));
     });
     act(() => {
       vi.advanceTimersByTime(300);
     });
 
-    expect(document.documentElement.style.overflowX).toBe('visible');
-    expect(app.style.overflowX).toBe('visible');
-    setInspectZoomed(false);
-    expect(document.documentElement.style.overflowX).toBe('hidden');
-    expect(app.style.overflowX).toBe('');
-    root.remove();
-  });
-
-  it('does not write overflow-x hidden on visualViewport scroll or resize while zoomed', () => {
-    const root = document.createElement('div');
-    root.id = 'root';
-    document.body.appendChild(root);
-
-    renderHook(() => useLayoutViewportLock());
-    setInspectZoomed(true);
-    expect(document.documentElement.style.overflowX).toBe('visible');
-
-    const visualViewport = window.visualViewport;
-    act(() => {
-      if (visualViewport) {
-        visualViewport.dispatchEvent(new Event('scroll'));
-        visualViewport.dispatchEvent(new Event('resize'));
-      } else {
-        window.dispatchEvent(new Event('resize'));
-      }
-    });
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
-
-    expect(document.documentElement.style.overflowX).toBe('visible');
-    expect(document.body.style.overflowX).toBe('visible');
-    expect(root.style.overflowX).toBe('visible');
-    setInspectZoomed(false);
-    root.remove();
+    expect(scrollTo).toHaveBeenCalled();
+    for (const call of scrollTo.mock.calls) {
+      expect(call).toEqual([0, 420]);
+    }
   });
 });

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent, type RefObject, type TouchEvent } from 'react';
 import { touchAt } from '../lib/touchAt';
-import { setInspectZoomed } from './useLayoutViewportLock';
 
 export interface PinchPanTransform {
   scale: number;
@@ -82,19 +81,14 @@ export function usePinchPanZoom(targetRef?: RefObject<HTMLElement | null>): {
     gestureRef.current.mode = 'idle';
     pointersRef.current.clear();
     setIsPinching(false);
-    setInspectZoomed(false);
   }, []);
 
   const markPinching = () => {
-    setInspectZoomed(true);
     setIsPinching(true);
   };
 
   const leavePinch = () => {
     setIsPinching(false);
-    if (!(transformRef.current.scale > 1.01)) {
-      setInspectZoomed(false);
-    }
   };
 
   const applyPinchDistance = (dist: number) => {

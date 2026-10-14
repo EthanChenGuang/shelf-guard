@@ -13,7 +13,7 @@ Maintained recipes for user-visible behavior. Read this index before driving the
 ## Driving conventions
 
 - Default UI locale is **Italian**; use `aria-label` strings from `I18N.it` unless testing language toggle
-- Prefer `data-testid` (`camera-view`, `baseline-photo-input`, `gallery-input`, `baseline-status-pill`, `shelf-selector`) and stable ARIA names over CSS
+- Prefer `data-testid` (`camera-view`, `baseline-photo-input`, `gallery-input`, `baseline-status-pill`, `shelf-selector`, `inspect-zoom-enter`, `inspect-zoom-overlay`, `inspect-zoom-exit`) and stable ARIA names over CSS
 - File uploads stand in for camera capture (headless-friendly, matches “pick from library” UX)
 - Block service workers in Playwright (`serviceWorkers: 'block'`) to avoid stale SW during verification
 - After mutations, rely on the next fresh context for isolation; do not delete proof artifacts during cleanup
@@ -33,6 +33,6 @@ Each feature file: H1 title, one intro paragraph, then H2 sections **`Sub-featur
 
 - [Establish baseline](./establish-baseline.md) — first reference photo per shelf via library upload
 - [Inspect scan (gallery)](./inspect-scan.md) — compare a capture against baseline through OpenCV worker
-- [Inspect scan (iPhone WebKit + Android Chromium)](./inspect-scan-cross-platform.md) — same flow on iPhone 14 / 15 Pro Max (WebKit) and Pixel 7 / Galaxy S9+ (Chromium), portrait + landscape touch pinch
+- [Inspect scan (iPhone WebKit + Android Chromium)](./inspect-scan-cross-platform.md) — same flow on iPhone 14 / 15 Pro Max (WebKit) and Pixel 7 / Galaxy S9+ (Chromium), portrait + landscape: idle swipe scrolls, magnifier zoom overlay, exit restores scroll
 - [Multi-shelf switch](./multi-shelf.md) — five shelf slots with independent baselines
 - [Language toggle](./language-toggle.md) — cycle IT / EN / CN from the camera header

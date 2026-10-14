@@ -13,21 +13,14 @@ html {
   touch-action: pan-y;
 }
 
-html[data-inspect-zoomed="true"] {
-  touch-action: none;
-}
-
-html[data-inspect-zoomed="true"],
-html[data-inspect-zoomed="true"] body,
-html[data-inspect-zoomed="true"] #root,
-html[data-inspect-zoomed="true"] #root > div {
-  overflow: visible !important;
-  -webkit-overflow-scrolling: auto;
-}
-
+/* Idle results photo: vertical swipes scroll the page; zoom lives in the overlay. */
 [data-testid="inspect-image-viewport"] {
-  overflow: visible;
-  contain: none;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+[data-testid="inspect-zoom-stage"] {
   touch-action: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;

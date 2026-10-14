@@ -57,10 +57,14 @@ node .cursor/skills/verify-shelfguard/bin/control-shelfguard.mjs browser drive m
   --url http://127.0.0.1:4173 \
   --artifacts-dir "${ART}/multi-shelf"
 
+# WebKit on hosts Playwright 1.49 does not support (e.g. Debian 13): see features/inspect-scan-cross-platform.md
+SHELFGUARD_WEBKIT_PLAYWRIGHT=/path/to/newer/node_modules/playwright \
 node .cursor/skills/verify-shelfguard/bin/control-shelfguard.mjs browser drive inspect-scan-cross-platform \
   --url http://127.0.0.1:4173 \
   --artifacts-dir "${ART}/inspect-scan-cross-platform"
 ```
+
+`inspect-scan` and `inspect-scan-cross-platform` record every check as PASS/FAIL in their report and **exit 1 if any check fails** (the JSON on stdout lists `failures`).
 
 Read the feature map first: [features/README.md](./features/README.md). Prefer **`data-testid`** and **Italian `aria-label` strings** from `src/lib/constants.ts` (default locale `it`).
 
@@ -83,34 +87,19 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 | `establish-baseline/establish-baseline-pill.txt` | Exact baseline status text |
 | `inspect-scan/inspect-scan-360-portrait-header.png` | Camera header **Online Marketplace** on one line at 360×800 |
 | `inspect-scan/inspect-scan-360-landscape-header.png` | Camera header on one line at 800×360 |
-| `inspect-scan/inspect-scan-390x844-hold-hints.png` | Portrait hold caption **Puoi ingrandire · Tieni premuto…** on one line **below** the photo (immediate, before press) |
-| `inspect-scan/inspect-scan-390x844-hold-status.png` | Portrait **Stai vedendo la foto di riferimento** below the photo while pressing |
-| `inspect-scan/inspect-scan-390x844-hold-frame-*.png` | Hold animation frames at 0 / 400 / 800ms |
-| `inspect-scan/inspect-scan-390x844-hold-geometry.txt` | Hold/status rects do not intersect the image and sit in the viewport |
-| `inspect-scan/inspect-scan-844x390-hold-hints.png` | Landscape hold caption on one line below the photo (immediate) |
-| `inspect-scan/inspect-scan-844x390-hold-status.png` | Landscape viewing-reference badge below the photo |
-| `inspect-scan/inspect-scan-results-390x844.png` | Portrait results; comparison image centered; no fullscreen control |
-| `inspect-scan/inspect-scan-results-844x390.png` | Landscape phone results; image centered (not left-aligned) |
-| `inspect-scan/inspect-scan-results-932x430.png` | Larger landscape phone results; image centered |
-| `inspect-scan/inspect-scan-center.txt` | Left/right gaps per viewport |
-| `inspect-scan/inspect-scan-zoom-overflow.txt` | At scale ~2.75: layer extends beyond the frame; ancestors are not overflow hidden/clip/auto/scroll (`clipList`); viewport `contain` does not include paint; `hit` is the photo from elementFromPoint outside the original frame; short viewport axis covered |
-| `inspect-scan/inspect-scan-844x390-zoom.png` | Inline pinch on landscape 844×390 |
-| `inspect-scan/inspect-scan-932x430-zoom.png` | Inline pinch on 932×430 |
-| `inspect-scan/inspect-scan-390x844-zoom-blink.png` | After pinch, long-press shows the baseline at the same zoom (portrait) |
-| `inspect-scan/inspect-scan-844x390-zoom-blink.png` | Zoomed blink-compare at 844×390 |
-| `inspect-scan/inspect-scan-932x430-zoom-blink.png` | Zoomed blink-compare at 932×430 |
-| `inspect-scan/inspect-scan-rotate-offset.txt` | After portrait↔landscape rotates, scrollX is 0 and document width matches the viewport |
-| `inspect-scan/inspect-scan-rotate-*.png` | Results screen after each orientation change (no left white strip) |
+| `inspect-scan/inspect-scan-zoom-report.txt` | PASS/FAIL matrix for 390×844, 844×390, 932×430: (a) idle swipe on the photo scrolls, (b) magnifier opens overlay, (c) pinch/pan, (d) X/Esc/Back exit + full style/scroll restore, (e) hold → reference idle + zoom, (f) Italian hint below the photo; plus `c2` no-flicker and `rotate` |
+| `inspect-scan/inspect-scan-<WxH>-hold-hints.png` / `-hold-frame-*.png` | Hint **Tocca 🔍 per ingrandire · Tieni premuto per il riferimento** on one line below the photo |
+| `inspect-scan/inspect-scan-<WxH>-hold-status.png` / `-hold-geometry.txt` | **Stai vedendo la foto di riferimento** while holding; hint/status do not intersect the image |
+| `inspect-scan/inspect-scan-<WxH>-zoom-enter.png` / `-zoom.png` / `-zoom-hold.png` | Overlay opened, pinched ~2.75× and panned, hold in zoom mode |
+| `inspect-scan/inspect-scan-<WxH>-after-exit.png` | Results page after X — scroll position restored |
+| `inspect-scan/inspect-scan-<WxH>-results.png` | Results with the photo centered and the magnifier on its corner |
+| `inspect-scan/inspect-scan-rotate-offset.txt` / `-rotate-*.png` | After portrait↔landscape rotates, scrollX is 0 and document width matches the viewport |
 | `establish-baseline/establish-baseline-rotate-offset.txt` | Same offset asserts on the capture screen |
 | `inspect-scan/inspect-scan.aria.txt` | ARIA tree includes **Conferma e concludi l'ispezione** |
 | `inspect-scan/first-capture-comparison.txt` | First capture with an existing baseline ran comparison (PR #6) |
 | `multi-shelf/multi-shelf-2-empty-baseline.png` | Shelf 2 selected with no baseline yet |
-| `inspect-scan-cross-platform/cross-platform-report.txt` | Per-device pinch overflow: iPhone 14/15 Pro Max (WebKit) + Pixel 7/Galaxy S9+ (Chromium), portrait + landscape, including `hit`, `contain`, and `clipList` |
-| `inspect-scan-cross-platform/<device>/inspect-scan-*-pinch-frame-*.png` | Per-device pinch animation frames |
-| `inspect-scan-cross-platform/<device>/inspect-scan-*-hold-frame-*.png` | Per-device hold press/ring animation frames |
-| `inspect-scan-cross-platform/<device>/inspect-scan-*-hold-status.png` | Per-device viewing-reference badge below the photo |
-| `inspect-scan-cross-platform/<device>/inspect-scan-*-hold-geometry.txt` | Per-device hold/status vs image intersection asserts |
-| `inspect-scan-cross-platform/<device>/inspect-scan-*-zoom.png` | Zoomed comparison image on that device profile |
+| `inspect-scan-cross-platform/cross-platform-report.txt` | PASS/FAIL per device (iPhone 14 / 15 Pro Max on WebKit, Pixel 7 / Galaxy S9+ on Chromium) × orientation × check (a)–(f); header states which input is trusted (CDP) vs synthetic (WebKit). Command exits 1 on any FAIL |
+| `inspect-scan-cross-platform/<device>/inspect-scan-<device>-<orientation>-*.png` | Per-device hint, hold status, zoom enter/pinch/hold and after-exit screenshots |
 
 Standards:
 
