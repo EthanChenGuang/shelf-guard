@@ -175,21 +175,15 @@ describe('ResultInspectView inline pinch-zoom', () => {
     expect(screen.getByTestId('inspect-image-zoom-layer')).toBeInTheDocument();
   });
 
-  it('shows a non-blocking Italian pinch overlay before the hold hint', () => {
+
+  it('does not show a pinch overlay on the comparison image', () => {
     render(<ResultInspectView {...baseProps} lang="it" />);
-    const pinch = screen.getByTestId('inspect-pinch-hint');
-    expect(pinch.className).toContain('pointer-events-none');
-    expect(pinch).toHaveTextContent('Pizzica con due dita per ingrandire');
-    expect(screen.queryByTestId('inspect-hold-hint')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('inspect-pinch-hint')).not.toBeInTheDocument();
+    expect(screen.getByTestId('inspect-hold-hint')).toBeInTheDocument();
   });
 
-  it('sequences pinch then an animated hold hint', () => {
+  it('shows the animated hold hint immediately with Italian copy', () => {
     render(<ResultInspectView {...baseProps} lang="it" />);
-    expect(screen.getByTestId('inspect-pinch-hint')).toBeInTheDocument();
-    act(() => {
-      vi.advanceTimersByTime(8401);
-    });
-    expect(screen.queryByTestId('inspect-pinch-hint')).not.toBeInTheDocument();
     const hold = screen.getByTestId('inspect-hold-hint');
     expect(hold.className).toContain('pointer-events-none');
     expect(hold).toHaveTextContent('Puoi ingrandire · Tieni premuto per vedere il riferimento');
@@ -201,9 +195,6 @@ describe('ResultInspectView inline pinch-zoom', () => {
 
   it('keeps the animated hold hint while zoomed', () => {
     render(<ResultInspectView {...baseProps} lang="it" />);
-    act(() => {
-      vi.advanceTimersByTime(8401);
-    });
     const viewport = screen.getByTestId('inspect-image-viewport');
     fireEvent.touchStart(viewport, {
       touches: [
@@ -228,9 +219,6 @@ describe('ResultInspectView inline pinch-zoom', () => {
 
   it('places the hold hint below the comparison image, not on it', () => {
     render(<ResultInspectView {...baseProps} lang="it" />);
-    act(() => {
-      vi.advanceTimersByTime(8401);
-    });
     const viewport = screen.getByTestId('inspect-image-viewport');
     const hold = screen.getByTestId('inspect-hold-hint');
     expect(viewport.contains(hold)).toBe(false);
@@ -243,16 +231,10 @@ describe('ResultInspectView inline pinch-zoom', () => {
 
   it('uses one-line zoom+hold copy in English and Chinese', () => {
     const { rerender } = render(<ResultInspectView {...baseProps} lang="en" />);
-    act(() => {
-      vi.advanceTimersByTime(8401);
-    });
     expect(screen.getByTestId('inspect-hold-hint')).toHaveTextContent(
       'Pinch to zoom · Hold to see reference',
     );
     rerender(<ResultInspectView {...baseProps} lang="cn" />);
-    act(() => {
-      vi.advanceTimersByTime(8401);
-    });
     expect(screen.getByTestId('inspect-hold-hint')).toHaveTextContent(
       '可以放大显示 · 按住显示参考图',
     );
@@ -260,9 +242,6 @@ describe('ResultInspectView inline pinch-zoom', () => {
 
   it('shows the viewing-reference status below the image while holding', () => {
     render(<ResultInspectView {...baseProps} lang="it" />);
-    act(() => {
-      vi.advanceTimersByTime(8401);
-    });
     const viewport = screen.getByTestId('inspect-image-viewport');
     fireEvent.mouseDown(viewport, { clientX: 120, clientY: 180 });
     act(() => {
@@ -274,22 +253,16 @@ describe('ResultInspectView inline pinch-zoom', () => {
     expect(screen.queryByTestId('inspect-hold-graphic')).not.toBeInTheDocument();
   });
 
-  it('dismisses the pinch hint on first interaction without blocking later pinch zoom', () => {
+  it('pinch zoom works without a pinch overlay on first interaction', () => {
     render(<ResultInspectView {...baseProps} lang="it" />);
     const viewport = screen.getByTestId('inspect-image-viewport');
+    expect(screen.queryByTestId('inspect-pinch-hint')).not.toBeInTheDocument();
     fireEvent.touchStart(viewport, {
       touches: [
         { identifier: 0, clientX: 100, clientY: 100 },
         { identifier: 1, clientX: 100, clientY: 160 },
       ],
     });
-    expect(screen.getByTestId('inspect-pinch-hint').getAttribute('data-hint-fading')).toBe('true');
-    act(() => {
-      vi.advanceTimersByTime(400);
-    });
-    expect(screen.queryByTestId('inspect-pinch-hint')).not.toBeInTheDocument();
-    expect(screen.getByTestId('inspect-hold-hint')).toBeInTheDocument();
-
     fireEvent.touchMove(viewport, {
       touches: [
         { identifier: 0, clientX: 100, clientY: 40 },
@@ -297,9 +270,10 @@ describe('ResultInspectView inline pinch-zoom', () => {
       ],
     });
     expect(Number(viewport.getAttribute('data-zoom-scale'))).toBeGreaterThan(1);
+    expect(screen.getByTestId('inspect-hold-hint')).toBeInTheDocument();
   });
 
-  it('skips pinch and hold motion when prefers-reduced-motion is set', () => {
+  it('marks hold hint reduced-motion when prefers-reduced-motion is set', () => {
     const original = window.matchMedia;
     window.matchMedia = ((query: string) =>
       ({
@@ -313,10 +287,6 @@ describe('ResultInspectView inline pinch-zoom', () => {
         dispatchEvent: () => false,
       })) as typeof window.matchMedia;
     render(<ResultInspectView {...baseProps} lang="it" />);
-    expect(screen.getByTestId('inspect-pinch-hint').getAttribute('data-reduced-motion')).toBe('true');
-    act(() => {
-      vi.advanceTimersByTime(2001);
-    });
     expect(screen.getByTestId('inspect-hold-hint').getAttribute('data-reduced-motion')).toBe('true');
     window.matchMedia = original;
   });

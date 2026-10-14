@@ -61,26 +61,6 @@ html[data-inspect-zoomed="true"] #root > div {
   animation: shutter-breathe 2s ease-in-out infinite;
 }
 
-@keyframes inspect-pinch-a {
-  0%,
-  100% {
-    transform: translate(0, 0);
-  }
-  50% {
-    transform: translate(9px, 8px);
-  }
-}
-
-@keyframes inspect-pinch-b {
-  0%,
-  100% {
-    transform: translate(0, 0);
-  }
-  50% {
-    transform: translate(-9px, -8px);
-  }
-}
-
 @keyframes inspect-hint-pulse {
   0%,
   100% {
@@ -93,27 +73,8 @@ html[data-inspect-zoomed="true"] #root > div {
   }
 }
 
-.inspect-pinch-finger-a {
-  animation: inspect-pinch-a 1.15s ease-in-out infinite;
-  transform-origin: 28px 32px;
-}
-
-.inspect-pinch-finger-b {
-  animation: inspect-pinch-b 1.15s ease-in-out infinite;
-  transform-origin: 60px 56px;
-}
-
 .inspect-hint-pill {
   animation: inspect-hint-pulse 1.8s ease-in-out infinite;
-}
-
-.inspect-pinch-hint {
-  transition: opacity 0.4s ease;
-}
-
-.inspect-pinch-hint[data-hint-fading='true'],
-.inspect-hold-hint[data-hint-fading='true'] {
-  opacity: 0;
 }
 
 :root {
@@ -213,18 +174,6 @@ html[data-inspect-zoomed="true"] #root > div {
     --inspect-hold-strip: 2.65rem;
   }
 
-  .inspect-pinch-hint {
-    gap: 0.35rem;
-    padding: 0.25rem;
-  }
-
-  .inspect-pinch-hint > svg {
-    width: 3.25rem;
-    height: 3.25rem;
-    flex-shrink: 0;
-  }
-
-  .inspect-pinch-hint .inspect-hint-pill,
   .inspect-hold-hint .inspect-hint-pill {
     font-size: 0.7rem;
     line-height: 1.2;
@@ -249,8 +198,6 @@ html[data-inspect-zoomed="true"] #root > div {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .inspect-pinch-finger-a,
-  .inspect-pinch-finger-b,
   .inspect-hint-pill,
   .inspect-hold-finger,
   .inspect-hold-ripple,
@@ -260,11 +207,6 @@ html[data-inspect-zoomed="true"] #root > div {
 
   .inspect-hold-progress {
     stroke-dashoffset: 40;
-  }
-
-  .inspect-pinch-hint,
-  .inspect-hold-hint {
-    transition: none;
   }
 }
 
