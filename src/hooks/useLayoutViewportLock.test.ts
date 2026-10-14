@@ -68,4 +68,33 @@ describe('useLayoutViewportLock', () => {
     expect(app.style.overflowX).toBe('');
     root.remove();
   });
+
+  it('does not write overflow-x hidden on visualViewport scroll or resize while zoomed', () => {
+    const root = document.createElement('div');
+    root.id = 'root';
+    document.body.appendChild(root);
+
+    renderHook(() => useLayoutViewportLock());
+    setInspectZoomed(true);
+    expect(document.documentElement.style.overflowX).toBe('visible');
+
+    const visualViewport = window.visualViewport;
+    act(() => {
+      if (visualViewport) {
+        visualViewport.dispatchEvent(new Event('scroll'));
+        visualViewport.dispatchEvent(new Event('resize'));
+      } else {
+        window.dispatchEvent(new Event('resize'));
+      }
+    });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(document.documentElement.style.overflowX).toBe('visible');
+    expect(document.body.style.overflowX).toBe('visible');
+    expect(root.style.overflowX).toBe('visible');
+    setInspectZoomed(false);
+    root.remove();
+  });
 });

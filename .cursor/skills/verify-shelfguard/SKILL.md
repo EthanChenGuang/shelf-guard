@@ -94,7 +94,7 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 | `inspect-scan/inspect-scan-results-844x390.png` | Landscape phone results; image centered (not left-aligned) |
 | `inspect-scan/inspect-scan-results-932x430.png` | Larger landscape phone results; image centered |
 | `inspect-scan/inspect-scan-center.txt` | Left/right gaps per viewport |
-| `inspect-scan/inspect-scan-zoom-overflow.txt` | At scale ~2.75: layer extends beyond the frame, no ancestor overflow hidden/clip, short viewport axis covered |
+| `inspect-scan/inspect-scan-zoom-overflow.txt` | At scale ~2.75: layer extends beyond the frame; ancestors are not overflow hidden/clip/auto/scroll (`clipList`); viewport `contain` does not include paint; `hit` is the photo from elementFromPoint outside the original frame; short viewport axis covered |
 | `inspect-scan/inspect-scan-844x390-zoom.png` | Inline pinch on landscape 844×390 |
 | `inspect-scan/inspect-scan-932x430-zoom.png` | Inline pinch on 932×430 |
 | `inspect-scan/inspect-scan-390x844-zoom-blink.png` | After pinch, long-press shows the baseline at the same zoom (portrait) |
@@ -106,7 +106,7 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 | `inspect-scan/inspect-scan.aria.txt` | ARIA tree includes **Conferma e concludi l'ispezione** |
 | `inspect-scan/first-capture-comparison.txt` | First capture with an existing baseline ran comparison (PR #6) |
 | `multi-shelf/multi-shelf-2-empty-baseline.png` | Shelf 2 selected with no baseline yet |
-| `inspect-scan-cross-platform/cross-platform-report.txt` | Per-device pinch overflow: iPhone 14/15 Pro Max (WebKit) + Pixel 7/Galaxy S9+ (Chromium), portrait + landscape |
+| `inspect-scan-cross-platform/cross-platform-report.txt` | Per-device pinch overflow: iPhone 14/15 Pro Max (WebKit) + Pixel 7/Galaxy S9+ (Chromium), portrait + landscape, including `hit`, `contain`, and `clipList` |
 | `inspect-scan-cross-platform/<device>/inspect-scan-*-pinch-frame-*.png` | Per-device pinch animation frames |
 | `inspect-scan-cross-platform/<device>/inspect-scan-*-hold-frame-*.png` | Per-device hold press/ring animation frames |
 | `inspect-scan-cross-platform/<device>/inspect-scan-*-hold-status.png` | Per-device viewing-reference badge below the photo |

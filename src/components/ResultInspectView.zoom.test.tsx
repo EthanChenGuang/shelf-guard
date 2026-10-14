@@ -145,11 +145,42 @@ describe('ResultInspectView inline pinch-zoom', () => {
     expect(Number(viewport.getAttribute('data-zoom-scale'))).toBeGreaterThan(1);
   });
 
-  it('clips the photo to the frame at rest and lets it overflow while zoomed', () => {
+  it('marks the frame zoomed on two-finger start before the scale changes', () => {
     render(<ResultInspectView {...baseProps} />);
     const viewport = screen.getByTestId('inspect-image-viewport');
-    expect(viewport.className).toContain('overflow-hidden');
-    expect(viewport.className).not.toContain('overflow-visible');
+    fireEvent.touchStart(viewport, {
+      touches: [
+        { identifier: 0, clientX: 100, clientY: 100 },
+        { identifier: 1, clientX: 100, clientY: 160 },
+      ],
+    });
+
+    expect(Number(viewport.getAttribute('data-zoom-scale'))).toBe(1);
+    expect(viewport.getAttribute('data-inspect-zoomed')).toBe('true');
+    expect(viewport.className).toContain('z-[60]');
+    expect(viewport.className).toContain('overflow-visible');
+    expect(document.documentElement.getAttribute('data-inspect-zoomed')).toBe('true');
+
+    fireEvent.touchEnd(viewport, { touches: [] });
+    expect(Number(viewport.getAttribute('data-zoom-scale'))).toBe(1);
+    expect(viewport.getAttribute('data-inspect-zoomed')).toBe('false');
+    expect(viewport.className).not.toContain('z-[60]');
+    expect(document.documentElement.getAttribute('data-inspect-zoomed')).toBeNull();
+  });
+
+  it('never clips the inspect transform ancestor, at rest or while zoomed', () => {
+    render(<ResultInspectView {...baseProps} />);
+    const viewport = screen.getByTestId('inspect-image-viewport');
+    const layer = screen.getByTestId('inspect-image-zoom-layer');
+    expect(viewport.className).toContain('overflow-visible');
+    expect(viewport.className).toContain('mx-auto');
+    expect(viewport.className).not.toContain('overflow-hidden');
+    expect(viewport.className).not.toContain('overflow-auto');
+    expect(viewport.className).not.toContain('overflow-scroll');
+    expect(viewport.className).not.toContain('z-[60]');
+    expect(layer.className).not.toContain('will-change-transform');
+    expect(screen.getByTestId('inspect-shelf-canvas').className).toContain('overflow-hidden');
+    expect(screen.queryByTestId('inspect-image-fullscreen')).not.toBeInTheDocument();
     expect(viewport.getAttribute('data-inspect-zoomed')).toBe('false');
 
     fireEvent.touchStart(viewport, {
@@ -168,11 +199,14 @@ describe('ResultInspectView inline pinch-zoom', () => {
     expect(Number(viewport.getAttribute('data-zoom-scale'))).toBeGreaterThan(1);
     expect(viewport.getAttribute('data-inspect-zoomed')).toBe('true');
     expect(viewport.className).toContain('overflow-visible');
+    expect(viewport.className).not.toContain('overflow-hidden');
     expect(viewport.className).toContain('z-[60]');
     expect(viewport.className).toContain('touch-none');
     expect(viewport.style.touchAction).toBe('none');
+    expect(layer.className).not.toContain('will-change-transform');
+    expect(screen.getByTestId('inspect-shelf-canvas').className).toContain('overflow-hidden');
     expect(document.documentElement.getAttribute('data-inspect-zoomed')).toBe('true');
-    expect(screen.getByTestId('inspect-image-zoom-layer')).toBeInTheDocument();
+    expect(screen.queryByTestId('inspect-image-fullscreen')).not.toBeInTheDocument();
   });
 
   it('shows a non-blocking Italian pinch overlay before the hold hint', () => {

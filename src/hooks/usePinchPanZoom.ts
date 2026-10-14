@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent, type RefObject, type TouchEvent } from 'react';
 import { touchAt } from '../lib/touchAt';
+import { setInspectZoomed } from './useLayoutViewportLock';
 
 export interface PinchPanTransform {
   scale: number;
@@ -53,8 +54,10 @@ export function usePinchPanZoom(targetRef?: RefObject<HTMLElement | null>): {
     onPointerMove: (e: PointerEvent) => void;
     onPointerUp: (e: PointerEvent) => void;
   };
+  isPinching: boolean;
 } {
   const [transform, setTransform] = useState<PinchPanTransform>({ scale: 1, tx: 0, ty: 0 });
+  const [isPinching, setIsPinching] = useState(false);
   const transformRef = useRef(transform);
   transformRef.current = transform;
   const gestureRef = useRef<{
@@ -78,7 +81,21 @@ export function usePinchPanZoom(targetRef?: RefObject<HTMLElement | null>): {
     setTransform(next);
     gestureRef.current.mode = 'idle';
     pointersRef.current.clear();
+    setIsPinching(false);
+    setInspectZoomed(false);
   }, []);
+
+  const markPinching = () => {
+    setInspectZoomed(true);
+    setIsPinching(true);
+  };
+
+  const leavePinch = () => {
+    setIsPinching(false);
+    if (!(transformRef.current.scale > 1.01)) {
+      setInspectZoomed(false);
+    }
+  };
 
   const applyPinchDistance = (dist: number) => {
     const startDist = gestureRef.current.startDist;
@@ -100,6 +117,7 @@ export function usePinchPanZoom(targetRef?: RefObject<HTMLElement | null>): {
       startY: 0,
       startDist: touchDistance(touches),
     };
+    markPinching();
   };
 
   const reanchorPanOrigin = (touches: TouchEvent['touches'] | TouchList) => {
@@ -121,6 +139,7 @@ export function usePinchPanZoom(targetRef?: RefObject<HTMLElement | null>): {
       startY: 0,
       startDist: pointerDistance(pointersRef.current.values()),
     };
+    markPinching();
   };
 
   const onTouchStart = useCallback((e: TouchEvent) => {
@@ -173,9 +192,11 @@ export function usePinchPanZoom(targetRef?: RefObject<HTMLElement | null>): {
     }
     if (remaining === 1 && e) {
       reanchorPanOrigin(e.touches);
+      leavePinch();
       return;
     }
     gestureRef.current.mode = 'idle';
+    leavePinch();
   }, []);
 
   const onPointerDown = useCallback((e: PointerEvent) => {
@@ -251,9 +272,11 @@ export function usePinchPanZoom(targetRef?: RefObject<HTMLElement | null>): {
         startY: leftover?.y ?? e.clientY,
         startDist: 0,
       };
+      leavePinch();
       return;
     }
     gestureRef.current.mode = 'idle';
+    leavePinch();
   }, []);
 
   useEffect(() => {
@@ -302,5 +325,6 @@ export function usePinchPanZoom(targetRef?: RefObject<HTMLElement | null>): {
     style,
     touchHandlers: { onTouchStart, onTouchMove, onTouchEnd },
     pointerHandlers: { onPointerDown, onPointerMove, onPointerUp },
+    isPinching,
   };
 }

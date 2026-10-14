@@ -33,7 +33,7 @@ Preconditions:
 - **Wait for results.** Button **Conferma e concludi l'ispezione** becomes visible (timeout up to 120s for worker init). Camera idle must not remain on screen.
 - **Confirm centering.** `[data-testid="inspect-image-viewport"]` is `mx-auto` on the sized frame. Left/right gaps match in portrait **and** landscape (`inspect-scan-center.txt`). There is no `[data-testid="inspect-image-fullscreen"]` or expand control.
 - **Viewports.** Assert 390×844, 844×390, 932×430.
-- **Inline pinch-zoom.** Two-finger pinch on `[data-testid="inspect-image-viewport"]` to ~2.75. The zoom layer's bounding rect extends beyond the frame and covers the viewport; no ancestor `overflow: hidden/clip`. At rest the frame stays `overflow-hidden` and `mx-auto`.
+- **Inline pinch-zoom.** Two-finger pinch on `[data-testid="inspect-image-viewport"]` to ~2.75. At rest the frame is `mx-auto` with overflow visible (clip is unnecessary because the photo already fits). While zoomed, the layer extends beyond the frame and covers the short viewport axis; ancestors are not `overflow` hidden/clip/auto/scroll; viewport `contain` does not include paint; `elementFromPoint` outside the original frame hits the photo. `inspect-scan-zoom-overflow.txt` records `hit`, `contain`, and `clipList`.
 - **Zoomed blink-compare.** Long-press after pinch; `[data-showing-baseline="true"]` appears at the same `data-zoom-scale`.
 - **No flicker during pinch.** Rapid 1↔2 finger sequences: blink-state toggle count is 0 and scale does not reset to 1.
 - **No post-rotate offset.** On capture and results, after 390×844 ↔ 844×390 ↔ 932×430: `scrollX === 0`, `documentElement.scrollWidth <= innerWidth`.
