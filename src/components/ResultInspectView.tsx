@@ -115,9 +115,9 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   const t = I18N[lang];
 
   const viewportRef = useRef<HTMLDivElement>(null);
-  const { transform, style, touchHandlers, pointerHandlers } = usePinchPanZoom(viewportRef);
+  const { transform, style, touchHandlers, pointerHandlers, isPinching } = usePinchPanZoom(viewportRef);
   const hold = useBlinkCompareHold();
-  const isZoomed = transform.scale > 1.01;
+  const isZoomed = transform.scale > 1.01 || isPinching;
 
   useLayoutEffect(() => {
     setInspectZoomed(isZoomed);
