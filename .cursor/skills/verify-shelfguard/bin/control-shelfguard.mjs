@@ -24,7 +24,7 @@ const IT = {
   auditResult: "Risultato dell'ispezione",
   pickFromGallery: "Scegli la foto dell'ispezione dalla galleria",
   pinchToZoom: 'Pizzica con due dita per ingrandire',
-  pressHoldCompare: 'Tieni premuto per vedere il riferimento',
+  pressHoldCompare: 'Puoi ingrandire · Tieni premuto per vedere il riferimento',
   goldenBaseline: 'Stai vedendo la foto di riferimento',
 };
 
@@ -747,6 +747,42 @@ function formatHoldGeometry(name, image, hold, pageSize, ok) {
   ].join(' ');
 }
 
+async function assertHoldCaptionSingleLine(page, name) {
+  const metrics = await page.getByTestId('inspect-hold-hint').evaluate((el) => {
+    const caption = el.querySelector('.inspect-hint-caption');
+    if (!caption) return { error: 'missing .inspect-hint-caption' };
+    const cs = getComputedStyle(caption);
+    const rects = caption.getClientRects();
+    return {
+      text: (caption.textContent ?? '').trim(),
+      whiteSpace: cs.whiteSpace,
+      overflow: cs.overflowX || cs.overflow,
+      textOverflow: cs.textOverflow,
+      fontSize: cs.fontSize,
+      rectCount: rects.length,
+      captionHeight: caption.getBoundingClientRect().height,
+    };
+  });
+  if (metrics.error) {
+    throw new Error(`${name}: ${metrics.error}`);
+  }
+  if (metrics.whiteSpace !== 'nowrap') {
+    throw new Error(`${name}: hold caption white-space=${metrics.whiteSpace} (expected nowrap)`);
+  }
+  if (metrics.rectCount !== 1) {
+    throw new Error(`${name}: hold caption wrapped to ${metrics.rectCount} line boxes`);
+  }
+  return [
+    `${name} caption="${metrics.text}"`,
+    `whiteSpace=${metrics.whiteSpace}`,
+    `rects=${metrics.rectCount}`,
+    `fontSize=${metrics.fontSize}`,
+    `overflow=${metrics.overflow}`,
+    `textOverflow=${metrics.textOverflow}`,
+    `height=${Math.round(metrics.captionHeight)}`,
+  ].join(' ');
+}
+
 async function assertHoldOutsideImage(page, name) {
   const image = await page.getByTestId('inspect-image-viewport').boundingBox();
   const hold = await page.getByTestId('inspect-hold-hint').boundingBox();
@@ -824,12 +860,13 @@ async function captureHoldHint(page, artifactsDir, name) {
     throw new Error(`${name}: hold hint pointer-events=${holdPe} (expected none)`);
   }
   const holdText = ((await hold.textContent()) ?? '').trim();
-  if (!holdText.includes(IT.pressHoldCompare) && !holdText.includes('riferimento')) {
+  if (!holdText.includes(IT.pressHoldCompare)) {
     throw new Error(`${name}: hold hint missing Italian copy: ${holdText}`);
   }
   if ((await page.getByTestId('inspect-hold-graphic').count()) < 1) {
     throw new Error(`${name}: hold hint is missing the press/ring graphic`);
   }
+  const captionLine = await assertHoldCaptionSingleLine(page, `${name} before-press`);
   const before = await assertHoldOutsideImage(page, `${name} before-press`);
   await saveScreenshot(page, join(artifactsDir, `${name}-hold-hints.png`), { fullPage: false });
   await shotHintFrames(page, artifactsDir, name, 'hold');
@@ -845,7 +882,7 @@ async function captureHoldHint(page, artifactsDir, name) {
   await flushInspectPointers(page);
   writeFileSync(
     join(artifactsDir, `${name}-hold-geometry.txt`),
-    `${before}\n${whilePressing}\n`,
+    `${before}\n${whilePressing}\n${captionLine}\n`,
     'utf8',
   );
   return { holdText, holdPe, statusText };
