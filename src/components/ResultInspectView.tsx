@@ -397,22 +397,22 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
               data-hold-placement="below"
               data-reduced-motion={reducedMotion ? 'true' : 'false'}
               role="status"
-              className="inspect-hold-hint pointer-events-none flex flex-row items-center justify-center gap-2 py-1.5"
+              className="inspect-hold-hint pointer-events-none flex w-full min-w-0 flex-row flex-nowrap items-center justify-center gap-2 py-1.5"
             >
               {!isBlinkingBaseline && <HoldHintGraphic />}
               <div
-                className={`inspect-hint-pill flex max-w-[min(100%,24rem)] items-center gap-2 rounded-full px-4 py-2 text-sm font-bold leading-snug shadow-lg ring-2 backdrop-blur-sm ${
+                className={`inspect-hint-pill flex min-w-0 max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold leading-none shadow-lg ring-2 backdrop-blur-sm ${
                   isBlinkingBaseline
                     ? 'bg-emerald-950/85 text-emerald-50 ring-emerald-200/90'
                     : 'bg-black/80 text-white ring-white/90'
                 }`}
               >
                 {isBlinkingBaseline ? (
-                  <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-300" />
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-300" />
                 ) : (
-                  <Eye className="h-5 w-5 shrink-0 text-white" />
+                  <Eye className="h-4 w-4 shrink-0 text-white" />
                 )}
-                <span className="text-center">
+                <span className="inspect-hint-caption">
                   {isBlinkingBaseline ? t.goldenBaseline : t.pressHoldCompare}
                 </span>
               </div>

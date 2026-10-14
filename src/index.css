@@ -124,16 +124,35 @@ html[data-inspect-zoomed="true"] #root > div {
 
 .inspect-hold-strip {
   min-height: var(--inspect-hold-strip);
+  min-width: 0;
 }
 
 .inspect-hold-hint {
   transition: opacity 0.4s ease;
+  max-width: 100%;
+  min-width: 0;
+  flex-wrap: nowrap;
 }
 
 .inspect-hold-hint > svg {
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2.25rem;
+  height: 2.25rem;
   flex-shrink: 0;
+}
+
+.inspect-hold-hint .inspect-hint-pill {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.inspect-hold-hint .inspect-hint-caption {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: clamp(0.625rem, 2.7vw, 0.8125rem);
+  line-height: 1.2;
 }
 
 .inspect-hold-finger {
@@ -217,8 +236,12 @@ html[data-inspect-zoomed="true"] #root > div {
   }
 
   .inspect-hold-hint > svg {
-    width: 2.1rem;
-    height: 2.1rem;
+    width: 1.85rem;
+    height: 1.85rem;
+  }
+
+  .inspect-hold-hint .inspect-hint-caption {
+    font-size: clamp(0.625rem, 1.35vw, 0.75rem);
   }
 }
 

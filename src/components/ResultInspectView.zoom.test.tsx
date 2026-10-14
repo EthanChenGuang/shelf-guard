@@ -192,10 +192,11 @@ describe('ResultInspectView inline pinch-zoom', () => {
     expect(screen.queryByTestId('inspect-pinch-hint')).not.toBeInTheDocument();
     const hold = screen.getByTestId('inspect-hold-hint');
     expect(hold.className).toContain('pointer-events-none');
-    expect(hold).toHaveTextContent('Tieni premuto per vedere il riferimento');
+    expect(hold).toHaveTextContent('Puoi ingrandire · Tieni premuto per vedere il riferimento');
     expect(screen.getByTestId('inspect-hold-graphic')).toBeInTheDocument();
     expect(hold.querySelector('.inspect-hint-pill')?.className).toMatch(/rounded-full/);
     expect(hold.querySelector('.inspect-hint-pill')?.className).toMatch(/bg-black/);
+    expect(hold.querySelector('.inspect-hint-caption')?.className).toMatch(/inspect-hint-caption/);
   });
 
   it('keeps the animated hold hint while zoomed', () => {
@@ -234,7 +235,27 @@ describe('ResultInspectView inline pinch-zoom', () => {
     const hold = screen.getByTestId('inspect-hold-hint');
     expect(viewport.contains(hold)).toBe(false);
     expect(hold.getAttribute('data-hold-placement')).toBe('below');
-    expect(hold).toHaveTextContent('Tieni premuto per vedere il riferimento');
+    expect(hold).toHaveTextContent('Puoi ingrandire · Tieni premuto per vedere il riferimento');
+    expect(hold.querySelector('.inspect-hint-caption')).toHaveTextContent(
+      'Puoi ingrandire · Tieni premuto per vedere il riferimento',
+    );
+  });
+
+  it('uses one-line zoom+hold copy in English and Chinese', () => {
+    const { rerender } = render(<ResultInspectView {...baseProps} lang="en" />);
+    act(() => {
+      vi.advanceTimersByTime(8401);
+    });
+    expect(screen.getByTestId('inspect-hold-hint')).toHaveTextContent(
+      'Pinch to zoom · Hold to see reference',
+    );
+    rerender(<ResultInspectView {...baseProps} lang="cn" />);
+    act(() => {
+      vi.advanceTimersByTime(8401);
+    });
+    expect(screen.getByTestId('inspect-hold-hint')).toHaveTextContent(
+      '可以放大显示 · 按住显示参考图',
+    );
   });
 
   it('shows the viewing-reference status below the image while holding', () => {
