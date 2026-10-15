@@ -172,6 +172,7 @@ async function withBrowser(url, fn, options = {}) {
     ? await browserType.launchPersistentContext(profileDir, { ...launch, ...contextOptions })
     : await browser.newContext(contextOptions);
   try {
+    await context.addInitScript(installScrollProbes);
     const page = context.pages()[0] ?? (await context.newPage());
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
     await page.waitForLoadState('load').catch(() => undefined);
@@ -338,11 +339,9 @@ const SEL = {
  * - Chromium: trusted CDP `Input.dispatchTouchEvent` — real TouchEvents/PointerEvents and real
  *   compositor scrolling, so `touch-action` and passive/non-passive listeners behave as on Android.
  * - WebKit: Playwright has no touch injection beyond `tap()` (which IS trusted and is used for the
- *   magnifier/X buttons). Pinch, pan and hold are untrusted JS `TouchEvent`s (or `PointerEvent`
- *   pointerType=mouse when `new Touch()` is unavailable or not honoured). Idle page scroll on WebKit is
- *   proven by: computed `touch-action` on the photo and every ancestor allows pan-y, synthetic
- *   cancelable touchstart/touchmove on the photo are NOT defaultPrevented, and a trusted
- *   `mouse.wheel` over the photo scrolls the window.
+ *   magnifier/X buttons) and refuses `mouse.wheel` on mobile WebKit. Pinch, pan and hold are untrusted
+ *   JS `TouchEvent`s (or `PointerEvent` pointerType=mouse when `new Touch()` is unavailable). Page
+ *   scroll on WebKit is a static proof (see assertSwipeScrolls) — never a scripted scrollBy.
  */
 async function createTouchDriver(page, context, engine) {
   if (engine === 'chromium') {
@@ -357,7 +356,7 @@ async function createTouchDriver(page, context, engine) {
   return {
     engine,
     trusted: false,
-    method: 'synthetic JS TouchEvent/PointerEvent (untrusted) + trusted tap()/mouse.wheel',
+    method: 'synthetic JS TouchEvent/PointerEvent (untrusted) for pinch/pan/hold; scroll = static proof; trusted tap()',
   };
 }
 
@@ -727,56 +726,320 @@ async function resetZoomUi(page) {
   await page.waitForTimeout(150);
 }
 
-/** (a) Idle photo: touch-action allows pan-y and a vertical swipe starting on the photo scrolls the page. */
-async function assertIdleSwipeScrolls(page, driver) {
+/**
+ * Installed before any app script (context.addInitScript). Records live touchstart/touchmove/wheel
+ * listeners with their passive flag, and every programmatic scroll the page issues (window.scrollTo/
+ * scroll/scrollBy, Element.scroll*, scrollTop/scrollLeft on html/body) with the event that caused it.
+ * No layout is touched: the harness never injects height or padding.
+ */
+function installScrollProbes() {
+  if (window.__sgProbe) return;
+  const probe = { listeners: [], scrollCalls: [] };
+  window.__sgProbe = probe;
+  const TRACKED = new Set(['touchstart', 'touchmove', 'wheel']);
+  const captureOf = (o) => (typeof o === 'object' && o !== null ? Boolean(o.capture) : Boolean(o));
+  const add = EventTarget.prototype.addEventListener;
+  const remove = EventTarget.prototype.removeEventListener;
+  EventTarget.prototype.addEventListener = function (type, fn, opts) {
+    if (TRACKED.has(type) && fn) {
+      const passive = typeof opts === 'object' && opts !== null && 'passive' in opts ? Boolean(opts.passive) : null;
+      probe.listeners.push({ target: this, type, fn, capture: captureOf(opts), passive });
+    }
+    return add.call(this, type, fn, opts);
+  };
+  EventTarget.prototype.removeEventListener = function (type, fn, opts) {
+    if (TRACKED.has(type)) {
+      const capture = captureOf(opts);
+      const i = probe.listeners.findIndex((l) => l.target === this && l.type === type && l.fn === fn && l.capture === capture);
+      if (i >= 0) probe.listeners.splice(i, 1);
+    }
+    return remove.call(this, type, fn, opts);
+  };
+  const record = (fn, args) =>
+    probe.scrollCalls.push({
+      fn,
+      args: String(args).slice(0, 60),
+      event: window.event?.type ?? null,
+      t: Math.round(performance.now()),
+    });
+  const wrap = (obj, name, label) => {
+    const orig = obj[name];
+    if (typeof orig !== 'function') return;
+    obj[name] = function (...args) {
+      record(label, JSON.stringify(args));
+      return orig.apply(this, args);
+    };
+  };
+  for (const name of ['scrollTo', 'scroll', 'scrollBy']) {
+    wrap(window, name, `window.${name}`);
+    wrap(Element.prototype, name, `Element.${name}`);
+  }
+  for (const prop of ['scrollTop', 'scrollLeft']) {
+    const d = Object.getOwnPropertyDescriptor(Element.prototype, prop);
+    if (!d?.set) continue;
+    Object.defineProperty(Element.prototype, prop, {
+      ...d,
+      set(v) {
+        if (this === document.documentElement || this === document.body) record(`${this.tagName.toLowerCase()}.${prop}=`, v);
+        d.set.call(this, v);
+      },
+    });
+  }
+}
+
+/**
+ * Natural scroll topology of the results page (in page). The window must be the single vertical
+ * scroller: no ancestor of `startSelector`'s hit element (besides <html>, whose overflow goes to the
+ * viewport) may be a scroll container, nothing else may hold overflowing vertical content, html/body
+ * carry no scroll lock, and no non-passive touchstart/touchmove listener sits on window, document or
+ * any ancestor of the hit element.
+ */
+function readScrollTopologyInPage({ imageSelector, point }) {
+  const html = document.documentElement;
+  const body = document.body;
+  const se = document.scrollingElement;
+  const image = document.querySelector(imageSelector);
+  const start = point ? document.elementFromPoint(point.x, point.y) : image;
+  const name = (el) =>
+    el === window ? 'window' : el === document ? 'document' : el.getAttribute?.('data-testid') || (el.id ? `#${el.id}` : el.tagName?.toLowerCase());
+  const hc = getComputedStyle(html);
+  const htmlVisible = hc.overflowX === 'visible' && hc.overflowY === 'visible';
+  const isScrollContainer = (el) => {
+    if (el === html) return false;
+    if (el === body && htmlVisible) return false; // body overflow propagates to the viewport
+    const cs = getComputedStyle(el);
+    return [cs.overflowX, cs.overflowY].some((v) => v === 'auto' || v === 'scroll' || v === 'hidden');
+  };
+  const chain = [];
+  for (let cur = start; cur; cur = cur.parentElement) chain.push(cur);
+  const touchActionBlocked = chain
+    .map((el) => ({ node: name(el), touchAction: getComputedStyle(el).touchAction }))
+    .filter((c) => !(c.touchAction === 'auto' || c.touchAction === 'manipulation' || c.touchAction.includes('pan-y')));
+  const nestedScrollers = chain.filter(isScrollContainer).map((el) => {
+    const cs = getComputedStyle(el);
+    return `${name(el)}(${cs.overflowX}/${cs.overflowY})`;
+  });
+  const overflowing = [...document.querySelectorAll('body, body *')]
+    .filter((el) => {
+      const oy = getComputedStyle(el).overflowY;
+      return (oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight + 1 && el !== se;
+    })
+    .map((el) => `${name(el)} sh=${el.scrollHeight} ch=${el.clientHeight}`);
+  const bc = getComputedStyle(body);
+  const locks = [];
+  if (bc.position === 'fixed') locks.push('body position:fixed');
+  if (hc.overflowY === 'hidden' || hc.overflowY === 'clip') locks.push(`html overflow-y:${hc.overflowY}`);
+  if (!htmlVisible && (bc.overflowY === 'hidden' || bc.overflowY === 'clip')) locks.push(`body overflow-y:${bc.overflowY}`);
+  if (html.hasAttribute('data-inspect-zoom-mode')) locks.push('html[data-inspect-zoom-mode]');
+  const probe = window.__sgProbe;
+  const rootish = (t) => t === window || t === document || t === html || t === body;
+  const nonPassive = probe
+    ? probe.listeners
+        .filter((l) => l.type === 'touchstart' || l.type === 'touchmove')
+        .filter((l) => rootish(l.target) || (l.target instanceof Node && l.target.contains(start)))
+        // Browsers default touch listeners on window/document/html/body to passive when unspecified.
+        .filter((l) => !(l.passive ?? rootish(l.target)))
+        .map((l) => `${name(l.target)}:${l.type}${l.capture ? '(capture)' : ''}`)
+    : ['listener probe not installed'];
+  return {
+    start: start ? name(start) : null,
+    insideImage: Boolean(image && start && image.contains(start)),
+    scrollingElement: se.tagName.toLowerCase(),
+    scrollHeight: se.scrollHeight,
+    clientHeight: se.clientHeight,
+    innerHeight: window.innerHeight,
+    room: se.scrollHeight - window.innerHeight,
+    htmlOverflow: `${hc.overflowX}/${hc.overflowY}`,
+    bodyOverflow: `${bc.overflowX}/${bc.overflowY}`,
+    touchActionBlocked,
+    nestedScrollers,
+    overflowing,
+    locks,
+    nonPassive,
+  };
+}
+
+function topologyProblems(t) {
+  const p = [];
+  if (!(t.room > 0)) {
+    p.push(`content is not taller than the viewport (scrollHeight=${t.scrollHeight} innerHeight=${t.innerHeight}) — nothing to scroll`);
+  }
+  if (t.scrollHeight <= t.clientHeight) p.push(`scrollingElement ${t.scrollingElement} has no vertical overflow`);
+  if (t.touchActionBlocked.length) p.push(`touch-action blocks pan-y: ${JSON.stringify(t.touchActionBlocked)}`);
+  if (t.nestedScrollers.length) p.push(`nested scroll containers on the touch path: ${t.nestedScrollers.join(', ')}`);
+  if (t.overflowing.length) p.push(`other vertical scrollers with overflow: ${t.overflowing.join(', ')}`);
+  if (t.locks.length) p.push(`scroll lock left on html/body: ${t.locks.join(', ')}`);
+  if (t.nonPassive.length) p.push(`non-passive touch listeners on the scroll path: ${t.nonPassive.join(', ')}`);
+  return p;
+}
+
+function describeTopology(t) {
+  return `natural scrollHeight=${t.scrollHeight} innerHeight=${t.innerHeight} room=${t.room} scroller=${t.scrollingElement} html=${t.htmlOverflow} body=${t.bodyOverflow}`;
+}
+
+/** Start point for a swipe on the page but off the photo, clear of controls (inputs/buttons). */
+async function pageSwipePoint(page) {
+  return page.evaluate((imageSelector) => {
+    const image = document.querySelector(imageSelector);
+    const header = document.querySelector('header');
+    const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
+    for (let y = window.innerHeight - 24; y > headerBottom + 80; y -= 12) {
+      for (const x of [12, window.innerWidth - 12, window.innerWidth / 2]) {
+        const el = document.elementFromPoint(x, y);
+        if (!el || image?.contains(el)) continue;
+        if (el.closest('input, button, select, textarea, a, [role="slider"], header')) continue;
+        return { x, y };
+      }
+    }
+    return null;
+  }, SEL.image);
+}
+
+async function readScrollCalls(page) {
+  return page.evaluate(() => window.__sgProbe?.scrollCalls.slice() ?? null);
+}
+
+async function resetScrollCalls(page) {
+  await page.evaluate(() => {
+    if (window.__sgProbe) window.__sgProbe.scrollCalls.length = 0;
+  });
+}
+
+/**
+ * (a/g) A vertical swipe that starts on the photo (`where='image'`) or on the page off the photo
+ * (`where='page'`) scrolls the window. Starts from the natural layout at scrollY=0 — no injected height.
+ * - Chromium: trusted CDP Input.dispatchTouchEvent swipe; window.scrollY must move >= 20 px and
+ *   the app must issue no programmatic scroll during the gesture.
+ * - WebKit: Playwright cannot inject trusted touch (and refuses mouse.wheel on mobile WebKit), so this
+ *   is a static proof — no scrollBy: computed touch-action allows pan-y on the whole chain to <html>,
+ *   no nested scroll container, no non-passive touchstart/touchmove listener on window/document/any
+ *   ancestor, no scroll lock on html/body, the window has natural vertical overflow, and an untrusted
+ *   swipe there is not defaultPrevented.
+ */
+async function assertSwipeScrolls(page, driver, where) {
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(150);
-  const chain = await page.locator(SEL.image).evaluate((el) => {
-    const out = [];
-    for (let cur = el; cur; cur = cur.parentElement) {
-      out.push({
-        node: cur.getAttribute('data-testid') || cur.id || cur.tagName.toLowerCase(),
-        touchAction: getComputedStyle(cur).touchAction,
-      });
-    }
-    return out;
-  });
-  const imageTouchAction = chain[0]?.touchAction;
-  const blocked = chain.filter(
-    (c) => !(c.touchAction === 'auto' || c.touchAction === 'manipulation' || c.touchAction.includes('pan-y')),
-  );
-  if (blocked.length) throw new Error(`touch-action blocks pan-y: ${JSON.stringify(blocked)}`);
-  const room = await page.evaluate(() => document.scrollingElement.scrollHeight - window.innerHeight);
-  if (room < 40) throw new Error(`page is not tall enough to scroll (room=${room}px)`);
-  const c = await pressPointOn(page, SEL.image);
-  const dy = Math.round(Math.max(60, Math.min(240, c.y - 24)));
-  const before = await page.evaluate(() => window.scrollY);
-  let how;
-  if (driver.trusted) {
-    await runGesture(page, driver, SEL.image, dragSteps(c, 0, -dy, 12));
-    how = `cdp-touch-swipe dy=-${dy}`;
-  } else {
-    const synth = await syntheticGesture(page, SEL.image, dragSteps(c, 0, -dy, 6));
-    if (synth.mode === 'pointer') throw new Error('engine has no synthetic TouchEvent to probe the swipe');
+  let point;
+  if (where === 'image') point = await pressPointOn(page, SEL.image);
+  else point = await pageSwipePoint(page);
+  if (!point) throw new Error(`no ${where} point clear of controls to start a swipe`);
+  const topo = await page.evaluate(readScrollTopologyInPage, { imageSelector: SEL.image, point: { x: point.x, y: point.y } });
+  if (where === 'image' && !topo.insideImage) throw new Error(`swipe start (${point.x},${point.y}) hits ${topo.start}, not the photo`);
+  if (where === 'page' && topo.insideImage) throw new Error(`swipe start (${point.x},${point.y}) is on the photo`);
+  const problems = topologyProblems(topo);
+  const dy = Math.round(Math.max(60, Math.min(240, point.y - 40)));
+  const at = `start=${topo.start}@(${Math.round(point.x)},${Math.round(point.y)})`;
+  if (!driver.trusted) {
+    const synth = await syntheticGesture(page, where === 'image' ? SEL.image : 'body', dragSteps(point, 0, -dy, 6));
     const prevented = synth.results.filter((r) => r.defaultPrevented);
-    if (prevented.length) {
-      throw new Error(`synthetic ${synth.mode} swipe on the photo was defaultPrevented: ${JSON.stringify(prevented)}`);
-    }
-    // Untrusted touches never scroll natively (and mobile WebKit has no mouse.wheel), so apply the
-    // browser's default pan-y action for the un-cancelled swipe and confirm the page really moves.
-    await page.evaluate((d) => window.scrollBy(0, d), dy);
-    how = `synthetic-${synth.mode} not defaultPrevented + emulated pan-y default scrollBy dy=${dy}`;
+    if (prevented.length) problems.push(`untrusted ${synth.mode} swipe defaultPrevented: ${JSON.stringify(prevented)}`);
+    const blinking = await page.locator(`${SEL.image} [data-showing-baseline="true"]`).count();
+    if (blinking) problems.push('swipe left the reference photo showing (hold not cancelled by movement)');
+    if (problems.length) throw new Error(problems.join('; '));
+    return `STATIC(WebKit) ${at} ${describeTopology(topo)}; pan-y chain ok, no nested scroller, no non-passive touch listener, no lock, untrusted swipe not defaultPrevented`;
   }
+  await resetScrollCalls(page);
+  const before = await page.evaluate(() => window.scrollY);
+  await runGesture(page, driver, where === 'image' ? SEL.image : 'body', dragSteps(point, 0, -dy, 12));
   await page.waitForTimeout(500);
   const after = await page.evaluate(() => window.scrollY);
+  const calls = await readScrollCalls(page);
+  if (after - before < 20) problems.push(`trusted CDP swipe did not scroll: scrollY ${before} -> ${after}`);
+  if (calls?.length) problems.push(`app issued ${calls.length} programmatic scroll(s) during the swipe: ${JSON.stringify(calls.slice(0, 3))}`);
   const blinking = await page.locator(`${SEL.image} [data-showing-baseline="true"]`).count();
-  if (after - before < 20) {
-    throw new Error(
-      `vertical swipe on the photo did not scroll: scrollY ${before} -> ${after} (${how}, touch-action=${imageTouchAction})`,
-    );
+  if (blinking) problems.push('swipe left the reference photo showing (hold not cancelled by movement)');
+  if (problems.length) throw new Error(`${problems.join('; ')} [${describeTopology(topo)}]`);
+  return `cdp-touch-swipe ${at} dy=-${dy} scrollY ${before}->${after} ${describeTopology(topo)}`;
+}
+
+/**
+ * (h) No scroll fighting: mobile browsers collapse/expand the URL bar or Safari toolbars while the
+ * user scrolls, which fires window `resize` and visualViewport `resize`/`scroll`. The app must not
+ * answer with window.scrollTo (that kills momentum and snaps back to a stale main-thread scrollY).
+ * Chromium: trusted CDP swipe with the viewport growing 4×14 px mid-gesture; WebKit: viewport
+ * resizes at a non-zero scrollY. Either way: zero programmatic scroll calls, scrollY not reset.
+ */
+async function assertNoScrollFight(page, driver, size) {
+  const steps = [14, 28, 42, 56];
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(150);
+  let detail;
+  if (driver.trusted) {
+    const point = await pressPointOn(page, SEL.image);
+    const dy = Math.round(Math.max(80, Math.min(240, point.y - 40)));
+    await resetScrollCalls(page);
+    const moves = dragSteps(point, 0, -dy, 16);
+    let i = 0;
+    for (const s of moves) {
+      if (s.type === 'start') await driver.send('touchStart', s.points);
+      else if (s.type === 'move') {
+        await driver.send('touchMove', s.points);
+        i += 1;
+        if (i >= 4 && i < 4 + steps.length) await page.setViewportSize({ width: size.width, height: size.height + steps[i - 4] });
+      } else await driver.send('touchEnd', []);
+      await page.waitForTimeout(16);
+    }
+    await page.waitForTimeout(450);
+    const after = await page.evaluate(() => window.scrollY);
+    detail = `cdp swipe dy=-${dy} with viewport +${steps.join('/+')}px mid-gesture: scrollY 0->${after}`;
+    if (after < 20) {
+      await page.setViewportSize(size);
+      throw new Error(`swipe with toolbar collapse did not scroll (${detail})`);
+    }
+  } else {
+    await page.evaluate(() => window.scrollTo(0, 120));
+    await page.waitForTimeout(200);
+    await resetScrollCalls(page);
+    const before = await page.evaluate(() => window.scrollY);
+    for (const s of steps) {
+      await page.setViewportSize({ width: size.width, height: size.height + s });
+      await page.waitForTimeout(16);
+    }
+    await page.waitForTimeout(450);
+    const after = await page.evaluate(() => window.scrollY);
+    detail = `viewport +${steps.join('/+')}px (toolbar collapse) at scrollY ${before}: after=${after}`;
   }
-  if (blinking) throw new Error('swipe left the reference photo showing (hold not cancelled by movement)');
-  return `touch-action=${imageTouchAction} scrollY ${before}->${after} room=${room} via ${how}`;
+  const calls = await readScrollCalls(page);
+  await page.setViewportSize(size);
+  await page.waitForTimeout(300);
+  if (calls === null) throw new Error('scroll probe not installed');
+  if (calls.length) {
+    const byEvent = {};
+    for (const c of calls) byEvent[`${c.fn}@${c.event ?? 'timer/raf'}`] = (byEvent[`${c.fn}@${c.event ?? 'timer/raf'}`] ?? 0) + 1;
+    throw new Error(`app issued ${calls.length} programmatic scroll(s) while the user scrolled: ${JSON.stringify(byEvent)} (${detail})`);
+  }
+  return `0 programmatic scrolls; ${detail}`;
+}
+
+/** Playwright WebKit refuses mouse.wheel on mobile; record the attempt so the report says so. */
+async function tryWheelScroll(page) {
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const c = await centerOf(page, SEL.image);
+  try {
+    await page.mouse.move(c.x, c.y);
+    await page.mouse.wheel(0, 200);
+    await page.waitForTimeout(400);
+    return `mouse.wheel over photo: scrollY 0->${await page.evaluate(() => window.scrollY)}`;
+  } catch (err) {
+    return `mouse.wheel unavailable: ${String(err?.message ?? err).split('\n')[0]}`;
+  }
+}
+
+/** Chromium only: CDP Input.synthesizeScrollGesture (touch). Informational — headless builds may no-op it. */
+async function trySynthesizedScroll(page, context) {
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(150);
+  const p = await pageSwipePoint(page);
+  if (!p) return 'synthesizeScrollGesture: no start point';
+  const cdp = await context.newCDPSession(page);
+  const done = await Promise.race([
+    cdp
+      .send('Input.synthesizeScrollGesture', { x: p.x, y: p.y, yDistance: -Math.round(Math.min(240, p.y - 40)), gestureSourceType: 'touch', speed: 1200 })
+      .then(() => 'completed'),
+    new Promise((r) => setTimeout(() => r('timed out'), 8_000)),
+  ]);
+  await page.waitForTimeout(300);
+  return `synthesizeScrollGesture(touch) ${done}: scrollY 0->${await page.evaluate(() => window.scrollY)}`;
 }
 
 /** (f) Italian one-line hint below the photo, never on it. */
@@ -985,11 +1248,15 @@ async function runCheck(rows, label, check, fn) {
 }
 
 const CHECK_SHORT = {
-  'a-idle-swipe-scrolls': 'a',
+  'a-scroll-image-before-zoom': 'a-img',
+  'a-scroll-page-before-zoom': 'a-page',
+  'h-no-scroll-fight': 'h-fight',
   'b-magnifier-enters-overlay': 'b',
   'c-pinch-pan-scale': 'c',
   'c2-no-blink-flicker-in-zoom': 'c2',
   'd-x-exits-restores': 'd-x',
+  'g-scroll-image-after-exit': 'g-img',
+  'g-scroll-page-after-exit': 'g-page',
   'd-esc-exits-restores': 'd-esc',
   'd-back-exits-restores': 'd-back',
   'e-hold-reference-idle': 'e-idle',
@@ -1001,10 +1268,14 @@ const CHECK_SHORT = {
 };
 
 const ZOOM_CHECKS = [
-  'a-idle-swipe-scrolls',
+  'a-scroll-image-before-zoom',
+  'a-scroll-page-before-zoom',
+  'h-no-scroll-fight',
   'b-magnifier-enters-overlay',
   'c-pinch-pan-scale',
   'd-x-exits-restores',
+  'g-scroll-image-after-exit',
+  'g-scroll-page-after-exit',
   'd-esc-exits-restores',
   'd-back-exits-restores',
   'e-hold-reference-idle',
@@ -1012,7 +1283,7 @@ const ZOOM_CHECKS = [
   'f-hint-italian-below-image',
 ];
 
-/** Run checks (a)–(f) at one viewport size. Never throws; returns PASS/FAIL rows. */
+/** Run the scroll + zoom checks at one viewport size. Never throws; returns PASS/FAIL rows. */
 async function verifyZoomModeAt(page, driver, artifactsDir, name, label, size) {
   const rows = [];
   await page.setViewportSize(size);
@@ -1026,7 +1297,9 @@ async function verifyZoomModeAt(page, driver, artifactsDir, name, label, size) {
   await runCheck(rows, label, 'e-hold-reference-idle', () =>
     assertHoldShowsReference(page, driver, artifactsDir, name, { zoom: false }),
   );
-  await runCheck(rows, label, 'a-idle-swipe-scrolls', () => assertIdleSwipeScrolls(page, driver));
+  await runCheck(rows, label, 'a-scroll-image-before-zoom', () => assertSwipeScrolls(page, driver, 'image'));
+  await runCheck(rows, label, 'a-scroll-page-before-zoom', () => assertSwipeScrolls(page, driver, 'page'));
+  await runCheck(rows, label, 'h-no-scroll-fight', () => assertNoScrollFight(page, driver, size));
 
   let pre = null;
   const entered = await runCheck(rows, label, 'b-magnifier-enters-overlay', async () => {
@@ -1040,14 +1313,27 @@ async function verifyZoomModeAt(page, driver, artifactsDir, name, label, size) {
     await runCheck(rows, label, 'e-hold-reference-zoom', () =>
       assertHoldShowsReference(page, driver, artifactsDir, name, { zoom: true }),
     );
-    await runCheck(rows, label, 'd-x-exits-restores', async () => {
+    const exited = await runCheck(rows, label, 'd-x-exits-restores', async () => {
       const restored = await exitAndAssertRestored(page, pre, 'x');
       await saveScreenshot(page, join(artifactsDir, `${name}-after-exit.png`), { fullPage: false });
-      const swipe = await assertIdleSwipeScrolls(page, driver);
-      return `${restored}; swipe-after-exit ${swipe}`;
+      return restored;
     });
+    if (exited) {
+      await runCheck(rows, label, 'g-scroll-image-after-exit', () => assertSwipeScrolls(page, driver, 'image'));
+      await runCheck(rows, label, 'g-scroll-page-after-exit', () => assertSwipeScrolls(page, driver, 'page'));
+    } else {
+      for (const check of ['g-scroll-image-after-exit', 'g-scroll-page-after-exit']) {
+        rows.push({ label, check, pass: false, detail: 'skipped: X did not exit zoom mode' });
+      }
+    }
   } else {
-    for (const check of ['c-pinch-pan-scale', 'e-hold-reference-zoom', 'd-x-exits-restores']) {
+    for (const check of [
+      'c-pinch-pan-scale',
+      'e-hold-reference-zoom',
+      'd-x-exits-restores',
+      'g-scroll-image-after-exit',
+      'g-scroll-page-after-exit',
+    ]) {
       rows.push({ label, check, pass: false, detail: 'skipped: magnifier did not open the overlay' });
     }
   }
@@ -1349,6 +1635,7 @@ async function driveInspectScan(page, artifactsDir, context, engine) {
   );
 
   const driver = await createTouchDriver(page, context, engine);
+  const synthNote = await trySynthesizedScroll(page, context);
   const rows = [];
   for (const [label, size] of [
     ['390x844 portrait', { width: 390, height: 844 }],
@@ -1383,7 +1670,9 @@ async function driveInspectScan(page, artifactsDir, context, engine) {
   const report = formatZoomReport(
     `inspect-scan zoom-mode report (Chromium ${driver.method})`,
     [
-      'a idle photo touch-action allows pan-y and a vertical touch swipe on it scrolls window.scrollY',
+      'a-img/a-page trusted CDP touch swipe on the photo / on the page off the photo moves window.scrollY from the natural layout (no injected height); g-* the same after X exit',
+      'h-fight no programmatic window/html/body scroll while the user scrolls and the viewport resizes (URL bar collapse)',
+      `probes: ${synthNote}`,
       'b magnifier opens a full-screen portal overlay; c pinch+pan scale>1; d X/Esc/Back exit and restore styles+scroll',
       'e hold shows the reference (idle and zoom); f Italian hint below, not on, the photo',
     ],
@@ -1463,6 +1752,7 @@ async function driveInspectScanOnDevice(page, context, engine, artifactsDir, dev
     landscape: landscapeSpec.viewport,
   });
   const driver = await createTouchDriver(page, context, engine);
+  const probeNote = engine === 'chromium' ? await trySynthesizedScroll(page, context) : await tryWheelScroll(page);
   const rows = [];
   for (const [orientation, spec] of [
     ['portrait', portraitSpec],
@@ -1479,7 +1769,7 @@ async function driveInspectScanOnDevice(page, context, engine, artifactsDir, dev
       )),
     );
   }
-  return { device: device.name, engine: device.engine, platform: device.platform, method: driver.method, rows };
+  return { device: device.name, engine: device.engine, platform: device.platform, method: `${driver.method}; ${probeNote}`, rows };
 }
 
 async function driveInspectScanCrossPlatform(url, artifactsDir, { device: onlyDevice } = {}) {
@@ -1499,9 +1789,11 @@ async function driveInspectScanCrossPlatform(url, artifactsDir, { device: onlyDe
         'inspect-scan-cross-platform zoom-mode report',
         [
           ...[...methods].map(([name, method]) => `${name}: ${method}`),
-          'Chromium: pinch/pan/hold/swipe are trusted CDP touches; the idle swipe is a real compositor scroll.',
-          'WebKit: SYNTHETIC — Playwright cannot inject WebKit touches except tap(); pinch/pan/hold are untrusted TouchEvents built from document.createTouch/createTouchList (PointerEvent pointerType=mouse fallback).',
-          'WebKit (a) = computed touch-action allows pan-y on the photo and every ancestor AND the synthetic touchstart/touchmove swipe on the photo is not defaultPrevented by any listener AND the emulated pan-y default action (scrollBy) moves window.scrollY.',
+          'No height/padding is injected: every scroll row reports the natural document.scrollingElement scrollHeight vs innerHeight (room).',
+          'Chromium: pinch/pan/hold/swipe are trusted CDP touches; a-*/g-* are real compositor scrolls asserted on window.scrollY; h-fight resizes the viewport mid-swipe like a collapsing URL bar.',
+          'WebKit: SYNTHETIC — Playwright cannot inject WebKit touches except tap() and refuses mouse.wheel on mobile WebKit; pinch/pan/hold are untrusted TouchEvents built from document.createTouch/createTouchList (PointerEvent pointerType=mouse fallback).',
+          'WebKit a-*/g-* = STATIC (no scrollBy): touch-action allows pan-y from the start element to <html>; no nested scroll container on that chain; no other overflowing vertical scroller; no non-passive touchstart/touchmove listener on window/document/ancestors (addEventListener instrumented at init); no position:fixed/overflow hidden on html/body; the window has natural vertical overflow; the untrusted swipe is not defaultPrevented.',
+          'WebKit h-fight = viewport resizes (toolbar collapse) at scrollY 120 issue zero programmatic scrolls (window.scrollTo etc. instrumented at init).',
           'Magnifier and X are pressed with trusted locator.tap() on every engine; Esc via keyboard.press; Back via page.goBack().',
         ],
         rows,

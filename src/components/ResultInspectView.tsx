@@ -202,7 +202,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   const displayImageUrl = isBlinkingBaseline ? baseline.imageDataUrl : currentCaptureUrl;
 
   return (
-    <div className="relative w-full max-w-full min-h-[100dvh] bg-sg-surface flex flex-col justify-between select-none overflow-x-hidden">
+    <div className="relative w-full max-w-full min-h-[100dvh] bg-sg-surface flex flex-col justify-between select-none overflow-x-clip">
       {/* Top Header Bar */}
       <header className="sticky top-0 w-full z-40 bg-sg-white border-b border-sg-border/80 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">

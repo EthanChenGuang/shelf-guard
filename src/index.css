@@ -1,16 +1,27 @@
 @import "tailwindcss";
 
+/*
+ * The window is the only vertical scroller. Only <html> gets overflow-x: hidden (it propagates to
+ * the viewport); body/#root use clip, which trims sideways overflow without turning them into
+ * scroll containers (overflow-x: hidden would force overflow-y: auto and nest a scroller that iOS
+ * Safari latches swipes onto). overscroll-behavior on <html> applies to the viewport only.
+ */
 html,
 body,
 #root {
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
-  overscroll-behavior: none;
 }
 
 html {
+  overflow-x: hidden;
+  overscroll-behavior: none;
   touch-action: pan-y;
+}
+
+body,
+#root {
+  overflow-x: clip;
 }
 
 /* Idle results photo: vertical swipes scroll the page; zoom lives in the overlay. */

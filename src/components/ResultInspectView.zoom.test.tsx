@@ -65,6 +65,21 @@ describe('ResultInspectView zoom mode', () => {
     document.body.style.cssText = '';
   });
 
+  it('idle one-finger vertical swipe on the photo is never cancelled and cancels the hold', () => {
+    render(<ResultInspectView {...baseProps} />);
+    const viewport = screen.getByTestId('inspect-image-viewport');
+    expect(fireEvent.touchStart(viewport, { touches: [{ identifier: 0, clientX: 100, clientY: 300 }] })).toBe(true);
+    for (const y of [290, 260, 200, 120]) {
+      expect(fireEvent.touchMove(viewport, { touches: [{ identifier: 0, clientX: 100, clientY: y }] })).toBe(true);
+    }
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(viewport.querySelector('[data-showing-baseline="true"]')).toBeNull();
+    expect(fireEvent.touchEnd(viewport, { touches: [] })).toBe(true);
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
   it('idle photo lets vertical swipes scroll: pan-y, no overlay, no inline pinch', () => {
     render(<ResultInspectView {...baseProps} />);
     const viewport = screen.getByTestId('inspect-image-viewport');
