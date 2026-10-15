@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   Check,
@@ -7,15 +7,15 @@ import {
   Layers,
   Share2,
   Sliders,
+  ZoomIn,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { DetectedAnomaly, Language, ShelfCalibration, ToleranceValue } from '../types';
 import { I18N } from '../lib/constants';
 import { MIN_CONFIDENCE_CEIL, MIN_CONFIDENCE_FLOOR, meetsMinConfidence } from '../lib/vision/confidence';
 import { InspectShelfCanvas } from './InspectShelfCanvas';
+import { InspectZoomOverlay } from './InspectZoomOverlay';
 import { useBlinkCompareHold } from '../hooks/useBlinkCompareHold';
-import { setInspectZoomed } from '../hooks/useLayoutViewportLock';
-import { usePinchPanZoom } from '../hooks/usePinchPanZoom';
 import { touchAt } from '../lib/touchAt';
 import { frameBoxStyle } from '../lib/frameBox';
 
@@ -40,6 +40,14 @@ interface ResultInspectViewProps {
 }
 
 const HOLD_RING = 138.2;
+const ZOOM_HISTORY_KEY = 'sgInspectZoom';
+
+/** Keep the magnifier's own presses from starting a hold-to-reference on the photo. */
+const stopHoldPropagation = {
+  onMouseDown: (e: React.SyntheticEvent) => e.stopPropagation(),
+  onTouchStart: (e: React.SyntheticEvent) => e.stopPropagation(),
+  onPointerDown: (e: React.SyntheticEvent) => e.stopPropagation(),
+};
 
 function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
@@ -97,16 +105,54 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
 }) => {
   const t = I18N[lang];
 
-  const viewportRef = useRef<HTMLDivElement>(null);
-  const { transform, style, touchHandlers, pointerHandlers, isPinching } = usePinchPanZoom(viewportRef);
   const hold = useBlinkCompareHold();
-  const isZoomed = transform.scale > 1.01 || isPinching;
-
-  useLayoutEffect(() => {
-    setInspectZoomed(isZoomed);
-    return () => setInspectZoomed(false);
-  }, [isZoomed]);
   const isBlinkingBaseline = hold.isBlinking;
+
+  // Zoom mode: pinch/pan only inside a full-screen overlay, so the inline photo stays scrollable.
+  const [zoomOpen, setZoomOpen] = useState(false);
+  const zoomHistoryPushed = useRef(false);
+  const zoomEnterRef = useRef<HTMLButtonElement>(null);
+  const wasZoomOpen = useRef(false);
+
+  const enterZoom = () => {
+    hold.cancel();
+    // Pushed from the click (not an effect) so StrictMode double effects cannot push twice.
+    window.history.pushState({ ...(window.history.state ?? {}), [ZOOM_HISTORY_KEY]: true }, '');
+    zoomHistoryPushed.current = true;
+    setZoomOpen(true);
+  };
+
+  const exitZoom = useCallback(() => {
+    hold.cancel();
+    setZoomOpen(false);
+    if (zoomHistoryPushed.current) {
+      zoomHistoryPushed.current = false;
+      window.history.back();
+    }
+  }, [hold.cancel]);
+
+  useEffect(() => {
+    if (!zoomOpen) return;
+    const onPopState = () => {
+      zoomHistoryPushed.current = false;
+      hold.cancel();
+      setZoomOpen(false);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [zoomOpen, hold.cancel]);
+
+  useEffect(() => {
+    if (wasZoomOpen.current && !zoomOpen) zoomEnterRef.current?.focus({ preventScroll: true });
+    wasZoomOpen.current = zoomOpen;
+  }, [zoomOpen]);
+
+  useEffect(
+    () => () => {
+      if (zoomHistoryPushed.current) window.history.back();
+    },
+    [],
+  );
   const reducedMotion = prefersReducedMotion();
 
   // State for filtering by anomaly type ('ALL' = show all)
@@ -156,13 +202,9 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   const displayImageUrl = isBlinkingBaseline ? baseline.imageDataUrl : currentCaptureUrl;
 
   return (
-    <div
-      className={`relative w-full max-w-full min-h-[100dvh] bg-sg-surface flex flex-col justify-between select-none ${
-        isZoomed ? 'overflow-visible' : 'overflow-x-hidden'
-      }`}
-    >
+    <div className="relative w-full max-w-full min-h-[100dvh] bg-sg-surface flex flex-col justify-between select-none overflow-x-clip">
       {/* Top Header Bar */}
-      <header className="sticky top-0 w-full z-40 bg-sg-white border-b border-sg-border/80 px-4 py-3 flex items-center justify-between shadow-sm">
+      <header className="relative w-full z-40 bg-sg-white border-b border-sg-border/80 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
           <button
             onClick={onBackToCamera}
@@ -188,7 +230,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
       </header>
 
       {/* Top Floating Filter HUD Bar */}
-      <div className="glass-panel sticky top-[61px] z-30 mx-4 my-2 px-4 py-2 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+      <div className="glass-panel relative z-30 mx-4 my-2 px-4 py-2 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-2 flex-shrink-0">
           {/* Filter: Missing */}
           <button
@@ -258,14 +300,9 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
 
       <div className="relative w-full flex flex-col items-center">
         <div
-          ref={viewportRef}
-          className={`relative mx-auto cursor-pointer touch-none overflow-visible${
-            isZoomed ? ' z-[60]' : ''
-          }`}
+          className="relative mx-auto cursor-pointer"
           data-testid="inspect-image-viewport"
-          data-zoom-scale={transform.scale.toFixed(2)}
-          data-inspect-zoomed={isZoomed ? 'true' : 'false'}
-          style={{ ...frameBoxStyle(baseline.imageDimensions, 'var(--inspect-frame-max)'), touchAction: 'none' }}
+          style={{ ...frameBoxStyle(baseline.imageDimensions, 'var(--inspect-frame-max)'), touchAction: 'pan-y' }}
           onMouseDown={(e) => {
             hold.begin(e.clientX, e.clientY);
           }}
@@ -275,7 +312,6 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
           onMouseUp={() => hold.end()}
           onMouseLeave={() => hold.cancel()}
           onTouchStart={(e) => {
-            touchHandlers.onTouchStart(e);
             if (e.touches.length >= 2) {
               hold.cancel();
               return;
@@ -284,7 +320,6 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
             hold.begin(t0?.clientX ?? 0, t0?.clientY ?? 0);
           }}
           onTouchMove={(e) => {
-            touchHandlers.onTouchMove(e);
             if (e.touches.length >= 2) {
               hold.cancel();
               return;
@@ -293,39 +328,34 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
             if (t0) hold.move(t0.clientX, t0.clientY);
           }}
           onTouchEnd={(e) => {
-            touchHandlers.onTouchEnd(e);
             if (e.touches.length === 0) hold.end();
             else hold.cancel();
           }}
-          onTouchCancel={(e) => {
-            touchHandlers.onTouchEnd(e);
-            hold.cancel();
-          }}
-          onPointerDown={(e) => {
-            pointerHandlers.onPointerDown(e);
-          }}
-          onPointerMove={(e) => pointerHandlers.onPointerMove(e)}
-          onPointerUp={(e) => pointerHandlers.onPointerUp(e)}
-          onPointerCancel={(e) => pointerHandlers.onPointerUp(e)}
+          onTouchCancel={() => hold.cancel()}
         >
-          <div
-            data-testid="inspect-image-zoom-layer"
-            className="h-full w-full"
-            style={style}
+          <InspectShelfCanvas
+            imageUrl={displayImageUrl}
+            baseline={baseline}
+            activeAnomalies={isBlinkingBaseline || !showArLayers ? [] : activeAnomalies}
+            showArLayers={!isBlinkingBaseline && showArLayers}
+            lang={lang}
+            onDismissAnomaly={handleDismiss}
+            showingBaseline={isBlinkingBaseline}
+          />
+          <button
+            ref={zoomEnterRef}
+            type="button"
+            onClick={enterZoom}
+            {...stopHoldPropagation}
+            aria-label={t.zoomEnter}
+            data-testid="inspect-zoom-enter"
+            className="absolute top-2 right-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/65 text-white ring-2 ring-white/80 shadow-lg backdrop-blur-sm active:scale-95 transition-transform"
           >
-            <InspectShelfCanvas
-              imageUrl={displayImageUrl}
-              baseline={baseline}
-              activeAnomalies={isBlinkingBaseline || !showArLayers ? [] : activeAnomalies}
-              showArLayers={!isBlinkingBaseline && showArLayers}
-              lang={lang}
-              onDismissAnomaly={handleDismiss}
-              showingBaseline={isBlinkingBaseline}
-            />
-          </div>
+            <ZoomIn className="h-5 w-5" />
+          </button>
         </div>
         <div
-          className="inspect-hold-strip z-[70] flex w-full shrink-0 items-center justify-center px-2"
+          className="inspect-hold-strip flex w-full shrink-0 items-center justify-center px-2"
           data-testid="inspect-hold-strip"
         >
           <div
@@ -461,6 +491,20 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
           </button>
         </div>
       </div>
+
+      {zoomOpen && (
+        <InspectZoomOverlay
+          imageUrl={displayImageUrl}
+          baseline={baseline}
+          activeAnomalies={isBlinkingBaseline || !showArLayers ? [] : activeAnomalies}
+          showArLayers={!isBlinkingBaseline && showArLayers}
+          showingBaseline={isBlinkingBaseline}
+          hold={hold}
+          lang={lang}
+          onDismissAnomaly={handleDismiss}
+          onExit={exitZoom}
+        />
+      )}
 
       {/* Export Toast Notification */}
       {showExportToast && (

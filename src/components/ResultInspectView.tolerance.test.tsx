@@ -100,7 +100,7 @@ describe('ResultInspectView blink compare (RSLT-02, D-24)', () => {
     fireEvent.mouseUp(viewport);
     expect(img.src).toContain('capture');
     expect(document.querySelector('.ar-box')).toBeTruthy();
-    expect(canvas.contains(screen.getByText('Pinch to zoom · Hold to see reference'))).toBe(false);
+    expect(canvas.contains(screen.getByText('Tap 🔍 to zoom · Hold to see reference'))).toBe(false);
   });
 
   it('handles touch press and release for blink compare', () => {

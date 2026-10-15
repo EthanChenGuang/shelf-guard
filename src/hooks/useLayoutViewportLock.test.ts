@@ -1,32 +1,25 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { setInspectZoomed, useLayoutViewportLock } from './useLayoutViewportLock';
+import { useLayoutViewportLock } from './useLayoutViewportLock';
 
 describe('useLayoutViewportLock', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    document.documentElement.style.overflowX = '';
-    document.body.style.overflowX = '';
-    document.documentElement.scrollLeft = 24;
-    document.body.scrollLeft = 24;
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
-  it('snaps scroll to 0 and hides overflow-x on mount and orientationchange', () => {
+  it('snaps a leftover horizontal offset on orientationchange without touching vertical scroll', () => {
     const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    const scrollX = vi.spyOn(window, 'scrollX', 'get').mockReturnValue(0);
 
     renderHook(() => useLayoutViewportLock());
+    expect(scrollTo).not.toHaveBeenCalled();
 
-    expect(document.documentElement.style.overflowX).toBe('hidden');
-    expect(document.body.style.overflowX).toBe('hidden');
-    expect(scrollTo).toHaveBeenCalledWith(0, 0);
-
-    scrollTo.mockClear();
-    document.documentElement.scrollLeft = 48;
-
+    scrollX.mockReturnValue(48);
     act(() => {
       window.dispatchEvent(new Event('orientationchange'));
     });
@@ -34,26 +27,17 @@ describe('useLayoutViewportLock', () => {
       vi.advanceTimersByTime(300);
     });
 
-    expect(document.documentElement.style.overflowX).toBe('hidden');
-    expect(scrollTo).toHaveBeenCalledWith(0, 0);
-    expect(document.documentElement.scrollLeft).toBe(0);
-    expect(document.body.scrollLeft).toBe(0);
+    expect(scrollTo).toHaveBeenCalled();
+    for (const call of scrollTo.mock.calls) {
+      expect(call).toEqual([{ left: 0 }]);
+    }
   });
 
-  it('does not re-clip overflow-x while the results image is pinch-zoomed', () => {
-    const root = document.createElement('div');
-    root.id = 'root';
-    const app = document.createElement('div');
-    app.className = 'overflow-x-hidden';
-    root.appendChild(app);
-    document.body.appendChild(root);
+  it('does nothing on orientationchange when there is no horizontal offset', () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    vi.spyOn(window, 'scrollX', 'get').mockReturnValue(0);
 
     renderHook(() => useLayoutViewportLock());
-    setInspectZoomed(true);
-    expect(document.documentElement.style.overflowX).toBe('visible');
-    expect(root.style.overflowX).toBe('visible');
-    expect(app.style.overflowX).toBe('visible');
-
     act(() => {
       window.dispatchEvent(new Event('orientationchange'));
     });
@@ -61,40 +45,38 @@ describe('useLayoutViewportLock', () => {
       vi.advanceTimersByTime(300);
     });
 
-    expect(document.documentElement.style.overflowX).toBe('visible');
-    expect(app.style.overflowX).toBe('visible');
-    setInspectZoomed(false);
-    expect(document.documentElement.style.overflowX).toBe('hidden');
-    expect(app.style.overflowX).toBe('');
-    root.remove();
+    expect(scrollTo).not.toHaveBeenCalled();
   });
 
-  it('does not write overflow-x hidden on visualViewport scroll or resize while zoomed', () => {
-    const root = document.createElement('div');
-    root.id = 'root';
-    document.body.appendChild(root);
+  it('never scrolls on resize (mobile toolbars collapsing mid-scroll) even with a horizontal offset', () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    const scrollX = vi.spyOn(window, 'scrollX', 'get').mockReturnValue(0);
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(420);
 
     renderHook(() => useLayoutViewportLock());
-    setInspectZoomed(true);
-    expect(document.documentElement.style.overflowX).toBe('visible');
-
-    const visualViewport = window.visualViewport;
+    scrollX.mockReturnValue(12);
     act(() => {
-      if (visualViewport) {
-        visualViewport.dispatchEvent(new Event('scroll'));
-        visualViewport.dispatchEvent(new Event('resize'));
-      } else {
-        window.dispatchEvent(new Event('resize'));
-      }
+      window.dispatchEvent(new Event('resize'));
+      window.visualViewport?.dispatchEvent(new Event('resize'));
+      window.visualViewport?.dispatchEvent(new Event('scroll'));
     });
     act(() => {
       vi.advanceTimersByTime(300);
     });
 
-    expect(document.documentElement.style.overflowX).toBe('visible');
-    expect(document.body.style.overflowX).toBe('visible');
-    expect(root.style.overflowX).toBe('visible');
-    setInspectZoomed(false);
-    root.remove();
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it('registers no document touch listeners and leaves html/body overflow to CSS', () => {
+    const add = vi.spyOn(document, 'addEventListener');
+
+    renderHook(() => useLayoutViewportLock());
+
+    const types = add.mock.calls.map((c) => c[0]);
+    expect(types).not.toContain('touchstart');
+    expect(types).not.toContain('touchmove');
+    expect(types).toContain('gesturestart');
+    expect(document.documentElement.style.overflowX).toBe('');
+    expect(document.body.style.overflowX).toBe('');
   });
 });

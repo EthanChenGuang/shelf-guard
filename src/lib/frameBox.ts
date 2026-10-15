@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 
-function aspectRatio(dims: { width: number; height: number }): number {
+export function aspectRatio(dims: { width: number; height: number }): number {
   return dims.width > 0 && dims.height > 0 ? dims.width / dims.height : 9 / 16;
 }
 
