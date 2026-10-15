@@ -16,6 +16,7 @@ import { MIN_CONFIDENCE_CEIL, MIN_CONFIDENCE_FLOOR, meetsMinConfidence } from '.
 import { InspectShelfCanvas } from './InspectShelfCanvas';
 import { InspectZoomOverlay } from './InspectZoomOverlay';
 import { useBlinkCompareHold } from '../hooks/useBlinkCompareHold';
+import { useStableViewportHeight } from '../hooks/useStableViewportHeight';
 import { touchAt } from '../lib/touchAt';
 import { frameBoxStyle } from '../lib/frameBox';
 
@@ -106,6 +107,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   const t = I18N[lang];
 
   const hold = useBlinkCompareHold();
+  useStableViewportHeight();
   const isBlinkingBaseline = hold.isBlinking;
 
   // Zoom mode: pinch/pan only inside a full-screen overlay, so the inline photo stays scrollable.

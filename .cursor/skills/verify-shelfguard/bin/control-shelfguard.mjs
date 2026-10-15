@@ -1106,6 +1106,112 @@ async function assertImageSize(page) {
   return { detail, metric };
 }
 
+/** Rounded `inspect-image-viewport` rect size (not position) plus the viewport, read in page. */
+async function readImageRect(page) {
+  return page.evaluate(() => {
+    const r = document.querySelector('[data-testid="inspect-image-viewport"]').getBoundingClientRect();
+    return { w: r.width, h: r.height, vw: window.innerWidth, vh: window.innerHeight, scrollY: window.scrollY };
+  });
+}
+
+const fmtRect = (r) => `${Math.round(r.w)}x${Math.round(r.h)}`;
+const sameSize = (a, b, slop = 0.5) => Math.abs(a.w - b.w) <= slop && Math.abs(a.h - b.h) <= slop;
+
+/**
+ * (j) The photo keeps its size while the mobile URL bar collapses/expands and the page scrolls:
+ * (1) viewport +70px tall, same width (toolbar collapse); (2) scroll — Chromium trusted CDP swipe
+ * (rect read mid-gesture), WebKit window.scrollTo steps (size-only check) — and after it settles;
+ * (3) viewport back to its size. Every rect must equal the initial one (±0.5px).
+ */
+async function assertSizeStable(page, driver, size) {
+  const GROW = 70;
+  await page.setViewportSize(size);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(250);
+  const initial = await readImageRect(page);
+  const sizes = { initial: fmtRect(initial) };
+  const problems = [];
+  const expect = (key, r) => {
+    sizes[key] = fmtRect(r);
+    if (!sameSize(initial, r)) problems.push(`${key} ${r.w.toFixed(1)}x${r.h.toFixed(1)} != initial ${initial.w.toFixed(1)}x${initial.h.toFixed(1)} (viewport ${r.vw}x${r.vh})`);
+  };
+  try {
+    await page.setViewportSize({ width: size.width, height: size.height + GROW });
+    await page.waitForTimeout(300);
+    expect('plus70', await readImageRect(page));
+
+    let during = null;
+    if (driver.trusted) {
+      const point = await pressPointOn(page, SEL.image);
+      const dy = Math.round(Math.max(80, Math.min(240, point.y - 40)));
+      const moves = dragSteps(point, 0, -dy, 12);
+      let i = 0;
+      for (const s of moves) {
+        if (s.type === 'start') await driver.send('touchStart', s.points);
+        else if (s.type === 'move') {
+          await driver.send('touchMove', s.points);
+          i += 1;
+          if (i === 8) during = await readImageRect(page);
+        } else await driver.send('touchEnd', []);
+        await page.waitForTimeout(16);
+      }
+    } else {
+      for (const y of [40, 80, 120, 160]) {
+        await page.evaluate((v) => window.scrollTo(0, v), y);
+        await page.waitForTimeout(30);
+        if (y === 120) during = await readImageRect(page);
+      }
+    }
+    expect('during', during);
+    await page.waitForTimeout(500);
+    const after = await readImageRect(page);
+    expect('afterScroll', after);
+    if (driver.trusted && after.scrollY < 20) problems.push(`swipe did not scroll (scrollY ${after.scrollY})`);
+    sizes.scrollY = after.scrollY;
+
+    await page.setViewportSize(size);
+    await page.waitForTimeout(300);
+    expect('minus70', await readImageRect(page));
+  } finally {
+    await page.setViewportSize(size);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(200);
+  }
+  const detail = `initial ${sizes.initial} | +${GROW}px ${sizes.plus70} | during scroll ${sizes.during} | after scroll ${sizes.afterScroll} (scrollY ${sizes.scrollY}) | -${GROW}px ${sizes.minus70} [${driver.trusted ? 'cdp swipe' : 'window.scrollTo'}]`;
+  if (problems.length) {
+    const err = new Error(`${problems.join('; ')} (${detail})`);
+    err.sizes = sizes;
+    throw err;
+  }
+  return { detail, sizes };
+}
+
+/**
+ * (k) Rotation recomputes the size: from `from` to `to` (the other orientation's viewport) the photo
+ * must take the size it has when that orientation is laid out on its own (`expectTo`, the `size`
+ * row), and rotating back must restore `expectFrom`.
+ */
+async function assertSizeRotation(page, from, to, expectFrom, expectTo) {
+  await page.setViewportSize(from);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(300);
+  const start = await readImageRect(page);
+  await page.setViewportSize(to);
+  await page.waitForTimeout(400);
+  const rotated = await readImageRect(page);
+  await page.setViewportSize(from);
+  await page.waitForTimeout(400);
+  const back = await readImageRect(page);
+  const detail = `${from.width}x${from.height} ${fmtRect(start)} -> ${to.width}x${to.height} ${fmtRect(rotated)} (expect ${expectTo ?? '?'}) -> back ${fmtRect(back)} (expect ${expectFrom ?? '?'})`;
+  const problems = [];
+  if (expectFrom && fmtRect(start) !== expectFrom) problems.push(`start ${fmtRect(start)} != ${expectFrom}`);
+  if (expectTo && fmtRect(rotated) !== expectTo) problems.push(`rotated ${fmtRect(rotated)} != ${expectTo}`);
+  if (sameSize(start, rotated)) problems.push('size stuck at the pre-rotation value');
+  if (!sameSize(start, back)) problems.push(`rotating back ${fmtRect(back)} != original ${fmtRect(start)}`);
+  if (problems.length) throw new Error(`${problems.join('; ')} (${detail})`);
+  return { detail, rotated: fmtRect(rotated), back: fmtRect(back) };
+}
+
 /** (f) Italian one-line hint directly below the photo, never on it, visible with the photo in view. */
 async function assertItalianHint(page, artifactsDir, name) {
   await scrollPhotoIntoView(page);
@@ -1323,6 +1429,8 @@ const CHECK_SHORT = {
   'e-hold-reference-zoom': 'e-zoom',
   'f-hint-italian-below-image': 'f',
   'i-image-size-no-hoverflow': 'size',
+  'j-size-stable': 'j-size',
+  'k-size-rotation': 'k-rot',
   'layout-centered': 'center',
   'layout-rotate-no-offset': 'rotate',
   'setup-reach-results': 'setup',
@@ -1343,7 +1451,26 @@ const ZOOM_CHECKS = [
   'e-hold-reference-zoom',
   'f-hint-italian-below-image',
   'i-image-size-no-hoverflow',
+  'j-size-stable',
+  'k-size-rotation',
 ];
+
+/** k-size-rotation both ways between two labelled viewports, expecting each one's `size` row. */
+async function runRotationChecks(page, rows, a, b) {
+  const sizeOf = (label) => rows.find((r) => r.label === label && r.metric)?.metric.image ?? null;
+  for (const [from, to] of [
+    [a, b],
+    [b, a],
+  ]) {
+    let rotated = null;
+    await runCheck(rows, from.label, 'k-size-rotation', async () => {
+      const r = await assertSizeRotation(page, from.size, to.size, sizeOf(from.label), sizeOf(to.label));
+      rotated = r.rotated;
+      return r.detail;
+    });
+    if (rotated) rows[rows.length - 1].rotated = rotated;
+  }
+}
 
 /** Run the scroll + zoom checks at one viewport size. Never throws; returns PASS/FAIL rows. */
 async function verifyZoomModeAt(page, driver, artifactsDir, name, label, size) {
@@ -1369,6 +1496,18 @@ async function verifyZoomModeAt(page, driver, artifactsDir, name, label, size) {
   await runCheck(rows, label, 'a-scroll-image-before-zoom', () => assertSwipeScrolls(page, driver, 'image'));
   await runCheck(rows, label, 'a-scroll-page-before-zoom', () => assertSwipeScrolls(page, driver, 'page'));
   await runCheck(rows, label, 'h-no-scroll-fight', () => assertNoScrollFight(page, driver, size));
+  let stable = null;
+  await runCheck(rows, label, 'j-size-stable', async () => {
+    try {
+      const r = await assertSizeStable(page, driver, size);
+      stable = r.sizes;
+      return r.detail;
+    } catch (err) {
+      stable = err.sizes ?? null;
+      throw err;
+    }
+  });
+  if (stable) rows[rows.length - 1].stable = stable;
 
   let pre = null;
   const entered = await runCheck(rows, label, 'b-magnifier-enters-overlay', async () => {
@@ -1447,6 +1586,19 @@ function formatZoomReport(title, notes, rows) {
         '',
       ]
     : [];
+  const stableRows = rows.filter((r) => r.stable);
+  const rotatedBy = (label) => rows.find((r) => r.label === label && r.rotated)?.rotated ?? '-';
+  const stableTable = stableRows.length
+    ? [
+        'size stability (j-size-stable / k-size-rotation):',
+        `${'device / orientation'.padEnd(width)}  ${['initial', '+70px', 'during', 'after', '-70px', 'rotated'].map((h) => h.padEnd(9)).join('  ')}`,
+        ...stableRows.map((r) => {
+          const s = r.stable;
+          return `${r.label.padEnd(width)}  ${[s.initial, s.plus70, s.during, s.afterScroll, s.minus70, rotatedBy(r.label)].map((v) => String(v ?? '-').padEnd(9)).join('  ')}`;
+        }),
+        '',
+      ]
+    : [];
   return [
     title,
     ...notes.map((n) => `# ${n}`),
@@ -1455,6 +1607,7 @@ function formatZoomReport(title, notes, rows) {
     ...matrix,
     '',
     ...sizeTable,
+    ...stableTable,
     ...rows.map((r) => `${r.pass ? 'PASS' : 'FAIL'}  ${r.label}  ${r.check}  ${r.detail}`),
     '',
     `SUMMARY ${fails === 0 ? 'PASS' : 'FAIL'} pass=${rows.length - fails} fail=${fails}`,
@@ -1735,6 +1888,12 @@ async function driveInspectScan(page, artifactsDir, context, engine) {
     );
   }
   copyFileSync(join(artifactsDir, 'inspect-scan-390x844-results.png'), join(artifactsDir, 'inspect-scan-results.png'));
+  await runRotationChecks(
+    page,
+    rows,
+    { label: '390x844 portrait', size: { width: 390, height: 844 } },
+    { label: '844x390 landscape', size: { width: 844, height: 390 } },
+  );
 
   await page.setViewportSize({ width: 390, height: 844 });
   await resetZoomUi(page);
@@ -1764,6 +1923,8 @@ async function driveInspectScan(page, artifactsDir, context, engine) {
       'b magnifier opens a full-screen portal overlay; c pinch+pan scale>1; d X/Esc/Back exit and restore styles+scroll',
       'e hold shows the reference (idle and zoom); f Italian hint directly below, not on, the photo and in the viewport with the photo scrolled into view',
       'size: photo WxH vs viewport and area % at the initial scroll; FAIL on horizontal overflow (scrollWidth or photo right edge > innerWidth)',
+      'j-size: photo WxH unchanged (±0.5px) after viewport +70px (URL bar collapse), during/after a trusted CDP swipe, and after -70px',
+      'k-rot: rotating to the other viewport gives that orientation\'s size row; rotating back restores the original',
     ],
     rows,
   );
@@ -1858,6 +2019,12 @@ async function driveInspectScanOnDevice(page, context, engine, artifactsDir, dev
       )),
     );
   }
+  await runRotationChecks(
+    page,
+    rows,
+    { label: `${device.name} portrait`, size: portraitSpec.viewport },
+    { label: `${device.name} landscape`, size: landscapeSpec.viewport },
+  );
   return { device: device.name, engine: device.engine, platform: device.platform, method: `${driver.method}; ${probeNote}`, rows };
 }
 
@@ -1885,6 +2052,8 @@ async function driveInspectScanCrossPlatform(url, artifactsDir, { device: onlyDe
           'WebKit h-fight = viewport resizes (toolbar collapse) at scrollY 120 issue zero programmatic scrolls (window.scrollTo etc. instrumented at init).',
           'Magnifier and X are pressed with trusted locator.tap() on every engine; Esc via keyboard.press; Back via page.goBack().',
           'size: photo WxH vs viewport and area % at the initial scroll; FAIL if document scrollWidth > innerWidth or the photo right edge > innerWidth.',
+          'j-size: photo WxH unchanged (±0.5px) after viewport +70px (URL bar collapse), during/after a scroll (Chromium trusted CDP swipe; WebKit window.scrollTo, size-only), and after -70px.',
+          'k-rot: rotating portrait<->landscape (Playwright profile viewports) gives the other orientation\'s size row; rotating back restores the original.',
           'f / e-idle geometry: hint directly below the photo (gap <= 32px) and fully in the viewport with the photo scrolled into view (its top at the viewport top, or the initial scroll if photo + hint already fit).',
         ],
         rows,
