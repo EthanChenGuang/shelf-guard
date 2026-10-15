@@ -1057,10 +1057,58 @@ async function trySynthesizedScroll(page, context) {
   return `synthesizeScrollGesture(touch) ${done}: scrollY 0->${await page.evaluate(() => window.scrollY)}`;
 }
 
-/** (f) Italian one-line hint below the photo, never on it. */
-async function assertItalianHint(page, artifactsDir, name) {
+/**
+ * Scroll as a user would to look at the photo: stay at the initial position when photo + hint
+ * already fit in the viewport, else put the photo's top at the viewport top (clamped to max scroll).
+ */
+async function scrollPhotoIntoView(page) {
+  const y = await page.evaluate(() => {
+    window.scrollTo(0, 0);
+    const img = document.querySelector('[data-testid="inspect-image-viewport"]').getBoundingClientRect();
+    const hint = document.querySelector('[data-testid="inspect-hold-hint"]')?.getBoundingClientRect();
+    const bottom = Math.max(img.bottom, hint?.bottom ?? img.bottom);
+    if (img.top >= 0 && bottom <= window.innerHeight) return 0;
+    const max = document.scrollingElement.scrollHeight - window.innerHeight;
+    window.scrollTo(0, Math.max(0, Math.min(Math.round(img.top), max)));
+    return window.scrollY;
+  });
+  await page.waitForTimeout(150);
+  return y;
+}
+
+/** (i) Photo size vs viewport (recorded metric) and no horizontal overflow, at the initial scroll. */
+async function assertImageSize(page) {
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(150);
+  const m = await page.evaluate(() => {
+    const r = document.querySelector('[data-testid="inspect-image-viewport"]').getBoundingClientRect();
+    return {
+      w: r.width,
+      h: r.height,
+      left: r.left,
+      right: r.right,
+      vw: window.innerWidth,
+      vh: window.innerHeight,
+      scrollWidth: document.documentElement.scrollWidth,
+    };
+  });
+  const metric = {
+    image: `${Math.round(m.w)}x${Math.round(m.h)}`,
+    viewport: `${m.vw}x${m.vh}`,
+    area: ((m.w * m.h) / (m.vw * m.vh)) * 100,
+  };
+  const detail = `image ${metric.image} viewport ${metric.viewport} area ${metric.area.toFixed(1)}% left=${m.left.toFixed(1)} right=${m.right.toFixed(1)} scrollWidth=${m.scrollWidth}/${m.vw}`;
+  const problems = [];
+  if (m.scrollWidth > m.vw) problems.push(`document scrollWidth ${m.scrollWidth} > innerWidth ${m.vw}`);
+  if (m.right > m.vw + 0.5) problems.push(`image right ${m.right.toFixed(1)} > innerWidth ${m.vw}`);
+  if (m.left < -0.5) problems.push(`image left ${m.left.toFixed(1)} < 0`);
+  if (problems.length) throw new Error(`${problems.join('; ')} (${detail})`);
+  return { detail, metric };
+}
+
+/** (f) Italian one-line hint directly below the photo, never on it, visible with the photo in view. */
+async function assertItalianHint(page, artifactsDir, name) {
+  await scrollPhotoIntoView(page);
   await assertNoPinchOverlay(page, name);
   const hold = page.getByTestId('inspect-hold-hint');
   await hold.waitFor({ state: 'visible', timeout: 12_000 });
@@ -1082,10 +1130,7 @@ async function assertItalianHint(page, artifactsDir, name) {
 /** (e) Press-and-hold shows the reference photo and the Italian status — idle or in zoom mode. */
 async function assertHoldShowsReference(page, driver, artifactsDir, name, { zoom }) {
   const target = zoom ? SEL.stage : SEL.image;
-  if (!zoom) {
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await page.waitForTimeout(150);
-  }
+  if (!zoom) await scrollPhotoIntoView(page);
   const pressed = await pressPointOn(page, target);
   let info;
   let geometry = '';
@@ -1277,6 +1322,7 @@ const CHECK_SHORT = {
   'e-hold-reference-idle': 'e-idle',
   'e-hold-reference-zoom': 'e-zoom',
   'f-hint-italian-below-image': 'f',
+  'i-image-size-no-hoverflow': 'size',
   'layout-centered': 'center',
   'layout-rotate-no-offset': 'rotate',
   'setup-reach-results': 'setup',
@@ -1296,6 +1342,7 @@ const ZOOM_CHECKS = [
   'e-hold-reference-idle',
   'e-hold-reference-zoom',
   'f-hint-italian-below-image',
+  'i-image-size-no-hoverflow',
 ];
 
 /** Run the scroll + zoom checks at one viewport size. Never throws; returns PASS/FAIL rows. */
@@ -1308,6 +1355,13 @@ async function verifyZoomModeAt(page, driver, artifactsDir, name, label, size) {
     const m = await measureAndShotResults(page, artifactsDir, `${name}-results`);
     return `image ${m.image} left=${m.leftGap} right=${m.rightGap}`;
   });
+  let sizeMetric = null;
+  await runCheck(rows, label, 'i-image-size-no-hoverflow', async () => {
+    const r = await assertImageSize(page);
+    sizeMetric = r.metric;
+    return r.detail;
+  });
+  if (sizeMetric) rows[rows.length - 1].metric = sizeMetric;
   await runCheck(rows, label, 'f-hint-italian-below-image', () => assertItalianHint(page, artifactsDir, name));
   await runCheck(rows, label, 'e-hold-reference-idle', () =>
     assertHoldShowsReference(page, driver, artifactsDir, name, { zoom: false }),
@@ -1381,6 +1435,18 @@ function formatZoomReport(title, notes, rows) {
     ...labels.map((l) => `${l.padEnd(width)}  ${cols.map((k) => cell(l, k.c).padEnd(k.w)).join('  ')}`),
   ];
   const fails = rows.filter((r) => !r.pass).length;
+  const sized = rows.filter((r) => r.metric);
+  const sizeTable = sized.length
+    ? [
+        'image size (inspect-image-viewport at initial scroll):',
+        `${'device / orientation'.padEnd(width)}  ${'image'.padEnd(9)}  ${'viewport'.padEnd(9)}  area`,
+        ...sized.map(
+          (r) =>
+            `${r.label.padEnd(width)}  ${r.metric.image.padEnd(9)}  ${r.metric.viewport.padEnd(9)}  ${r.metric.area.toFixed(1)}%`,
+        ),
+        '',
+      ]
+    : [];
   return [
     title,
     ...notes.map((n) => `# ${n}`),
@@ -1388,6 +1454,7 @@ function formatZoomReport(title, notes, rows) {
     `checks: ${checks.join(', ')}`,
     ...matrix,
     '',
+    ...sizeTable,
     ...rows.map((r) => `${r.pass ? 'PASS' : 'FAIL'}  ${r.label}  ${r.check}  ${r.detail}`),
     '',
     `SUMMARY ${fails === 0 ? 'PASS' : 'FAIL'} pass=${rows.length - fails} fail=${fails}`,
@@ -1512,7 +1579,7 @@ function formatHoldGeometry(name, image, hold, pageSize, ok) {
   return [
     `${name} image=${Math.round(image.width)}x${Math.round(image.height)}@${Math.round(image.x)},${Math.round(image.y)}`,
     `hold=${Math.round(hold.width)}x${Math.round(hold.height)}@${Math.round(hold.x)},${Math.round(hold.y)}`,
-    `intersect=${boxesIntersect(image, hold)} below=${hold.y + 1 >= image.y + image.height} inViewport=${boxInsideViewport(hold, pageSize)}`,
+    `intersect=${boxesIntersect(image, hold)} below=${hold.y + 1 >= image.y + image.height} gap=${Math.round(hold.y - (image.y + image.height))} inViewport=${boxInsideViewport(hold, pageSize)}`,
     `ok=${ok}`,
   ].join(' ');
 }
@@ -1569,6 +1636,12 @@ async function assertHoldOutsideImage(page, name) {
   }
   if (hold.y + 1 < image.y + image.height) {
     throw new Error(`${name}: hold/status is not below the image (hold.y=${hold.y} image.bottom=${image.y + image.height})`);
+  }
+  if (hold.y - (image.y + image.height) > 32) {
+    throw new Error(`${name}: hold/status is not directly below the image (gap ${Math.round(hold.y - (image.y + image.height))}px)`);
+  }
+  if (image.y < -2) {
+    throw new Error(`${name}: image top ${Math.round(image.y)} is above the viewport with the photo scrolled into view`);
   }
   if (!boxInsideViewport(hold, pageSize)) {
     throw new Error(
@@ -1689,7 +1762,8 @@ async function driveInspectScan(page, artifactsDir, context, engine) {
       'h-fight no programmatic window/html/body scroll while the user scrolls and the viewport resizes (URL bar collapse)',
       `probes: ${synthNote}`,
       'b magnifier opens a full-screen portal overlay; c pinch+pan scale>1; d X/Esc/Back exit and restore styles+scroll',
-      'e hold shows the reference (idle and zoom); f Italian hint below, not on, the photo',
+      'e hold shows the reference (idle and zoom); f Italian hint directly below, not on, the photo and in the viewport with the photo scrolled into view',
+      'size: photo WxH vs viewport and area % at the initial scroll; FAIL on horizontal overflow (scrollWidth or photo right edge > innerWidth)',
     ],
     rows,
   );
@@ -1810,6 +1884,8 @@ async function driveInspectScanCrossPlatform(url, artifactsDir, { device: onlyDe
           'WebKit a-*/g-* = STATIC (no scrollBy): touch-action allows pan-y from the start element to <html>; no nested scroll container on that chain; no other overflowing vertical scroller; no non-passive touchstart/touchmove listener on window/document/ancestors (addEventListener instrumented at init); no position:fixed/overflow hidden on html/body; the window has natural vertical overflow; the untrusted swipe is not defaultPrevented.',
           'WebKit h-fight = viewport resizes (toolbar collapse) at scrollY 120 issue zero programmatic scrolls (window.scrollTo etc. instrumented at init).',
           'Magnifier and X are pressed with trusted locator.tap() on every engine; Esc via keyboard.press; Back via page.goBack().',
+          'size: photo WxH vs viewport and area % at the initial scroll; FAIL if document scrollWidth > innerWidth or the photo right edge > innerWidth.',
+          'f / e-idle geometry: hint directly below the photo (gap <= 32px) and fully in the viewport with the photo scrolled into view (its top at the viewport top, or the initial scroll if photo + hint already fit).',
         ],
         rows,
       ),

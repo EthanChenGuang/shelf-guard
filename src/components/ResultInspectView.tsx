@@ -302,7 +302,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
         <div
           className="relative mx-auto cursor-pointer"
           data-testid="inspect-image-viewport"
-          style={{ ...frameBoxStyle(baseline.imageDimensions, 'var(--inspect-frame-max)'), touchAction: 'pan-y' }}
+          style={{ ...frameBoxStyle(baseline.imageDimensions, 'var(--inspect-frame-max)', 'var(--inspect-frame-gutter)'), touchAction: 'pan-y' }}
           onMouseDown={(e) => {
             hold.begin(e.clientX, e.clientY);
           }}
