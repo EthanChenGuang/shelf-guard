@@ -67,8 +67,9 @@ The literal freeze cannot be reproduced in headless Playwright: there is no real
 | File | Change |
 |---|---|
 | `src/index.css` | `overflow-x: hidden` and `overscroll-behavior: none` now apply to `html` only, which propagates to the viewport, so the window is the single vertical scroller. `body` and `#root` use `overflow-x: clip`, which trims sideways overflow without creating a scroll container. `html { touch-action: pan-y }` is kept. |
-| `src/App.tsx`, `src/components/ResultInspectView.tsx` | `overflow-x-hidden` changed to `overflow-x-clip` (same visual clipping, no scroll container). |
+| `src/App.tsx`, `src/components/ResultInspectView.tsx` (root) | `overflow-x-hidden` changed to `overflow-x-clip` (same visual clipping, no scroll container). |
 | `index.html` | Dropped `overscroll-none` from `<body>`. |
+| `src/components/ResultInspectView.tsx` | `<header>` and the filter HUD go from `sticky top-0` / `sticky top-[61px]` to `relative`. Their nearest scroll container used to be the non-scrolling results root, so they never actually stuck. Once that root stops being a scroll container, `sticky` would start pinning them to the viewport, about 110 px of a 340 px landscape screen, over the photo and its magnifier (seen in a screenshot). `relative` keeps the pre-fix behaviour, where they scroll away with the page. |
 | `src/hooks/useLayoutViewportLock.ts` | No `resize` or visualViewport handlers. No inline overflow styles. No document `touchstart`/`touchmove` listeners. On `orientationchange` only (now, +50 ms, +250 ms), it calls `window.scrollTo({ left: 0 })` and only if `scrollX !== 0`, so the vertical position is never written. `gesturestart`/`gesturechange` are still prevented (iOS page pinch); these never cancel a one-finger scroll. |
 
 Unchanged:

@@ -204,7 +204,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
   return (
     <div className="relative w-full max-w-full min-h-[100dvh] bg-sg-surface flex flex-col justify-between select-none overflow-x-clip">
       {/* Top Header Bar */}
-      <header className="sticky top-0 w-full z-40 bg-sg-white border-b border-sg-border/80 px-4 py-3 flex items-center justify-between shadow-sm">
+      <header className="relative w-full z-40 bg-sg-white border-b border-sg-border/80 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
           <button
             onClick={onBackToCamera}
@@ -230,7 +230,7 @@ export const ResultInspectView: React.FC<ResultInspectViewProps> = ({
       </header>
 
       {/* Top Floating Filter HUD Bar */}
-      <div className="glass-panel sticky top-[61px] z-30 mx-4 my-2 px-4 py-2 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+      <div className="glass-panel relative z-30 mx-4 my-2 px-4 py-2 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-2 flex-shrink-0">
           {/* Filter: Missing */}
           <button

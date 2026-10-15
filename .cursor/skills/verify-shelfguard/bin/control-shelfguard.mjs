@@ -743,8 +743,12 @@ function installScrollProbes() {
   EventTarget.prototype.addEventListener = function (type, fn, opts) {
     if (TRACKED.has(type) && fn) {
       const passive = typeof opts === 'object' && opts !== null && 'passive' in opts ? Boolean(opts.passive) : null;
-      const from = (new Error().stack ?? '').split('\n').map((l) => l.trim()).filter((l) => l && !/installScrollProbes|addEventListener|^Error/.test(l))[0] ?? '?';
-      probe.listeners.push({ target: this, type, fn, capture: captureOf(opts), passive, from: from.slice(0, 120) });
+      // WebKit reports this wrapper as the top frame, so search the whole stack for a page-origin
+      // frame: app listeners have one, Playwright's injected hit-target interceptor does not.
+      const frames = (new Error().stack ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
+      const appFrame = frames.find((l) => l.includes(location.origin));
+      const from = appFrame ?? frames.find((l) => !/installScrollProbes|addEventListener|^Error/.test(l)) ?? '?';
+      probe.listeners.push({ target: this, type, fn, capture: captureOf(opts), passive, app: Boolean(appFrame), from: from.slice(0, 120) });
     }
     return add.call(this, type, fn, opts);
   };
@@ -837,16 +841,20 @@ function readScrollTopologyInPage({ imageSelector, point }) {
   if (html.hasAttribute('data-inspect-zoom-mode')) locks.push('html[data-inspect-zoom-mode]');
   const probe = window.__sgProbe;
   const rootish = (t) => t === window || t === document || t === html || t === body;
-  const nonPassive = probe
+  const onPath = probe
     ? probe.listeners
         .filter((l) => l.type === 'touchstart' || l.type === 'touchmove')
         .filter((l) => rootish(l.target) || (l.target instanceof Node && l.target.contains(start)))
-        // Playwright's own action hit-target interceptor (installed by locator actions), not the app.
-        .filter((l) => !l.from.includes('addHitTargetInterceptorListeners'))
         // Browsers default touch listeners on window/document/html/body to passive when unspecified.
         .filter((l) => !(l.passive ?? rootish(l.target)))
-        .map((l) => `${name(l.target)}:${l.type}${l.capture ? '(capture)' : ''} from ${l.from}`)
+    : [];
+  // Only listeners registered by the page's own scripts count. Playwright's action hit-target
+  // interceptor registers from injected code (Chromium `<anonymous>`, WebKit `web-inspector://`).
+  const fromApp = (l) => l.app;
+  const nonPassive = probe
+    ? onPath.filter(fromApp).map((l) => `${name(l.target)}:${l.type}${l.capture ? '(capture)' : ''} from ${l.from}`)
     : ['listener probe not installed'];
+  const harnessListeners = onPath.filter((l) => !fromApp(l)).length;
   return {
     start: start ? name(start) : null,
     insideImage: Boolean(image && start && image.contains(start)),
@@ -862,6 +870,7 @@ function readScrollTopologyInPage({ imageSelector, point }) {
     overflowing,
     locks,
     nonPassive,
+    harnessListeners,
   };
 }
 
@@ -880,7 +889,7 @@ function topologyProblems(t) {
 }
 
 function describeTopology(t) {
-  return `natural scrollHeight=${t.scrollHeight} innerHeight=${t.innerHeight} room=${t.room} scroller=${t.scrollingElement} html=${t.htmlOverflow} body=${t.bodyOverflow}`;
+  return `natural scrollHeight=${t.scrollHeight} innerHeight=${t.innerHeight} room=${t.room} scroller=${t.scrollingElement} html=${t.htmlOverflow} body=${t.bodyOverflow} app-non-passive-touch=${t.nonPassive.length} (harness-injected excluded=${t.harnessListeners})`;
 }
 
 /** Start point for a swipe on the page but off the photo, clear of controls (inputs/buttons). */
