@@ -85,14 +85,14 @@ body,
 
 /*
  * The page scrolls (header/HUD scroll away), so the photo is budgeted against the whole viewport:
- * scrolled to its top, photo + the one-line hint below it fit. Side gutter keeps it off the edges
+ * scrolled to its top, photo + the one-line hint below it fit. Side gutter (1rem, like the header px-4) keeps it off the edges
  * and out of landscape notches.
  */
 :root {
   --inspect-hold-strip: 4.35rem;
   --inspect-frame-margin: calc(0.5rem + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
   --inspect-frame-max: calc(100vh - var(--inspect-hold-strip) - var(--inspect-frame-margin));
-  --inspect-frame-gutter: calc(max(0.5rem, env(safe-area-inset-left, 0px)) + max(0.5rem, env(safe-area-inset-right, 0px)));
+  --inspect-frame-gutter: calc(max(1rem, env(safe-area-inset-left, 0px)) + max(1rem, env(safe-area-inset-right, 0px)));
 }
 
 @supports (height: 100dvh) {
