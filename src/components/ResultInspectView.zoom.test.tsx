@@ -192,9 +192,9 @@ describe('ResultInspectView zoom mode', () => {
 
   it('X exits, restores html/body styles, scroll position, history and focus', () => {
     vi.spyOn(window, 'scrollY', 'get').mockReturnValue(180);
+    render(<ResultInspectView {...baseProps} lang="it" />);
     const htmlBefore = document.documentElement.style.cssText;
     const bodyBefore = document.body.style.cssText;
-    render(<ResultInspectView {...baseProps} lang="it" />);
     const enter = screen.getByTestId('inspect-zoom-enter');
     fireEvent.click(enter);
     pinchOut(screen.getByTestId('inspect-zoom-stage'));

@@ -47,3 +47,49 @@ When the photo is scrolled so its top is at the viewport top, photo + one-line h
   touching the check.
 - A landscape photo is still height-bound: a 9:16 photo on a ~320–430px-tall screen can't get much
   bigger and still show the hint below it in one screen.
+
+## Fixed size while scrolling (URL bar)
+
+Feedback (Guang): scrolling the results page changed the photo size, because `--inspect-frame-max`
+used `100dvh`, which follows the mobile URL bar collapsing/expanding.
+
+Fix: `useStableViewportHeight` (mounted in `ResultInspectView`) writes `window.innerHeight` at mount
+(= the initial `100dvh`) to `--inspect-vh` in px on `<html>`; `--inspect-frame-max` uses
+`var(--inspect-vh, 100dvh)` (`100vh` fallback kept). Re-measured only on orientationchange, an
+`(orientation: portrait)` media query change, a resize within 1s of those, or a width change > 1px.
+Height-only resizes (URL bar) are ignored. No scrollTo and no touch listeners: just a passive
+`resize` listener that compares the width. The magnifier overlay is unchanged.
+
+Harness: new `j-size-stable` check (viewport +70px tall, then a scroll — Chromium trusted CDP swipe,
+WebKit window.scrollTo since only the size is checked — then -70px; size must stay the same within
+±0.5px) and `k-size-rotation` (rotating to the other orientation's profile viewport gives that
+orientation's `size` row; rotating back restores the original).
+
+Artifacts: `/opt/cursor/artifacts/verify-shelfguard/stable-image-size-20261015-113753/{before,after}/` (`after-stale-server/` = a first post-fix run that hit a
+leftover preview process; same results, kept only for the record).
+
+| | before (HEAD d5ceef3) | after |
+|---|---|---|
+| inspect-scan (Chromium) | 50 pass / 2 fail (j-size 844x390, 932x430) | 52 / 0 |
+| cross-platform | 130 pass / 6 fail (j-size: iPhone 14 & 15 PM both orientations, Pixel 7 & S9+ landscape) | 136 / 0 |
+
+Before, the width-bound cases (390x844, Pixel 7 / S9+ portrait) already passed `j`. Every case
+where the height was the limit grew by +70px tall (e.g. iPhone 14 portrait 330x586 → 358x636).
+
+Sizes after the fix (initial matches the "after" column of the first table):
+
+| device / orientation | initial | +70px | during scroll | after scroll | -70px | rotated |
+|---|---|---|---|---|---|---|
+| iPhone 14 portrait | 330x586 | 330x586 | 330x586 | 330x586 | 330x586 | 163x290 |
+| iPhone 14 landscape | 163x290 | 163x290 | 163x290 | 163x290 | 163x290 | 330x586 |
+| iPhone 15 Pro Max portrait | 372x661 | 372x661 | 372x661 | 372x661 | 372x661 | 185x330 |
+| iPhone 15 Pro Max landscape | 185x330 | 185x330 | 185x330 | 185x330 | 185x330 | 372x661 |
+| Pixel 7 portrait | 380x676 | 380x676 | 380x676 | 380x676 | 380x676 | 174x310 |
+| Pixel 7 landscape | 174x310 | 174x310 | 174x310 | 174x310 | 174x310 | 380x676 |
+| Galaxy S9+ portrait | 288x512 | 288x512 | 288x512 | 288x512 | 288x512 | 152x270 |
+| Galaxy S9+ landscape | 152x270 | 152x270 | 152x270 | 152x270 | 152x270 | 288x512 |
+| 390x844 portrait (inspect-scan) | 358x636 | 358x636 | 358x636 | 358x636 | 358x636 | 191x340 |
+| 844x390 landscape (inspect-scan) | 191x340 | 191x340 | 191x340 | 191x340 | 191x340 | 358x636 |
+| 932x430 landscape (inspect-scan) | 214x380 | 214x380 | 214x380 | 214x380 | 214x380 | - |
+
+`h-no-scroll-fight` still passes everywhere (0 programmatic scrolls).
