@@ -743,7 +743,8 @@ function installScrollProbes() {
   EventTarget.prototype.addEventListener = function (type, fn, opts) {
     if (TRACKED.has(type) && fn) {
       const passive = typeof opts === 'object' && opts !== null && 'passive' in opts ? Boolean(opts.passive) : null;
-      probe.listeners.push({ target: this, type, fn, capture: captureOf(opts), passive });
+      const from = (new Error().stack ?? '').split('\n').map((l) => l.trim()).filter((l) => l && !/installScrollProbes|addEventListener|^Error/.test(l))[0] ?? '?';
+      probe.listeners.push({ target: this, type, fn, capture: captureOf(opts), passive, from: from.slice(0, 120) });
     }
     return add.call(this, type, fn, opts);
   };
@@ -804,11 +805,14 @@ function readScrollTopologyInPage({ imageSelector, point }) {
     el === window ? 'window' : el === document ? 'document' : el.getAttribute?.('data-testid') || (el.id ? `#${el.id}` : el.tagName?.toLowerCase());
   const hc = getComputedStyle(html);
   const htmlVisible = hc.overflowX === 'visible' && hc.overflowY === 'visible';
+  // A user-scrollable box (auto/scroll on either axis — e.g. overflow-x: hidden silently forces
+  // overflow-y: auto) can latch a swipe. overflow: hidden on both axes is not user-scrollable and
+  // swipes chain through it, like clip/visible.
   const isScrollContainer = (el) => {
     if (el === html) return false;
     if (el === body && htmlVisible) return false; // body overflow propagates to the viewport
     const cs = getComputedStyle(el);
-    return [cs.overflowX, cs.overflowY].some((v) => v === 'auto' || v === 'scroll' || v === 'hidden');
+    return [cs.overflowX, cs.overflowY].some((v) => v === 'auto' || v === 'scroll');
   };
   const chain = [];
   for (let cur = start; cur; cur = cur.parentElement) chain.push(cur);
@@ -837,9 +841,11 @@ function readScrollTopologyInPage({ imageSelector, point }) {
     ? probe.listeners
         .filter((l) => l.type === 'touchstart' || l.type === 'touchmove')
         .filter((l) => rootish(l.target) || (l.target instanceof Node && l.target.contains(start)))
+        // Playwright's own action hit-target interceptor (installed by locator actions), not the app.
+        .filter((l) => !l.from.includes('addHitTargetInterceptorListeners'))
         // Browsers default touch listeners on window/document/html/body to passive when unspecified.
         .filter((l) => !(l.passive ?? rootish(l.target)))
-        .map((l) => `${name(l.target)}:${l.type}${l.capture ? '(capture)' : ''}`)
+        .map((l) => `${name(l.target)}:${l.type}${l.capture ? '(capture)' : ''} from ${l.from}`)
     : ['listener probe not installed'];
   return {
     start: start ? name(start) : null,

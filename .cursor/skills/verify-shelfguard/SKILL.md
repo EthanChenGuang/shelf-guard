@@ -87,7 +87,7 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 | `establish-baseline/establish-baseline-pill.txt` | Exact baseline status text |
 | `inspect-scan/inspect-scan-360-portrait-header.png` | Camera header **Online Marketplace** on one line at 360×800 |
 | `inspect-scan/inspect-scan-360-landscape-header.png` | Camera header on one line at 800×360 |
-| `inspect-scan/inspect-scan-zoom-report.txt` | PASS/FAIL matrix for 390×844, 844×390, 932×430: (a) idle swipe on the photo scrolls, (b) magnifier opens overlay, (c) pinch/pan, (d) X/Esc/Back exit + full style/scroll restore, (e) hold → reference idle + zoom, (f) Italian hint below the photo; plus `c2` no-flicker and `rotate` |
+| `inspect-scan/inspect-scan-zoom-report.txt` | PASS/FAIL matrix for 390×844, 844×390, 932×430: `a-img`/`a-page` trusted touch swipe on / off the photo scrolls the window from the **natural** layout (scrollHeight vs innerHeight reported, nothing injected), `h-fight` zero programmatic scrolls while the viewport resizes mid-swipe (URL bar), (b) magnifier opens overlay, (c) pinch/pan, (d) X/Esc/Back exit + full style/scroll restore, `g-img`/`g-page` swipes scroll again after X, (e) hold → reference idle + zoom, (f) Italian hint below the photo; plus `c2` no-flicker and `rotate` |
 | `inspect-scan/inspect-scan-<WxH>-hold-hints.png` / `-hold-frame-*.png` | Hint **Tocca 🔍 per ingrandire · Tieni premuto per il riferimento** on one line below the photo |
 | `inspect-scan/inspect-scan-<WxH>-hold-status.png` / `-hold-geometry.txt` | **Stai vedendo la foto di riferimento** while holding; hint/status do not intersect the image |
 | `inspect-scan/inspect-scan-<WxH>-zoom-enter.png` / `-zoom.png` / `-zoom-hold.png` | Overlay opened, pinched ~2.75× and panned, hold in zoom mode |
@@ -98,7 +98,7 @@ Save proof under **`/opt/cursor/artifacts/verify-shelfguard/<run-id>/`**:
 | `inspect-scan/inspect-scan.aria.txt` | ARIA tree includes **Conferma e concludi l'ispezione** |
 | `inspect-scan/first-capture-comparison.txt` | First capture with an existing baseline ran comparison (PR #6) |
 | `multi-shelf/multi-shelf-2-empty-baseline.png` | Shelf 2 selected with no baseline yet |
-| `inspect-scan-cross-platform/cross-platform-report.txt` | PASS/FAIL per device (iPhone 14 / 15 Pro Max on WebKit, Pixel 7 / Galaxy S9+ on Chromium) × orientation × check (a)–(f); header states which input is trusted (CDP) vs synthetic (WebKit). Command exits 1 on any FAIL |
+| `inspect-scan-cross-platform/cross-platform-report.txt` | PASS/FAIL per device (iPhone 14 / 15 Pro Max on WebKit, Pixel 7 / Galaxy S9+ on Chromium) × orientation × check (`a-*`, `h-fight`, b–f, `g-*`); header states which input is trusted (CDP) vs synthetic/static (WebKit), and the `mouse.wheel` / `synthesizeScrollGesture` probe results. Command exits 1 on any FAIL |
 | `inspect-scan-cross-platform/<device>/inspect-scan-<device>-<orientation>-*.png` | Per-device hint, hold status, zoom enter/pinch/hold and after-exit screenshots |
 
 Standards:
