@@ -1,6 +1,6 @@
 {
   "name": "shelf-guard",
-  "install": "bash .cursor/cloud-agent-install.sh",
+  "install": "bash .cursor/cloud-agent-install.sh && npm install -g rea-agents@6.5.0 && sudo ln -sf \"$(command -v rea)\" /usr/local/bin/rea",
   "start": "exec bun run dev",
   "ports": [
     {

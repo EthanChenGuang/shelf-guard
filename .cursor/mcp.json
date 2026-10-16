@@ -1,5 +1,9 @@
 {
   "mcpServers": {
+    "rea": {
+      "command": "rea",
+      "args": ["mcp"]
+    },
     "mobile-mcp": {
       "type": "stdio",
       "command": "npx",
