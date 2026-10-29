@@ -1,4 +1,4 @@
-@/workspace/.cursor/gsd-core/references/response-language-directive.md
+@.cursor/gsd-core/references/response-language-directive.md
 
 <purpose>
 Surface Claude's assumptions about a phase before planning, enabling users to correct misconceptions early.

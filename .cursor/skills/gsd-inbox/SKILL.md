@@ -41,7 +41,7 @@ and optionally applies labels or closes non-compliant submissions.
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/inbox.md
+@.cursor/gsd-core/workflows/inbox.md
 </execution_context>
 
 <context>

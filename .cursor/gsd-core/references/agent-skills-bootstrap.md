@@ -31,7 +31,7 @@ In your mandatory init step — right after `mandatory-initial-read.md` / the
 
    ```bash
    # 1. Launcher: paste the bash block from gsd-run-resolver.md here unless gsd_run
-   #    is already defined in this shell (@/workspace/.cursor/gsd-core/references/gsd-run-resolver.md).
+   #    is already defined in this shell (@.cursor/gsd-core/references/gsd-run-resolver.md).
    # 2. Query:
    _AGENT_SKILLS=$(gsd_run query agent-skills <your-agent-type> --skills-only)
    ```

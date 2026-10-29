@@ -57,13 +57,13 @@ Mode routing:
 </routing>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/add-todo.md
-@/workspace/.cursor/gsd-core/workflows/note.md
-@/workspace/.cursor/gsd-core/workflows/add-backlog.md
-@/workspace/.cursor/gsd-core/workflows/plant-seed.md
-@/workspace/.cursor/gsd-core/workflows/check-todos.md
-@/workspace/.cursor/gsd-core/workflows/list-seeds.md
-@/workspace/.cursor/gsd-core/references/ui-brand.md
+@.cursor/gsd-core/workflows/add-todo.md
+@.cursor/gsd-core/workflows/note.md
+@.cursor/gsd-core/workflows/add-backlog.md
+@.cursor/gsd-core/workflows/plant-seed.md
+@.cursor/gsd-core/workflows/check-todos.md
+@.cursor/gsd-core/workflows/list-seeds.md
+@.cursor/gsd-core/references/ui-brand.md
 </execution_context>
 
 <context>

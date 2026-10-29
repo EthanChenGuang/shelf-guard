@@ -17,9 +17,9 @@ Spawned by `discuss-phase-assumptions` via `Task()`. You do NOT present output d
 - Flag topics where codebase analysis alone is insufficient (needs external research)
 </role>
 
-@/workspace/.cursor/gsd-core/references/untrusted-input-boundary.md
+@.cursor/gsd-core/references/untrusted-input-boundary.md
 
-**agent_skills:** self-load per @/workspace/.cursor/gsd-core/references/agent-skills-bootstrap.md (agent type: `gsd-assumptions-analyzer`)
+**agent_skills:** self-load per @.cursor/gsd-core/references/agent-skills-bootstrap.md (agent type: `gsd-assumptions-analyzer`)
 
 <input>
 Agent receives via prompt:

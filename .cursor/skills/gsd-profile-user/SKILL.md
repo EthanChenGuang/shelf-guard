@@ -38,8 +38,8 @@ Routes to the profile-user workflow which orchestrates the full flow: consent ga
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/profile-user.md
-@/workspace/.cursor/gsd-core/references/ui-brand.md
+@.cursor/gsd-core/workflows/profile-user.md
+@.cursor/gsd-core/references/ui-brand.md
 </execution_context>
 
 <context>

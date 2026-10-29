@@ -45,13 +45,13 @@ Does not require prior new-project setup — auto-creates `.planning/sketches/` 
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/sketch.md
-@/workspace/.cursor/gsd-core/workflows/sketch-wrap-up.md
-@/workspace/.cursor/gsd-core/references/ui-brand.md
-@/workspace/.cursor/gsd-core/references/sketch-theme-system.md
-@/workspace/.cursor/gsd-core/references/sketch-interactivity.md
-@/workspace/.cursor/gsd-core/references/sketch-tooling.md
-@/workspace/.cursor/gsd-core/references/sketch-variant-patterns.md
+@.cursor/gsd-core/workflows/sketch.md
+@.cursor/gsd-core/workflows/sketch-wrap-up.md
+@.cursor/gsd-core/references/ui-brand.md
+@.cursor/gsd-core/references/sketch-theme-system.md
+@.cursor/gsd-core/references/sketch-interactivity.md
+@.cursor/gsd-core/references/sketch-tooling.md
+@.cursor/gsd-core/references/sketch-variant-patterns.md
 </execution_context>
 
 

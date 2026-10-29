@@ -44,7 +44,7 @@ Flag handling rule:
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/docs-update.md
+@.cursor/gsd-core/workflows/docs-update.md
 </execution_context>
 
 <context>

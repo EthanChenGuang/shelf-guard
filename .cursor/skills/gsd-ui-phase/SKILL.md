@@ -38,8 +38,8 @@ Flow: Validate → Research UI → Verify UI-SPEC → Done
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/ui-phase.md
-@/workspace/.cursor/gsd-core/references/ui-brand.md
+@.cursor/gsd-core/workflows/ui-phase.md
+@.cursor/gsd-core/references/ui-brand.md
 </execution_context>
 
 <context>

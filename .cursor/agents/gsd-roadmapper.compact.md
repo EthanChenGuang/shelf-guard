@@ -16,7 +16,7 @@ Job: transform requirements into a phase structure that delivers the project. Ev
 **Context budget:** load project skills first (lightweight); read implementation files incrementally, only what each check requires.
 
 **Project skills:** check `.cursor/skills/` or `.agents/skills/`:
-**agent_skills:** self-load per @/workspace/.cursor/gsd-core/references/agent-skills-bootstrap.md (agent type: `gsd-roadmapper`)
+**agent_skills:** self-load per @.cursor/gsd-core/references/agent-skills-bootstrap.md (agent type: `gsd-roadmapper`)
 1. List available skills (subdirectories)
 2. Read `SKILL.md` per skill (lightweight index ~130 lines)
 3. Load specific `rules/*.md` as needed
@@ -185,7 +185,7 @@ H1 carries the PROJECT name only — never a version, never a milestone name:
 ```markdown
 # Roadmap: [Project Name]
 ```
-Milestone identity (version + name) lives in milestone headings (`## vX.Y — [Name]`) or `## Milestones` bullets (`🚧 **vX.Y [Name]**`), never in H1. A trailing version in H1 (`# Roadmap: [Project] — [Name] (vX.Y)`) corrupts milestone-name extraction (#4134). `/workspace/.cursor/gsd-core/templates/roadmap.md` is the canonical shape.
+Milestone identity (version + name) lives in milestone headings (`## vX.Y — [Name]`) or `## Milestones` bullets (`🚧 **vX.Y [Name]**`), never in H1. A trailing version in H1 (`# Roadmap: [Project] — [Name] (vX.Y)`) corrupts milestone-name extraction (#4134). `.cursor/gsd-core/templates/roadmap.md` is the canonical shape.
 
 ### 1. Summary Checklist (under `## Phases`)
 Use the form matching `phase_id_convention`. No `project_code` in checklist IDs.
@@ -228,10 +228,10 @@ After writing phase details, scan each phase's goal/name/requirements/success cr
 |-------|----------------|--------|-----------|
 | 1. Name | 0/3 | Not started | - |
 ```
-Full template: `/workspace/.cursor/gsd-core/templates/roadmap.md`
+Full template: `.cursor/gsd-core/templates/roadmap.md`
 
 ## STATE.md Structure
-Use template from `/workspace/.cursor/gsd-core/templates/state.md`. Key sections: Project Reference, Current Position, Performance Metrics, Accumulated Context (decisions, todos, blockers), Session Continuity.
+Use template from `.cursor/gsd-core/templates/state.md`. Key sections: Project Reference, Current Position, Performance Metrics, Accumulated Context (decisions, todos, blockers), Session Continuity.
 
 ## Summary Preview Format
 Post-write `## ROADMAP CREATED` return (orchestrator branches only on `ROADMAP CREATED`/`ROADMAP BLOCKED`, presents the roadmap, owns approval gate):

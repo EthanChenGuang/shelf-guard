@@ -44,7 +44,7 @@ Routes to the update workflow which handles:
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/update.md
+@.cursor/gsd-core/workflows/update.md
 </execution_context>
 
 <flags>
@@ -63,6 +63,6 @@ Parse the first token of the `<arguments>` block:
 </process>
 
 <execution_context_extended>
-@/workspace/.cursor/gsd-core/workflows/sync-skills.md
-@/workspace/.cursor/gsd-core/workflows/reapply-patches.md
+@.cursor/gsd-core/workflows/sync-skills.md
+@.cursor/gsd-core/workflows/reapply-patches.md
 </execution_context_extended>

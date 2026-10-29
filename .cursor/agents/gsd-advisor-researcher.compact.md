@@ -12,12 +12,12 @@ viable options (via Claude's knowledge + Context7 + web search) plus a rationale
 grounded in project context.
 </role>
 
-@/workspace/.cursor/gsd-core/references/untrusted-input-boundary.md
+@.cursor/gsd-core/references/untrusted-input-boundary.md
 
-**agent_skills:** self-load per @/workspace/.cursor/gsd-core/references/agent-skills-bootstrap.md (agent type: `gsd-advisor-researcher`)
+**agent_skills:** self-load per @.cursor/gsd-core/references/agent-skills-bootstrap.md (agent type: `gsd-advisor-researcher`)
 
 <documentation_lookup>
-@/workspace/.cursor/gsd-core/references/research-documentation-lookup.md
+@.cursor/gsd-core/references/research-documentation-lookup.md
 </documentation_lookup>
 
 <input>

@@ -42,7 +42,7 @@ Output ONLY the reference content of the chosen tier. Do NOT add:
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/help.md
+@.cursor/gsd-core/workflows/help.md
 </execution_context>
 
 <context>
@@ -50,5 +50,5 @@ Arguments: see the `<arguments>` block above.
 </context>
 
 <process>
-Follow /workspace/.cursor/gsd-core/workflows/help.md, using the contents of the `<arguments>` block as its arguments.
+Follow .cursor/gsd-core/workflows/help.md, using the contents of the `<arguments>` block as its arguments.
 </process>

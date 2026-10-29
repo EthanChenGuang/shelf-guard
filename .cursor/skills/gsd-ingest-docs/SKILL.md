@@ -45,10 +45,10 @@ Auto-synthesizes most conflicts using the precedence rule `ADR > SPEC > PRD > DO
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/ingest-docs.md
-@/workspace/.cursor/gsd-core/references/ui-brand.md
-@/workspace/.cursor/gsd-core/references/gate-prompts.md
-@/workspace/.cursor/gsd-core/references/doc-conflict-engine.md
+@.cursor/gsd-core/workflows/ingest-docs.md
+@.cursor/gsd-core/references/ui-brand.md
+@.cursor/gsd-core/references/gate-prompts.md
+@.cursor/gsd-core/references/doc-conflict-engine.md
 </execution_context>
 
 <context>

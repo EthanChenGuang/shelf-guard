@@ -1,4 +1,4 @@
-@/workspace/.cursor/gsd-core/references/response-language-directive.md
+@.cursor/gsd-core/references/response-language-directive.md
 
 <purpose>
 Autonomous repair operator for failed task verification. Invoked by execute-plan when a task fails its done-criteria. Proposes and attempts structured fixes before escalating to the user.

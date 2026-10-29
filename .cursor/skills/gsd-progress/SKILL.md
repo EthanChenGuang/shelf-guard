@@ -51,10 +51,10 @@ Three modes:
 </flags>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/progress.md
-@/workspace/.cursor/gsd-core/workflows/next.md
-@/workspace/.cursor/gsd-core/workflows/do.md
-@/workspace/.cursor/gsd-core/references/ui-brand.md
+@.cursor/gsd-core/workflows/progress.md
+@.cursor/gsd-core/workflows/next.md
+@.cursor/gsd-core/workflows/do.md
+@.cursor/gsd-core/references/ui-brand.md
 </execution_context>
 
 <process>

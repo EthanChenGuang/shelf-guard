@@ -41,9 +41,9 @@ Three modes:
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/undo.md
-@/workspace/.cursor/gsd-core/references/ui-brand.md
-@/workspace/.cursor/gsd-core/references/gate-prompts.md
+@.cursor/gsd-core/workflows/undo.md
+@.cursor/gsd-core/references/ui-brand.md
+@.cursor/gsd-core/references/gate-prompts.md
 </execution_context>
 
 <context>

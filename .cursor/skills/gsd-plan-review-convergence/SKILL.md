@@ -43,10 +43,10 @@ Replaces gsd-plan-phase's internal gsd-plan-checker with external AI reviewers (
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/plan-review-convergence.md
-@/workspace/.cursor/gsd-core/references/revision-loop.md
-@/workspace/.cursor/gsd-core/references/gates.md
-@/workspace/.cursor/gsd-core/references/agent-contracts.md
+@.cursor/gsd-core/workflows/plan-review-convergence.md
+@.cursor/gsd-core/references/revision-loop.md
+@.cursor/gsd-core/references/gates.md
+@.cursor/gsd-core/references/agent-contracts.md
 </execution_context>
 
 

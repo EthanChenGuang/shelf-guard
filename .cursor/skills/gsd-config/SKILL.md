@@ -53,9 +53,9 @@ Mode routing:
 </routing>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/settings.md
-@/workspace/.cursor/gsd-core/workflows/settings-advanced.md
-@/workspace/.cursor/gsd-core/workflows/settings-integrations.md
+@.cursor/gsd-core/workflows/settings.md
+@.cursor/gsd-core/workflows/settings-advanced.md
+@.cursor/gsd-core/workflows/settings-integrations.md
 </execution_context>
 
 <context>

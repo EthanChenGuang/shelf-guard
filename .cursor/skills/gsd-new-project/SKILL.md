@@ -53,11 +53,11 @@ Initialize a new project through unified flow: questioning → research (optiona
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/new-project.md
-@/workspace/.cursor/gsd-core/references/questioning.md
-@/workspace/.cursor/gsd-core/references/ui-brand.md
-@/workspace/.cursor/gsd-core/templates/project.md
-@/workspace/.cursor/gsd-core/templates/requirements.md
+@.cursor/gsd-core/workflows/new-project.md
+@.cursor/gsd-core/references/questioning.md
+@.cursor/gsd-core/references/ui-brand.md
+@.cursor/gsd-core/templates/project.md
+@.cursor/gsd-core/templates/requirements.md
 </execution_context>
 
 <process>

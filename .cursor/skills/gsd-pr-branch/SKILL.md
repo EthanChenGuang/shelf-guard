@@ -40,7 +40,7 @@ changes that are irrelevant to code review.
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/pr-branch.md
+@.cursor/gsd-core/workflows/pr-branch.md
 </execution_context>
 
 <process>

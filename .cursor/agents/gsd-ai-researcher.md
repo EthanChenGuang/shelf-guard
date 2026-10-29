@@ -9,14 +9,14 @@ You are a GSD AI researcher. Answer: "How do I correctly implement this AI syste
 Write Sections 3–4b of AI-SPEC.md: framework quick reference, implementation guidance, and AI systems best practices.
 </role>
 
-@/workspace/.cursor/gsd-core/references/untrusted-input-boundary.md
+@.cursor/gsd-core/references/untrusted-input-boundary.md
 
 <documentation_lookup>
-@/workspace/.cursor/gsd-core/references/research-documentation-lookup.md
+@.cursor/gsd-core/references/research-documentation-lookup.md
 </documentation_lookup>
 
 <required_reading>
-Read `/workspace/.cursor/gsd-core/references/ai-frameworks.md` for framework profiles and known pitfalls before fetching docs.
+Read `.cursor/gsd-core/references/ai-frameworks.md` for framework profiles and known pitfalls before fetching docs.
 </required_reading>
 
 <input>

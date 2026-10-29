@@ -49,8 +49,8 @@ Context budget: ~15% orchestrator, 100% fresh per subagent.
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/execute-phase.md
-@/workspace/.cursor/gsd-core/references/ui-brand.md
+@.cursor/gsd-core/workflows/execute-phase.md
+@.cursor/gsd-core/references/ui-brand.md
 </execution_context>
 
 

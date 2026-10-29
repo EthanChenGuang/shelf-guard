@@ -53,10 +53,10 @@ Mode routing:
 </routing>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/add-phase.md
-@/workspace/.cursor/gsd-core/workflows/insert-phase.md
-@/workspace/.cursor/gsd-core/workflows/remove-phase.md
-@/workspace/.cursor/gsd-core/workflows/edit-phase.md
+@.cursor/gsd-core/workflows/add-phase.md
+@.cursor/gsd-core/workflows/insert-phase.md
+@.cursor/gsd-core/workflows/remove-phase.md
+@.cursor/gsd-core/workflows/edit-phase.md
 </execution_context>
 
 <context>

@@ -38,7 +38,7 @@ Closes the plan → execute → verify → ship loop.
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/ship.md
+@.cursor/gsd-core/workflows/ship.md
 </execution_context>
 
-Execute the ship workflow from @/workspace/.cursor/gsd-core/workflows/ship.md end-to-end.
+Execute the ship workflow from @.cursor/gsd-core/workflows/ship.md end-to-end.

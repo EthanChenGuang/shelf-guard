@@ -38,8 +38,8 @@ Output: {phase_num}-UI-REVIEW.md
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/ui-review.md
-@/workspace/.cursor/gsd-core/references/ui-brand.md
+@.cursor/gsd-core/workflows/ui-review.md
+@.cursor/gsd-core/references/ui-brand.md
 </execution_context>
 
 <context>

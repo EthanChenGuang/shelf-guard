@@ -51,10 +51,10 @@ Mode routing:
 </routing>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/new-workspace.md
-@/workspace/.cursor/gsd-core/workflows/list-workspaces.md
-@/workspace/.cursor/gsd-core/workflows/remove-workspace.md
-@/workspace/.cursor/gsd-core/references/ui-brand.md
+@.cursor/gsd-core/workflows/new-workspace.md
+@.cursor/gsd-core/workflows/list-workspaces.md
+@.cursor/gsd-core/workflows/remove-workspace.md
+@.cursor/gsd-core/references/ui-brand.md
 </execution_context>
 
 <context>

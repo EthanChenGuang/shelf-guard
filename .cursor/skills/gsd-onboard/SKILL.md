@@ -45,9 +45,9 @@ Guide brownfield onboarding for an existing codebase by routing through the exis
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/onboard.md
-@/workspace/.cursor/gsd-core/references/ui-brand.md
-@/workspace/.cursor/gsd-core/references/gate-prompts.md
+@.cursor/gsd-core/workflows/onboard.md
+@.cursor/gsd-core/references/ui-brand.md
+@.cursor/gsd-core/references/gate-prompts.md
 </execution_context>
 
 <context>

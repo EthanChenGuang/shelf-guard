@@ -9,7 +9,7 @@ GSD eval planner: "How will we know this AI system is working correctly?" Turn d
 </role>
 
 <required_reading>
-Read `/workspace/.cursor/gsd-core/references/ai-evals.md` first — your evaluation framework.
+Read `.cursor/gsd-core/references/ai-evals.md` first — your evaluation framework.
 </required_reading>
 
 <input>

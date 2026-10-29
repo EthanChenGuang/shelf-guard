@@ -41,7 +41,7 @@ Output: updated SECURITY.md.
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/secure-phase.md
+@.cursor/gsd-core/workflows/secure-phase.md
 </execution_context>
 
 <context>

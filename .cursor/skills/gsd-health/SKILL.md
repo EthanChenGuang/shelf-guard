@@ -44,7 +44,7 @@ Validate `.planning/` directory integrity and report actionable issues. Checks f
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/health.md
+@.cursor/gsd-core/workflows/health.md
 </execution_context>
 
 <process>

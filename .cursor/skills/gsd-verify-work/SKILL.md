@@ -40,8 +40,8 @@ Output: {phase_num}-UAT.md tracking all test results. If issues found: diagnosed
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/verify-work.md
-@/workspace/.cursor/gsd-core/templates/UAT.md
+@.cursor/gsd-core/workflows/verify-work.md
+@.cursor/gsd-core/templates/UAT.md
 </execution_context>
 
 <context>

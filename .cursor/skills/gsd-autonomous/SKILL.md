@@ -45,8 +45,8 @@ Uses ROADMAP.md phase discovery and Skill() flat invocations for each phase comm
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/autonomous.md
-@/workspace/.cursor/gsd-core/references/ui-brand.md
+@.cursor/gsd-core/workflows/autonomous.md
+@.cursor/gsd-core/references/ui-brand.md
 </execution_context>
 
 <context>

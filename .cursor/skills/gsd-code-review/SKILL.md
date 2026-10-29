@@ -52,7 +52,7 @@ Output: {padded_phase}-REVIEW.md in phase directory + inline summary of findings
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/code-review.md
+@.cursor/gsd-core/workflows/code-review.md
 </execution_context>
 
 <context>

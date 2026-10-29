@@ -40,7 +40,7 @@ planning via /gsd-plan-phase --reviews.
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/review.md
+@.cursor/gsd-core/workflows/review.md
 </execution_context>
 
 <context>

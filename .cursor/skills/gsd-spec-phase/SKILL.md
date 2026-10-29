@@ -48,8 +48,8 @@ Clarify phase requirements through structured Socratic questioning with quantita
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/spec-phase.md
-@/workspace/.cursor/gsd-core/templates/spec.md
+@.cursor/gsd-core/workflows/spec-phase.md
+@.cursor/gsd-core/templates/spec.md
 </execution_context>
 
 

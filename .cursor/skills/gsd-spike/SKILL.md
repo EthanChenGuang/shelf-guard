@@ -45,9 +45,9 @@ Does not require prior new-project setup — auto-creates `.planning/spikes/` if
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/spike.md
-@/workspace/.cursor/gsd-core/workflows/spike-wrap-up.md
-@/workspace/.cursor/gsd-core/references/ui-brand.md
+@.cursor/gsd-core/workflows/spike.md
+@.cursor/gsd-core/workflows/spike-wrap-up.md
+@.cursor/gsd-core/references/ui-brand.md
 </execution_context>
 
 

@@ -26,7 +26,7 @@ string** when nothing resolved.
 
 ## Lookup Table
 
-@/workspace/.cursor/gsd-core/references/model-profiles.md
+@.cursor/gsd-core/references/model-profiles.md
 
 ## Passing the model to a spawn
 

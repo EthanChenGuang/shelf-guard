@@ -41,7 +41,7 @@ Output: updated VALIDATION.md + generated test files.
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/validate-phase.md
+@.cursor/gsd-core/workflows/validate-phase.md
 </execution_context>
 
 <context>

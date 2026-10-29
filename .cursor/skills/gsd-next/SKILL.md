@@ -38,8 +38,8 @@ This is a launcher/router only. It never does the work itself. It reads project 
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/smart-entry.md
-@/workspace/.cursor/gsd-core/references/ui-brand.md
+@.cursor/gsd-core/workflows/smart-entry.md
+@.cursor/gsd-core/references/ui-brand.md
 </execution_context>
 
 <context>
@@ -47,5 +47,5 @@ Arguments: see the `<arguments>` block above.
 </context>
 
 <process>
-Follow /workspace/.cursor/gsd-core/workflows/smart-entry.md. Detect the situation, present the menu, and dispatch exactly one command. Then stop.
+Follow .cursor/gsd-core/workflows/smart-entry.md. Detect the situation, present the menu, and dispatch exactly one command. Then stop.
 </process>

@@ -58,7 +58,7 @@ Granular flags are composable: `--discuss --research --validate` gives the same 
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/quick.md
+@.cursor/gsd-core/workflows/quick.md
 </execution_context>
 
 <context>

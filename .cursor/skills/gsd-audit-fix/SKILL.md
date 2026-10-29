@@ -43,7 +43,7 @@ Flags:
 </objective>
 
 <execution_context>
-@/workspace/.cursor/gsd-core/workflows/audit-fix.md
+@.cursor/gsd-core/workflows/audit-fix.md
 </execution_context>
 
 <process>
