@@ -32,7 +32,7 @@ Display comprehensive project statistics including phase progress, plan executio
 </objective>
 
 <execution_context>
-@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/workflows/stats.md
+@/workspace/.cursor/gsd-core/workflows/stats.md
 </execution_context>
 
 <process>

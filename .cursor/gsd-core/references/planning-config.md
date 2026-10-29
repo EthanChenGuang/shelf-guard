@@ -35,11 +35,13 @@ Configuration options for `.planning/` directory behavior.
 | `git.base_branch` | `null` (auto-detect) | Target branch for PRs and merges (e.g. `"master"`, `"develop"`). When `null`, auto-detects from `git symbolic-ref refs/remotes/origin/HEAD`, falling back to `"main"`. |
 | `git.protected_branches` | (none) | Optional array of non-empty strings naming additional shared branches that should trigger protected-branch warnings |
 | `git.create_tag` | `true` | Create git tags on milestone completion |
+| `git.repo_tagging` | `"single"` | Milestone tagging mode: `"single"` (existing behavior) or `"per_repo"` (record one release per configured repository; each tag is pushed only after a per-repository confirmation) |
 | `git.phase_branch_template` | `"gsd/phase-{phase}-{slug}"` | Branch template for phase strategy |
 | `git.milestone_branch_template` | `"gsd/{milestone}-{slug}"` | Branch template for milestone strategy |
 | `git.quick_branch_template` | `null` | Optional branch template for quick-task runs |
 | `workflow.use_worktrees` | `true` | Whether executor agents run in isolated git worktrees. Set to `false` to disable worktrees — agents execute sequentially on the main working tree instead. Recommended for solo developers or when worktree merges cause issues. Note: if your branch is ahead of `origin/HEAD` (a diverged milestone or feature branch), GSD auto-degrades to sequential and prints a warning; set `worktree.baseRef:"head"` in `.claude/settings.local.json` to restore parallel execution. See the branch-divergence note below. |
 | `workflow.subagent_timeout` | `300000` | Timeout in milliseconds for parallel subagent tasks (e.g. codebase mapping). Increase for large codebases or slower models. Default: 300000 (5 minutes). |
+| `planner.stall_detection_enabled` | `true` | Default-on bounded stall detection for planner and plan-checker agents. Set to `false` to await runtime-native completion without watchdog polling; this gives up bounded automatic recovery if the completion handoff is lost. _Loader projection:_ `planner_stall_detection_enabled`. |
 | `workflow.inline_plan_threshold` | `2` | Plans with this many tasks or fewer execute inline (Pattern C) instead of spawning a subagent. Avoids ~14K token spawn overhead for small plans. Set to `0` to always spawn subagents. |
 | `workflow.test_command` | `null` | Custom shell command run as the regression/test gate by execute-phase, audit-fix, and post-merge-gate. When unset, GSD auto-detects (Makefile / package.json / Cargo.toml / go.mod / pyproject.toml). Example: `npm test`. |
 | `workflow.build_command` | `null` | Custom shell command run as the build gate by the post-merge gate. When unset, the build step is skipped/auto-detected. Example: `npm run build`. |
@@ -266,7 +268,7 @@ Generated from `CONFIG_DEFAULTS` (configuration.cjs) and `VALID_CONFIG_KEYS` (co
 | `context_window` | number | `200000` | `200000`, `1000000` | Context window size; set `1000000` for 1M-context models |
 | `resolve_model_ids` | boolean\|string | `false` | `false`, `true`, `"omit"` | Map model aliases to full Claude IDs; `"omit"` returns empty string |
 | `context` | string\|null | `null` | `"dev"`, `"research"`, `"review"` | Execution context profile that adjusts agent behavior: `"dev"` for development tasks, `"research"` for investigation/exploration, `"review"` for code review workflows |
-| `review.models.<cli>` | string\|null | `null` | Any model ID string | Per-CLI model override for /gsd-review (e.g., `review.models.gemini`). Falls back to CLI default when null. |
+| `review.models.<cli>` | string\|null | `null` | Any model ID string | Per-CLI model override for /gsd-review (e.g., `review.models.codex`). Falls back to CLI default when null. |
 | `review.max_prompt_tokens` | number\|null | `null` | Any positive integer, or `null` | Central, cross-lane default cap (in estimated tokens) on the assembled review prompt; `null` means no trim. A per-lane `review.max_prompt_tokens_per_reviewer.<slug>` value overrides it for that lane: `-1` means unset (inherits this global default), `0` means "do not trim that lane" (not unset — it is an explicit, standing opt-out). _Alias:_ `max_prompt_tokens` is the flat-key form used in `CONFIG_DEFAULTS`; `review.max_prompt_tokens` is the canonical namespaced form. |
 
 ### Workflow Fields
@@ -313,6 +315,14 @@ Set via `workflow.*` namespace in config.json (e.g., `"workflow": { "research": 
 | `workflow.security_block_on` | string | `"high"` | `"critical"`, `"high"`, `"medium"`, `"low"`, `"none"` | Minimum threat severity that blocks phase advancement. The auditor counts only open threats at or above this severity toward the blocking gate (SECURITY.md `threats_open`); `none` disables severity blocking. |
 | `workflow.post_planning_gaps` | boolean | `true` | `true`, `false` | Post-planning gap report (#2493). After plans are generated, scans REQUIREMENTS.md and CONTEXT.md `<decisions>` against all PLAN.md files and emits a unified `Source \| Item \| Status` table. Non-blocking. Set to `false` to skip Step 13e of plan-phase. _Alias:_ `post_planning_gaps` is the flat-key form used in `CONFIG_DEFAULTS`; `workflow.post_planning_gaps` is the canonical namespaced form. |
 
+### Planner Fields
+
+Set via the `planner.*` namespace. These settings affect only planner/plan-checker waits; executor stall controls are independent.
+
+| Key | Type | Default | Allowed Values | Description |
+|-----|------|---------|----------------|-------------|
+| `planner.stall_detection_enabled` | boolean | `true` | `true`, `false` | Default-on bounded stall detection for the standard planner, chunked outline/per-plan planners, plan-checker, and revision planner. `false` skips `gsd_stall_watch` polling but still awaits and consumes the real runtime-native agent result. It gives up bounded automatic recovery if the runtime loses the completion handoff. _Loader projection:_ `planner_stall_detection_enabled`. |
+
 ### Ship Fields
 
 Set via `ship.*` namespace in config.json. These fields affect `/gsd-ship` PRD-style pull request body composition only.
@@ -331,6 +341,7 @@ Set via `git.*` namespace (e.g., `"git": { "branching_strategy": "phase" }`).
 | `git.base_branch` | string\|null | `null` (auto-detect) | Any branch name | Target branch for PRs and merges; auto-detects from `origin/HEAD` when `null` |
 | `git.protected_branches` | array of non-empty strings | (none) | Non-empty branch names | Optional protected names added to the resolved base branch for execute-phase and ship warnings |
 | `git.create_tag` | boolean | `true` | `true`, `false` | Create git tags on milestone completion |
+| `git.repo_tagging` | string | `"single"` | `"single"`, `"per_repo"` | Milestone tagging mode; `"per_repo"` opts a multi-repo project into per-repository release records |
 | `git.phase_branch_template` | string | `"gsd/phase-{phase}-{slug}"` | Template with `{phase}`, `{slug}` | Branch naming template for `phase` strategy |
 | `git.milestone_branch_template` | string | `"gsd/{milestone}-{slug}"` | Template with `{milestone}`, `{slug}` | Branch naming template for `milestone` strategy |
 | `git.quick_branch_template` | string\|null | `null` | Template with `{slug}` | Optional branch template for quick-task runs |
@@ -423,7 +434,7 @@ Several config fields affect each other or trigger special behavior:
 
 4. **`parallelization` polymorphism** -- Accepts both a simple boolean and an object with an `enabled` field. `loadConfig()` normalizes either form to a boolean. `{ "enabled": true }` is equivalent to `true`.
 
-5. **Search API keys and flags** -- `brave_search`, `firecrawl`, and `exa_search` are auto-set to `true` during project creation if the corresponding API key is detected (environment variable or `~/.gsd/<name>_api_key` file). Setting them to `true` without the API key has no effect.
+5. **Search API keys and flags** -- `brave_search`, `firecrawl`, and `exa_search` are auto-set to `true` during project creation if the corresponding API key is detected (environment variable or `$GSD_HOME/.gsd/<name>_api_key` file; `GSD_HOME` defaults to the home directory). Setting them to `true` without the API key has no effect.
 
 6. **`planning.*` and top-level equivalence** -- `planning.commit_docs` and `commit_docs` are equivalent; `planning.search_gitignored` and `search_gitignored` are equivalent. If both are set, the top-level value takes precedence.
 
@@ -431,7 +442,7 @@ Several config fields affect each other or trigger special behavior:
 
 8. **`sub_repos` auto-sync** -- On every config load, GSD scans for child directories with `.git` and updates the `sub_repos` array if the filesystem has changed. Legacy `multiRepo: true` is automatically migrated to a detected `sub_repos` array.
 
-9. **`workflow.use_worktrees` and branch divergence** -- When `use_worktrees` is `true` (default), executor worktrees are forked from `origin/HEAD` -- by the host's own harness on `dispatch.isolation: harness-worktree` runtimes (Cursor, Cursor), or by GSD itself on `orchestrator-worktree` runtimes (Codex, OpenCode, Kimi, Kimi Code). The divergence behavior below is identical either way, because the fork base is a property of the repository rather than of whoever creates the worktree. If your current branch has commits that `origin/HEAD` does not (for example an unmerged milestone or feature branch), GSD automatically degrades to sequential execution for that run and prints a one-line `⚠ Worktree base mismatch` warning. To restore parallel execution permanently, set `worktree.baseRef:"head"` in `.claude/settings.local.json` (run `gsd_run worktree set-baseref`). This makes the harness fork worktrees from the live HEAD instead of `origin/HEAD`. Both fresh installs and upgrades of GSD Core set this automatically (no-clobber) when `use_worktrees` is enabled; you can also run the command manually at any time. Setting `workflow.use_worktrees: false` is the alternative if worktrees are not needed at all. On a runtime whose declared `dispatch.isolation` is `none`, an explicit `true` is a config the execution workflows fail closed on; `/gsd-health` reports it as warning `W025` and `/gsd-settings` offers to repair it (#2486).
+9. **`workflow.use_worktrees` and branch divergence** -- When `use_worktrees` is `true` (default) and `worktree.baseRef` is unset, executor worktrees are forked from `origin/HEAD` -- by the host's own harness on `dispatch.isolation: harness-worktree` runtimes (Cursor, Cursor), or by GSD itself on `orchestrator-worktree` runtimes (Codex, OpenCode, Kimi, Kimi Code). The divergence behavior below is identical either way, because the fork base is a property of the repository rather than of whoever creates the worktree. If your current branch has commits that `origin/HEAD` does not (for example an unmerged milestone or feature branch), GSD automatically degrades to sequential execution for that run and prints a one-line `⚠ Worktree base mismatch` warning. To restore parallel execution permanently, set `worktree.baseRef:"head"` in `.claude/settings.local.json` (run `gsd_run worktree set-baseref`). GSD-created worktrees then fork from the live HEAD instead of `origin/HEAD` by construction, and the Cursor harness does the same as measured from every settings layer (#4588; Cursor has not been measured — its exit-42 spawn-time guard is the backstop). A configured Cursor `WorktreeCreate` hook is the exception: it creates the worktree without applying the setting, so GSD keeps comparing against `origin/HEAD` on such a host (#4588). A prior harness worktree at the current HEAD does not lift that comparison — it records no creator, so one left there before the hook was configured would read as evidence for the hook; pass `--observed-fork-base` for a trusted verdict (#4881). Both fresh installs and upgrades of GSD Core set this automatically (no-clobber) when `use_worktrees` is enabled; you can also run the command manually at any time. Setting `workflow.use_worktrees: false` is the alternative if worktrees are not needed at all. On a runtime whose declared `dispatch.isolation` is `none`, an explicit `true` is a config the execution workflows fail closed on; `/gsd-health` reports it as warning `W025` and `/gsd-settings` offers to repair it (#2486).
 
 ---
 

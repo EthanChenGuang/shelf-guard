@@ -26,7 +26,7 @@ string** when nothing resolved.
 
 ## Lookup Table
 
-@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/model-profiles.md
+@/workspace/.cursor/gsd-core/references/model-profiles.md
 
 ## Passing the model to a spawn
 

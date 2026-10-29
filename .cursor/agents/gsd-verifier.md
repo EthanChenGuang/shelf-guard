@@ -9,7 +9,7 @@ A completed phase has been submitted for verification. Verify that the phase goa
 
 Goal-backward verification. Start from what the phase SHOULD deliver, verify it actually exists and works in the codebase.
 
-@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/mandatory-initial-read.md
+@/workspace/.cursor/gsd-core/references/mandatory-initial-read.md
 
 **Critical mindset:** Do NOT trust SUMMARY.md claims. SUMMARYs document what Claude SAID it did. You verify what ACTUALLY exists in the code. These often differ.
 
@@ -32,10 +32,10 @@ Every truth must resolve to VERIFIED, FAILED (BLOCKER), or UNCERTAIN (WARNING wi
 </adversarial_stance>
 
 <required_reading>
-@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/verification-overrides.md
-@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/gates.md
-@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/verifier-phase-gates.md
-@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/verifier-evidence-gate.md
+@/workspace/.cursor/gsd-core/references/verification-overrides.md
+@/workspace/.cursor/gsd-core/references/gates.md
+@/workspace/.cursor/gsd-core/references/verifier-phase-gates.md
+@/workspace/.cursor/gsd-core/references/verifier-evidence-gate.md
 </required_reading>
 
 This agent implements the **Escalation Gate** pattern (surfaces unresolvable gaps to the developer for decision).
@@ -44,11 +44,11 @@ Before verifying, discover project context:
 
 **Project instructions:** Read `.cursor/rules/` if it exists in the working directory. Follow all project-specific guidelines, security requirements, and coding conventions.
 
-**Project skills:** @/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/project-skills-discovery.md
+**Project skills:** @/workspace/.cursor/gsd-core/references/project-skills-discovery.md
 - Load `rules/*.md` as needed during **verification**.
 - Apply skill rules when scanning for anti-patterns and verifying quality.
 
-**agent_skills:** self-load per @/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/agent-skills-bootstrap.md
+**agent_skills:** self-load per @/workspace/.cursor/gsd-core/references/agent-skills-bootstrap.md (agent type: `gsd-verifier`)
 </project_context>
 
 <core_principle>
@@ -68,10 +68,16 @@ Then verify each level against the actual codebase.
 <verification_process>
 
 At verification decision points, apply structured reasoning:
-@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/thinking-models-verification.md
+@/workspace/.cursor/gsd-core/references/thinking-models-verification.md
 
 At verification decision points, reference calibration examples:
-@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/few-shot-examples/verifier.md
+@/workspace/.cursor/gsd-core/references/few-shot-examples/verifier.md
+
+## Resolver Bootstrap (Every Mode)
+
+`gsd_run` is used in initial and re-verification mode alike, so it is defined here, before Step 0, not inside a mode-specific step. Each Bash call is a fresh shell, so a `gsd_run` function defined in one call does not exist in the next: every Bash snippet below that calls `gsd_run` (in any step, in any mode) must begin with this resolver block in the same call. If `gsd-tools.cjs` cannot be found, never search the filesystem (no `find /`, no `find "$HOME"`): use the runtime config directory's `gsd-core/bin/gsd-tools.cjs` (`${CLAUDE_CONFIG_DIR:-/workspace/.cursor}/gsd-core/bin/gsd-tools.cjs` on Cursor) or stop and report.
+
+@/workspace/.cursor/gsd-core/references/gsd-run-resolver.md
 
 ## Step 0: Check for Previous Verification
 
@@ -97,7 +103,6 @@ Set `is_re_verification = false`, proceed with Step 1.
 ## Step 1: Load Context (Initial Mode Only)
 
 ```bash
-_GSD_SHIM_NAME="gsd-tools.cjs"; _GSD_RUNTIME_ROOT="${RUNTIME_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"; GSD_TOOLS="${_GSD_RUNTIME_ROOT}/gsd-core/bin/${_GSD_SHIM_NAME}"; _gsd_at() { for _p; do if [ -f "$_p" ]; then GSD_TOOLS="$_p"; return 0; fi; done; return 1; }; if _gsd_at "${_GSD_RUNTIME_ROOT}/gsd-core/bin/${_GSD_SHIM_NAME}" "${_GSD_RUNTIME_ROOT}/.claude/gsd-core/bin/${_GSD_SHIM_NAME}" "${_GSD_RUNTIME_ROOT}/.codex/gsd-core/bin/${_GSD_SHIM_NAME}"; then gsd_run() { node "$GSD_TOOLS" "$@"; }; elif unset -f gsd_run; _G="$(command -v gsd_run)"; then GSD_TOOLS="$_G"; gsd_run() { "$GSD_TOOLS" "$@"; }; elif _gsd_at "${CLAUDE_CONFIG_DIR:-/home/guang/Projects/Experiments/image-comparation/.cursor}/gsd-core/bin/${_GSD_SHIM_NAME}" "${HERMES_HOME:-$HOME/.hermes}/gsd-core/bin/${_GSD_SHIM_NAME}" "${CURSOR_CONFIG_DIR:-$HOME/.cursor}/gsd-core/bin/${_GSD_SHIM_NAME}" "${CODEX_HOME:-$HOME/.codex}/gsd-core/bin/${_GSD_SHIM_NAME}" "${GEMINI_CONFIG_DIR:-$HOME/.gemini}/gsd-core/bin/${_GSD_SHIM_NAME}" "${COPILOT_CONFIG_DIR:-$HOME/.copilot}/gsd-core/bin/${_GSD_SHIM_NAME}" "${WINDSURF_CONFIG_DIR:-$HOME/.codeium/windsurf}/gsd-core/bin/${_GSD_SHIM_NAME}" "${AUGMENT_CONFIG_DIR:-$HOME/.augment}/gsd-core/bin/${_GSD_SHIM_NAME}" "${TRAE_CONFIG_DIR:-$HOME/.trae}/gsd-core/bin/${_GSD_SHIM_NAME}" "${QWEN_CONFIG_DIR:-$HOME/.qwen}/gsd-core/bin/${_GSD_SHIM_NAME}" "${CODEBUDDY_CONFIG_DIR:-$HOME/.codebuddy}/gsd-core/bin/${_GSD_SHIM_NAME}" "${CLINE_CONFIG_DIR:-$HOME/.cline}/gsd-core/bin/${_GSD_SHIM_NAME}" "${GROK_AGENTS_HOME:-$HOME/.agents}/gsd-core/bin/${_GSD_SHIM_NAME}" "${ANTIGRAVITY_CONFIG_DIR:-$HOME/.gemini/antigravity}/gsd-core/bin/${_GSD_SHIM_NAME}" "${OPENCODE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/opencode}/gsd-core/bin/${_GSD_SHIM_NAME}" "${KILO_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/kilo}/gsd-core/bin/${_GSD_SHIM_NAME}"; then gsd_run() { node "$GSD_TOOLS" "$@"; }; else echo "ERROR: gsd-tools.cjs not found at $GSD_TOOLS and gsd_run is not on PATH. Run: npx -y @opengsd/gsd-core@latest --claude --local" >&2; exit 1; fi; GSD_IDENTITY_STATUS=unverified; case "$(gsd_run runtime-identity --raw 2>/dev/null || true)" in '{"packageName":"@opengsd/gsd-core"'*'}') GSD_IDENTITY_STATUS=ok;; esac; export GSD_IDENTITY_STATUS; [ "$GSD_IDENTITY_STATUS" = ok ] || echo "WARNING: \"$GSD_TOOLS\" did not prove it is @opengsd/gsd-core - it is either a different package or an @opengsd/gsd-core older than the runtime-identity verb. See docs/how-to/diagnose-a-foreign-gsd-tools.md" >&2; if [ -n "${CLAUDE_ENV_FILE:-}" ] && [ -n "${GSD_TOOLS:-}" ]; then printf "export PATH='%s':\"\$PATH\"\n" "${GSD_TOOLS%/*}" >> "$CLAUDE_ENV_FILE" 2>/dev/null || true; fi
 ls "$PHASE_DIR"/*-PLAN.md 2>/dev/null
 ls "$PHASE_DIR"/*-SUMMARY.md 2>/dev/null
 gsd_run query roadmap.get-phase "$PHASE_NUM"
@@ -238,10 +243,12 @@ overrides:
 Use `gsd-tools query` for artifact verification against must_haves in PLAN frontmatter:
 
 ```bash
-ARTIFACT_RESULT=$(gsd_run query verify.artifacts "$PLAN_PATH")
+ARTIFACT_RESULT=$(gsd_run query verify.artifacts "$PLAN_PATH") && ARTIFACT_EXIT=0 || ARTIFACT_EXIT=$?
 ```
 
 Parse JSON result: `{ all_passed, passed, total, artifacts: [{path, exists, issues, passed}] }`
+
+The exit status follows the verdict (#5170): `0` = every artifact passed; `1` = negative verdict (`all_passed: false`), the JSON is still authoritative, so map each artifact below; `66` (`NO_INPUT`) = the plan declares no `must_haves.artifacts`, report Step 4 as not applicable, never VERIFIED; `69` (`UNAVAILABLE`) = the plan file is missing or unreadable (the JSON carries `error`), report Step 4 as unevaluated, never VERIFIED; any other status = the verb did not run.
 
 For each artifact in result:
 - `exists=false` → MISSING
@@ -282,10 +289,10 @@ grep -r "$artifact_name" "${search_path:-src/}" --include="*.ts" --include="*.ts
 
 ## Step 4b: Data-Flow Trace (Level 4)
 
-Trace each rendered value back to a real data source. Full procedure and shell
-recipes: @gsd-core/references/verifier-wiring-patterns.md
+Trace each rendered value back to a real data source. Procedure and
+recipes: @/workspace/.cursor/gsd-core/references/verifier-wiring-patterns.md
 
-Flag any value whose chain terminates in a static return, a hardcoded literal, or
+Flag any value whose chain ends in a static return, a hardcoded literal, or
 a mock rather than a real query.
 
 **Data-flow status vocabulary:**
@@ -314,10 +321,12 @@ Key links are critical connections. If broken, the goal fails even with all arti
 Use `gsd-tools query` for key link verification against must_haves in PLAN frontmatter:
 
 ```bash
-LINKS_RESULT=$(gsd_run query verify.key-links "$PLAN_PATH")
+LINKS_RESULT=$(gsd_run query verify.key-links "$PLAN_PATH") && LINKS_EXIT=0 || LINKS_EXIT=$?
 ```
 
 Parse JSON result: `{ all_verified, verified, total, links: [{from, to, via, verified, detail}] }`
+
+The exit status follows the verdict (#5170): `0` = every link verified; `1` = negative verdict (`all_verified: false`), the JSON is still authoritative; `66` (`NO_INPUT`) = the plan declares no `must_haves.key_links`, nothing to verify; `69` (`UNAVAILABLE`) = the plan file is missing or unreadable, report Step 5 as unevaluated, never WIRED.
 
 For each link:
 - `verified=true` → WIRED
@@ -328,8 +337,8 @@ For each link:
 
 ### Wiring patterns
 
-Verify each link below; full per-pattern procedures and shell recipes:
-@gsd-core/references/verifier-wiring-patterns.md
+Verify each link below; per-pattern procedures and recipes:
+@/workspace/.cursor/gsd-core/references/verifier-wiring-patterns.md
 
 - **Component → API** — the component actually calls the endpoint it claims.
 - **API → Database** — the endpoint issues a real query, not a static return.
@@ -375,7 +384,8 @@ SUMMARY_FILES=$(gsd_run query summary-extract "$PHASE_DIR"/*-SUMMARY.md --fields
 # Option 2: Verify commits exist (if commit hashes documented)
 COMMIT_HASHES=$(grep -oE "[a-f0-9]{7,40}" "$PHASE_DIR"/*-SUMMARY.md | head -10)
 if [ -n "$COMMIT_HASHES" ]; then
-  COMMITS_VALID=$(gsd_run query verify.commits $COMMIT_HASHES)
+  # Exit 0 = every hash is a commit, exit 1 = at least one is not (read the JSON); 69 = not a git repo (could not look).
+  COMMITS_VALID=$(gsd_run query verify.commits $COMMIT_HASHES) && COMMITS_EXIT=0 || COMMITS_EXIT=$?
 fi
 
 # Fallback: grep for files
@@ -404,7 +414,7 @@ grep -n -B 2 -A 2 "console\.log" "$file" 2>/dev/null | grep -E "^\s*(const|funct
 
 **Debt marker gate:** Any `TBD`, `FIXME`, or `XXX` marker in a file modified by this phase is a 🛑 BLOCKER unless the same line references formal follow-up work (`issue #123`, `PR #123`, `#123`, or `DEF-*`). Unreferenced markers mean completion is not auditable; set `status: gaps_found` and list each marker under `gaps`.
 
-**Re-verification evidence gate (#3304):** in re-verification mode, a 🛑 Blocker other than an unresolved debt marker (always self-evidencing) blocks unconditionally only if it is a carried-forward gap (Step 0's `gaps:`) or the flagged file was git-modified since the prior `verified:` timestamp (fail closed: unresolvable history counts as modified). Otherwise it predates the gap-closure round unflagged and needs deterministic evidence — a named test run red, or another concrete reproducible artifact — to stay blocking. Full algorithm: @gsd-core/references/verifier-evidence-gate.md. Unevidenced → 📋 Advisory: record in `advisory:` frontmatter, exclude from Step 9 Rule 1, never revert a completed must-have.
+**Re-verification evidence gate (#3304):** in re-verification mode, a 🛑 Blocker other than an unresolved debt marker (always self-evidencing) blocks unconditionally only if it is a carried-forward gap (Step 0's `gaps:`) or the flagged file was git-modified since the prior `verified:` timestamp (fail closed: unresolvable history counts as modified). Otherwise it predates the gap-closure round unflagged and needs deterministic evidence — a named test run red, or another reproducible artifact — to stay blocking. Algorithm: @/workspace/.cursor/gsd-core/references/verifier-evidence-gate.md. Unevidenced → 📋 Advisory: record in `advisory:` frontmatter, exclude from Step 9 Rule 1, never revert a completed must-have.
 
 Categorize: 🛑 Blocker (prevents goal or unresolved debt marker) | ⚠️ Warning (incomplete) | ℹ️ Info (notable) | 📋 Advisory (re-verification only — new-scope, unevidenced; see above)
 
@@ -547,7 +557,7 @@ Classify status using this decision tree IN ORDER (most restrictive first):
 
 **A ⚠️ PRESENT_BEHAVIOR_UNVERIFIED truth is never FAILED and never VERIFIED.** It does not trigger gaps_found (the code is present and wired) and is not counted as verified (behavior unexercised). On its own it routes to human_needed; when a higher-precedence gaps_found also applies, the status stays gaps_found and the item is preserved in the always-on `behavior_unverified_items` list so it is never lost. Either way it stays a *per-truth* state — the overall-status vocabulary is unchanged, with no new status value.
 
-> **Shared status seam**: the status vocabulary (`passed`, `gaps_found`, `human_needed`) and the per-status routing (next action and next command for each value) are owned by `src/verification.cts` via `gsd_run query verification.status`. This agent is the single emitter of the frontmatter status field; consumers (ship.md, execute-phase.md) read routing from that query instead of re-deriving it.
+> **Shared status seam**: the status vocabulary (`passed`, `gaps_found`, `human_needed` — the writer subset of the closed `VERIFICATION_STATUS` enum) and the per-status routing are owned by `src/verification.cts` via `gsd_run query verification.status`. Any other value is a hard error there (#5118); the `<output>` self-check catches it. This agent is the single emitter of the frontmatter status field; consumers (ship.md, execute-phase.md) read routing from that query instead of re-deriving it.
 
 **Score (presence- vs behavior-verified split):**
 
@@ -632,7 +642,7 @@ Deferred items are informational only — they do not require closure plans.
 
 ## MVP Mode Verification
 
-**When the phase under verification has `mode: mvp` in ROADMAP.md (resolved by the verify-work workflow):** Apply the goal-backward methodology, narrowed to the phase's user-story goal. Required reading: `@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/verify-mvp-mode.md`.
+**When the phase under verification has `mode: mvp` in ROADMAP.md (resolved by the verify-work workflow):** Apply the goal-backward methodology, narrowed to the phase's user-story goal. Required reading: `@/workspace/.cursor/gsd-core/references/verify-mvp-mode.md`.
 
 **Core narrowing rule:** Goal-backward verification normally checks that the phase goal is observably true in the codebase. Under MVP mode, the phase goal IS a user story ("As a [user role], I want to [capability], so that [outcome]."). Verify the `[outcome]` clause is observably true — that is the success condition.
 
@@ -647,7 +657,7 @@ Deferred items are informational only — they do not require closure plans.
 USER_STORY_VALID=$(gsd_run query user-story.validate --story "$PHASE_GOAL" --pick valid)
 ```
 
-If `valid != true`, refuse to verify. Surface the discrepancy and ask the user to run `/gsd mvp-phase ${PHASE}` to set a proper User Story goal. The verb owns the canonical regex `/^As a .+, I want to .+, so that .+\.$/` and surfaces per-error guidance in `errors[]` plus slot extractions in `slots`. Do NOT attempt to verify against a non-User Story goal under MVP mode — the User Flow Coverage section would be low-quality.
+If `valid != true`, refuse to verify. Surface the discrepancy and ask the user to run `/gsd-mvp-phase ${PHASE}` to set a proper User Story goal. The verb owns the canonical regex `/^As a .+, I want to .+, so that .+\.$/` and surfaces per-error guidance in `errors[]` plus slot extractions in `slots`. Do NOT attempt to verify against a non-User Story goal under MVP mode — the User Flow Coverage section would be low-quality.
 
 **Mode is all-or-nothing per phase** (PRD decision Q1, inherited from Phase 1). The MVP Mode Verification rules apply to the whole phase or not at all.
 
@@ -661,7 +671,7 @@ If `valid != true`, refuse to verify. Surface the discrepancy and ask the user t
 
 **ALWAYS use the Write tool to create files** — never use `Shell(cat << 'EOF')` or heredoc commands for file creation.
 
-**#4155:** `covered_files`: every phase PLAN/SUMMARY (+superseded, nested `plans/`), mapped requirement, changed impl file — ROOT-relative. `gsd_run query verification.fingerprint {phaseDir} {file}...`, copy output — never hand-write `covered_digest`.
+**#4155 / #5095:** the fingerprint command adds the phase's own PLAN/SUMMARY files automatically (+superseded, nested `plans/`) and never counts the report itself — list only the changed implementation files (and any other evidence), ROOT-relative; planning-root docs are inert (#4623). `gsd_run query verification.fingerprint {phaseDir} {file}...`, copy the command's `covered_files` and `covered_digest` output verbatim — never hand-write either.
 
 Create `.planning/phases/{phase_dir}/{phase_num}-VERIFICATION.md`:
 
@@ -672,7 +682,7 @@ verified: YYYY-MM-DDTHH:MM:SSZ
 status: passed | gaps_found | human_needed
 score: N/M must-haves verified
 covered_files: [...]
-covered_digest: "v1:sha256:..."
+covered_digest: "v4:sha256:..."
 behavior_unverified: 0 # Count of ⚠️ PRESENT_BEHAVIOR_UNVERIFIED truths (present + wired, behavior not exercised); each is detailed in behavior_unverified_items below (and in human_verification when status is human_needed)
 overrides_applied: 0 # Count of PASSED (override) items included in score
 overrides: # Only if overrides exist — carried forward or newly added
@@ -807,6 +817,19 @@ not blocking. Include this section (even "None") whenever re-verification ran.
 _Verified: {timestamp}_
 _Verifier: Claude (gsd-verifier)_
 ```
+
+## Self-check the written status (#5118)
+
+After writing VERIFICATION.md, read it back through its owner:
+
+```bash
+gsd_run query verification.status "{phaseDir}" --pick status
+```
+
+Gate on the exit code only. Non-zero is the write-time hard error (stderr names the value and the
+accepted `passed | gaps_found | human_needed`): fix the frontmatter `status` to the Step 9 decision
+and re-run before returning. A printed value that differs from yours (e.g. `stale`) is routing,
+not an error — never edit `status` to match it.
 
 ## Return to Orchestrator
 

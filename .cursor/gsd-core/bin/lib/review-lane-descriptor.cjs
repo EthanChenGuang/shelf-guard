@@ -58,13 +58,14 @@ exports.DOCS_PARITY_VIOLATION = exports.LANE_SLUG_RE = exports.PARITY_VIOLATION 
 exports.mergeReviewerLanes = mergeReviewerLanes;
 exports.checkReviewerLaneParity = checkReviewerLaneParity;
 exports.checkReviewerDocsParity = checkReviewerDocsParity;
+const text_lines_cjs_1 = require("./text-lines.cjs");
 /**
  * Argv placeholders (Phase 5b, #2799).
  *
  * `args` is an argv TEMPLATE, not a prefix. The injected pieces — model, effort, output file,
  * argv-borne prompt — do not all go in the same place, and no positional rule expresses that:
  * `codex` injects the model in the MIDDLE (after the `exec --ephemeral` subcommand) and the output
- * file later still, while `gemini` injects the model first and five lanes end with a bare `-` that
+ * file later still, while `kimi-code` injects the model first and five lanes end with a bare `-` that
  * must stay last. Splicing by position silently produced
  * `codex --model M -o F exec --ephemeral …`, which is not a valid codex invocation.
  *
@@ -94,36 +95,16 @@ const SPAWN_STDIN_STDOUT = {
     outputChannel: 'stdout',
 };
 /**
- * The twelve declared lanes, in `write_reviews` order.
+ * The eleven declared lanes, in `write_reviews` order.
+ *
+ * The `gemini` lane was retired by #4709: Google sunset Gemini CLI on 2026-06-18 (the same
+ * sunset that removed the gemini RUNTIME in #1928/1.8.0), so the lane spawned a binary that no
+ * longer serves the free/Pro/Ultra tiers that are GSD's audience.
  *
  * `kimi-code` joined in Phase 5b (#2799, closes #2718) — ADR-2782's phase table lands it here
  * rather than in 5a precisely so it arrives together with the iteration that can invoke it.
  */
 exports.REVIEWER_LANES = Object.freeze([
-    {
-        slug: 'gemini',
-        flags: ['--gemini'],
-        transport: 'spawn',
-        probe: { kind: 'command-exists', binary: 'gemini' },
-        invoke: {
-            binary: 'gemini',
-            args: ['{{model}}', '-p', '-'],
-            ...SPAWN_STDIN_STDOUT,
-            modelArg: '-m',
-            effortChannel: 'none',
-        },
-        timeoutFloorMs: 900_000,
-        timeoutConfigKey: 'review.timeouts.gemini',
-        emptyOutput: 'stub-with-stderr',
-        reviewsSection: 'Gemini',
-        evidenceClass: 'source-grounded',
-        requiresBinaries: [],
-        promptBudgetKey: 'review.max_prompt_tokens_per_reviewer.gemini',
-        modelConfigKey: 'review.models.gemini',
-        effortConfigKey: null,
-        defaultEffort: null,
-        handler: null,
-    },
     {
         // 1_200_000 rather than the 900_000 floor: headless Claude measured ~525 s
         // on a large plan set (review.md:304).
@@ -139,8 +120,8 @@ exports.REVIEWER_LANES = Object.freeze([
             effortChannel: 'argv',
             // #2483: without these the claude leg is the only reviewer that additionally inherits the
             // invoking user's global .cursor/rules/, the project .cursor/rules/, and Cursor auto-memory —
-            // a context asymmetry against the independent-review premise (gemini sees only the
-            // assembled prompt; codex runs --ephemeral). Both flags, not just the first: .cursor/rules/
+            // a context asymmetry against the independent-review premise (codex sees only the
+            // assembled prompt and runs --ephemeral). Both flags, not just the first: .cursor/rules/
             // loading and auto-memory are independently-toggled mechanisms, and an environment
             // exporting CLAUDE_CODE_DISABLE_AUTO_MEMORY=0 forces auto-memory back ON — the explicit
             // pair is robust against that. Applies when /gsd-review runs from a non-Claude-Code host;
@@ -596,6 +577,7 @@ exports.PARITY_VIOLATION = Object.freeze({
     REGISTRY_LANE_UNDECLARED: 'registry_lane_undeclared',
     DESCRIPTOR_LANE_NOT_IN_REGISTRY: 'descriptor_lane_not_in_registry',
     BESPOKE_LEG_PRESENT: 'bespoke_leg_present',
+    AVAILABILITY_FALLBACK_MISMATCH: 'availability_fallback_mismatch',
     DUPLICATE_SLUG: 'duplicate_slug',
     DUPLICATE_FLAG: 'duplicate_flag',
     DUPLICATE_SECTION: 'duplicate_section',
@@ -627,6 +609,10 @@ const LEG_MARKER_RE = /<!--\s*reviewer-lane:\s*([a-z0-9_-]+)\s*-->/g;
  * design principle of this module.
  */
 exports.LANE_SLUG_RE = /^[a-z0-9][a-z0-9_-]*$/;
+/** The workflow's availability call: `gsd_run review-lane availability ...` at command position. */
+const AVAILABILITY_CALL_RE = /^\s*gsd_run review-lane availability(?:\s|$)/;
+/** One `<slug>:missing` row in the printf fallback; slug is LANE_SLUG_RE's grammar capped at 32 chars. */
+const AVAILABILITY_FALLBACK_ROW_RE = /(?:'|\\n)([a-z0-9][a-z0-9_-]{0,31}):missing/g;
 /** Bounds of the step a bespoke leg marker could appear inside. */
 const INVOKE_STEP_RE = /<step name="invoke_reviewers">([\s\S]*?)<\/step>/;
 function sliceStep(workflowText, re) {
@@ -647,8 +633,10 @@ function countOccurrences(haystack, re) {
 }
 /**
  * Bidirectional parity across three surfaces: the descriptor, the roster
- * (`KNOWN_REVIEWER_SLUGS`), and the generated capability **registry** — plus one anti-parity
- * assertion against the workflow.
+ * (`KNOWN_REVIEWER_SLUGS`), and the generated capability **registry** — plus two assertions
+ * against the workflow: the anti-parity check, and the availability-fallback check (the workflow
+ * makes the availability call, has a fallback row per lane, and the fallback slug set equals the
+ * openai-http lanes).
  *
  * **Re-pointed by Phase 5b (#2799).** Through Phase 5a this function also required a literal
  * `<!-- reviewer-lane: <slug> -->` per lane inside `invoke_reviewers` and a literal
@@ -691,6 +679,7 @@ function checkReviewerLaneParity(input) {
     const seenSlug = new Set();
     const seenFlag = new Set();
     const seenSection = new Set();
+    const httpSlugs = new Set();
     // The declared parameter type says `ReviewerLane[]`, but this function is a
     // trust boundary — narrow from `unknown` rather than believing the annotation.
     const rawLanes = Array.isArray(descriptor) ? descriptor : [];
@@ -709,6 +698,8 @@ function checkReviewerLaneParity(input) {
         if (seenSlug.has(slug))
             add(exports.PARITY_VIOLATION.DUPLICATE_SLUG, slug);
         seenSlug.add(slug);
+        if (lane.transport === 'openai-http')
+            httpSlugs.add(slug);
         const flags = Array.isArray(lane.flags) ? lane.flags : [];
         for (const flag of flags) {
             if (typeof flag !== 'string')
@@ -760,6 +751,28 @@ function checkReviewerLaneParity(input) {
     for (const slug of markerSlugs.keys()) {
         add(exports.PARITY_VIOLATION.BESPOKE_LEG_PRESENT, slug);
     }
+    // --- the availability call's `||` fallback must name exactly the openai-http lanes ---
+    //
+    // review.md prints these rows only when an older gsd-tools lacks `review-lane availability`, so
+    // they are a second hand-kept copy of the roster. Checked only when the call is present.
+    // Anchored to the command position so a comment or prose mention cannot shadow the real call;
+    // a missing call is itself a violation (otherwise deleting it would silently skip this check).
+    const availabilityLine = (0, text_lines_cjs_1.splitLines)(workflowText).find((line) => AVAILABILITY_CALL_RE.test(line));
+    if (availabilityLine === undefined) {
+        add(exports.PARITY_VIOLATION.AVAILABILITY_FALLBACK_MISMATCH, 'no-call');
+    }
+    else {
+        if (!availabilityLine.includes('review-lane availability ||')) {
+            add(exports.PARITY_VIOLATION.AVAILABILITY_FALLBACK_MISMATCH, 'no-fallback');
+        }
+        const fallback = new Set(Array.from(availabilityLine.matchAll(AVAILABILITY_FALLBACK_ROW_RE), (m) => m[1]));
+        for (const slug of fallback)
+            if (!httpSlugs.has(slug))
+                add(exports.PARITY_VIOLATION.AVAILABILITY_FALLBACK_MISMATCH, slug);
+        for (const slug of httpSlugs)
+            if (!fallback.has(slug))
+                add(exports.PARITY_VIOLATION.AVAILABILITY_FALLBACK_MISMATCH, slug);
+    }
     return { ok: violations.length === 0, violations };
 }
 /* ------------------------------------------------------------------ *
@@ -796,7 +809,7 @@ const NON_LANE_SIGNATURE_FLAGS = new Set(['--all']);
 /**
  * Is `flag` documented in `text` under one of the two structural shapes docs actually use?
  *
- * Backticked is the `COMMANDS.md` table-cell shape; bracketed (`[--gemini]`) is the
+ * Backticked is the `COMMANDS.md` table-cell shape; bracketed (`[--codex]`) is the
  * `FEATURES.md` signature shape. Requiring one of those two delimiters — rather than a bare
  * substring — is what keeps prose and fenced examples from satisfying the gate, and it bounds the
  * token for free: a backticked `--claude` demands its closing backtick, so a backticked
@@ -889,7 +902,7 @@ const BRACKETED_FLAG_RE = /\[(--[a-z0-9][a-z0-9-]*)\]/g;
  * cell 3. A file-scoped check is therefore satisfied by the forwarding row alone, so deleting a
  * lane's actual table row — the exact #2781 regression — passes. Keying on cell 1 separates the
  * two: `| `--agy` / `--antigravity` | … |` is one lane row declaring two flags, while
- * `| Reviewer flags | No | … `--gemini`, `--claude` … |` is not a lane row at all.
+ * `| Reviewer flags | No | … `--codex`, `--claude` … |` is not a lane row at all.
  */
 function flagsInFirstTableCell(lines, declared) {
     const found = new Set();

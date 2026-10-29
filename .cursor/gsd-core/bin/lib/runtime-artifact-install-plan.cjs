@@ -10,6 +10,7 @@
 const _require = require;
 const path = _require('node:path');
 const { tryWithinRootLexical } = _require('./security.cjs');
+const { hostBehaviorsFor } = _require('./runtime-name-policy.cjs');
 // #2870: InstallScope is owned by install-scope.cts, not re-declared here.
 // `isGlobalScope` centralizes the `scope === 'global'` boolean projection
 // this module needs at `_computePathPrefix`'s `isGlobal: boolean` boundary
@@ -90,9 +91,11 @@ function createRuntimeArtifactInstallPlan(args) {
     // `undefined` here) — `isGlobalScope` projects it to the boolean
     // `_computePathPrefix`'s existing `isGlobal: boolean` API requires.
     const isGlobal = (0, install_scope_cjs_1.isGlobalScope)(scope);
-    const isOpencode = layout.runtime === 'opencode';
+    const isOpencode = hostBehaviorsFor(layout.runtime).opencodePathPrefix === true;
     const isWindowsHost = (platform ?? process.platform) === 'win32';
-    const pathPrefix = conversionExports._computePathPrefix({ isGlobal, isOpencode, isWindowsHost, resolvedTarget, homeDir });
+    // #4377: descriptor-derived local dir name, so an opted-in local install
+    // emits a project-relative prefix instead of this checkout's absolute path.
+    const pathPrefix = conversionExports._computePathPrefix({ isGlobal, isOpencode, isWindowsHost, resolvedTarget, homeDir, localDirName: conversionExports._localIncludeDirName(layout.runtime) });
     const attribution = resolveAttribution ? resolveAttribution(layout.runtime) : undefined;
     // #2875 Part 2 (row I1): layout.configDir IS the install root the inline
     // agent loop called `targetDir` — same value, same resolution.

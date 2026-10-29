@@ -1,35 +1,17 @@
 "use strict";
-/**
- * TDD RED-evidence classification (#3770).
- *
- * The `type: tdd` executor gate previously accepted ANY nonzero test command as
- * RED: syntax errors, zero-test discovery, fixture crashes, parser errors, and
- * unrelated assertions all authorized production edits (GREEN). This module
- * defines the compact RED evidence the gate now requires — the TARGET test's
- * identity plus a matching assertion failure — and classifies a persisted test
- * run into exactly one verdict:
- *
- *   RED_EVIDENCE_OK  — nonzero exit AND the target test failed as a REAL test
- *                      (distinctly named, TAP-reported failure). The ONLY
- *                      verdict that may advance to GREEN.
- *   INVALID_RED      — everything else, with a machine-readable reason:
- *                      unexpected_green | zero_tests_discovered |
- *                      nonzero_exit_without_test_failure |
- *                      fixture_or_load_failure | no_target_test_failure |
- *                      invalid_record | unreadable_record (router arm).
- *
- * Everything here is PURE — no fs, no spawn, no clock — so the executor can
- * persist the record (command, exit code, failing test, expected, actual) and
- * validate it via `gsd_run check tdd-red-evidence <record.json>`.
- *
- * TAP parsing reuses the proven primitives from prohibition-enforcement
- * (`parseNodeTestSummary`, `tapFailedTestNames`) — the same contract the
- * prohibition probe's fail-first prover already relies on (#1259).
- */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.RedEvidenceReason = exports.RedEvidenceVerdict = void 0;
 exports.classifyRedEvidence = classifyRedEvidence;
 exports.buildRedEvidenceRecord = buildRedEvidenceRecord;
-const prohibition_enforcement_cjs_1 = require("./prohibition-enforcement.cjs");
+/** RED policy consumes normalized test reports; format details live in adapters. */
+const report_parser_cjs_1 = require("./report-parser.cjs");
+exports.RedEvidenceVerdict = { Accepted: 'RED_EVIDENCE_OK', Invalid: 'INVALID_RED' };
+exports.RedEvidenceReason = {
+    TargetFailed: 'target_test_failed', Green: 'unexpected_green', Empty: 'zero_tests_discovered',
+    NoFailure: 'nonzero_exit_without_test_failure', LoadFailure: 'fixture_or_load_failure',
+    NoTarget: 'no_target_test_failure', Invalid: 'invalid_record', Unreadable: 'unreadable_record',
+    BuildFailure: 'build_failure',
+};
 /** Basename of a path-like string ('' for non-strings) — separators `/` and `\`. */
 function baseOf(p) {
     return typeof p === 'string' ? (p.split(/[\\/]/).pop() ?? p) : '';
@@ -39,14 +21,14 @@ function readInput(input) {
     const command = typeof input?.command === 'string' ? input.command : '';
     const output = typeof input?.output === 'string' ? input.output : '';
     const targetTest = typeof input?.targetTest === 'string' ? input.targetTest.trim() : '';
-    const exitCode = typeof input?.exitCode === 'number' && Number.isFinite(input.exitCode) ? input.exitCode : null;
+    const exitCode = typeof input?.exitCode === 'number' && Number.isInteger(input.exitCode) && input.exitCode >= 0 ? input.exitCode : null;
     if (!command || !targetTest || exitCode === null)
         return null;
     return { command, exitCode, output, targetTest };
 }
 /**
  * Classify a persisted RED-phase test run. Fail-closed: malformed input, an
- * unparseable/empty TAP summary, a file-named (load/crash) failure, or a
+ * unparseable/incomplete report, a file-named (load/crash) failure, or a
  * failure that is not the target test's are all INVALID_RED — only a nonzero
  * exit WITH the distinctly-named target test failing is RED_EVIDENCE_OK.
  * Never throws.
@@ -55,60 +37,55 @@ function classifyRedEvidence(input) {
     const parsed = readInput(input);
     if (!parsed) {
         return {
-            verdict: 'INVALID_RED',
-            reason: 'invalid_record',
+            verdict: exports.RedEvidenceVerdict.Invalid, reason: exports.RedEvidenceReason.Invalid,
             evidence: {
                 command: typeof input?.command === 'string' ? input.command : '',
-                exit_code: null,
-                target_test: '',
-                tests: 0,
-                pass: 0,
-                fail: 0,
-                failing_tests: [],
+                exit_code: null, target_test: '', tests: 0, pass: 0, fail: 0, failing_tests: [],
+                matched_test: null, format: report_parser_cjs_1.ReportFormat.Unknown, report_errors: [],
             },
         };
     }
     const { command, exitCode, output, targetTest } = parsed;
-    const summary = (0, prohibition_enforcement_cjs_1.parseNodeTestSummary)(output);
-    const failing = (0, prohibition_enforcement_cjs_1.tapFailedTestNames)(output);
+    const report = (0, report_parser_cjs_1.parseTestReport)(output);
+    const failures = report.tests.filter((test) => test.status === report_parser_cjs_1.TestStatus.Failed);
     const evidence = {
-        command,
-        exit_code: exitCode,
-        target_test: targetTest,
-        tests: summary.tests,
-        pass: summary.pass,
-        fail: summary.fail,
-        failing_tests: failing,
+        command, exit_code: exitCode, target_test: targetTest,
+        tests: report.tests.length,
+        pass: report.tests.filter((test) => test.status === report_parser_cjs_1.TestStatus.Passed).length,
+        fail: failures.length,
+        failing_tests: failures.map((test) => test.name),
+        matched_test: null,
+        format: report.format,
+        report_errors: report.issues,
     };
-    // Existing fail-fast rule, now machine-checked: exit 0 during RED is an
-    // unexpected GREEN — the feature may already exist or the test is wrong.
-    if (exitCode === 0) {
-        return { verdict: 'INVALID_RED', reason: 'unexpected_green', evidence };
+    if (exitCode === 0)
+        return { verdict: exports.RedEvidenceVerdict.Invalid, reason: exports.RedEvidenceReason.Green, evidence };
+    // A package that did not compile or load asserted nothing: refuse it as its own reason, ahead of
+    // the generic unusable-report refusal, because the fix is different (make the test compile).
+    if (report.buildFailed)
+        return { verdict: exports.RedEvidenceVerdict.Invalid, reason: exports.RedEvidenceReason.BuildFailure, evidence };
+    if (!report.valid)
+        return { verdict: exports.RedEvidenceVerdict.Invalid, reason: exports.RedEvidenceReason.Invalid, evidence };
+    if (report.tests.length === 0)
+        return { verdict: exports.RedEvidenceVerdict.Invalid, reason: exports.RedEvidenceReason.Empty, evidence };
+    if (failures.length === 0)
+        return { verdict: exports.RedEvidenceVerdict.Invalid, reason: exports.RedEvidenceReason.NoFailure, evidence };
+    const targetBase = baseOf(input?.targetFile);
+    const distinctlyNamed = failures.filter((test) => !targetBase || baseOf(test.name) !== targetBase);
+    if (distinctlyNamed.length === 0)
+        return { verdict: exports.RedEvidenceVerdict.Invalid, reason: exports.RedEvidenceReason.LoadFailure, evidence };
+    // Class targets can intentionally match multiple methods in a JUnit report.
+    // Other identities must resolve uniquely, including passing/skipped siblings.
+    const exact = report.tests.filter((test) => test.identities.includes(targetTest));
+    const grouped = report.tests.filter((test) => test.groupIdentities.includes(targetTest));
+    const targets = exact.length > 0 ? exact : grouped;
+    const unambiguous = exact.length > 0 ? exact.length === 1 : new Set(grouped.map((test) => test.group)).size === 1;
+    const targetFailure = distinctlyNamed.find((test) => targets.includes(test));
+    if (!unambiguous || !targetFailure) {
+        return { verdict: exports.RedEvidenceVerdict.Invalid, reason: exports.RedEvidenceReason.NoTarget, evidence };
     }
-    // Zero-test discovery: the discovery pattern / fixture matched no tests.
-    // A run that executed nothing cannot prove anything about the behavior.
-    if (summary.tests === 0) {
-        return { verdict: 'INVALID_RED', reason: 'zero_tests_discovered', evidence };
-    }
-    // Nonzero exit but TAP reports no failing test: harness/setup/parser crash
-    // whose failure never reached a test assertion (or unparseable output).
-    if (summary.fail === 0 || failing.length === 0) {
-        return { verdict: 'INVALID_RED', reason: 'nonzero_exit_without_test_failure', evidence };
-    }
-    // Fixture/load failure: every failing entry is named like the target FILE —
-    // node reports a load-time crash (throw-on-require, syntax error, ENOENT
-    // fixture) as a file-named `not ok 1 - <file>`, never the target test.
-    const targetBase = baseOf(input?.targetFile ?? '');
-    const distinctlyNamed = failing.filter((n) => (targetBase ? baseOf(n) !== targetBase : true));
-    if (distinctlyNamed.length === 0) {
-        return { verdict: 'INVALID_RED', reason: 'fixture_or_load_failure', evidence };
-    }
-    // Unrelated failure: real tests ran and failed, but none is the target test
-    // the plan named — an unrelated assertion must not authorize GREEN.
-    if (!distinctlyNamed.includes(targetTest)) {
-        return { verdict: 'INVALID_RED', reason: 'no_target_test_failure', evidence };
-    }
-    return { verdict: 'RED_EVIDENCE_OK', reason: 'target_test_failed', evidence };
+    evidence.matched_test = targetFailure.name;
+    return { verdict: exports.RedEvidenceVerdict.Accepted, reason: exports.RedEvidenceReason.TargetFailed, evidence };
 }
 /**
  * Project a classification into the persisted record shape — command, exit
@@ -117,13 +94,10 @@ function classifyRedEvidence(input) {
  * Pure: JSON-serializable, no timestamps (the record's mtime/commit carries time).
  */
 function buildRedEvidenceRecord(input, result) {
-    const failingTest = result.evidence.failing_tests.find((n) => n === result.evidence.target_test) ??
-        result.evidence.failing_tests[0] ??
-        null;
     return {
         command: result.evidence.command,
         exit_code: result.evidence.exit_code,
-        failing_test: failingTest,
+        failing_test: result.evidence.matched_test,
         target_test: result.evidence.target_test,
         expected: typeof input?.expected === 'string' ? input.expected : null,
         actual: typeof input?.actual === 'string' ? input.actual : null,

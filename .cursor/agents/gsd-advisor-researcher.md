@@ -16,12 +16,12 @@ Spawned by `discuss-phase` via `Task()`. You do NOT present output directly to t
 - Return structured markdown output for the main agent to synthesize
 </role>
 
-@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/untrusted-input-boundary.md
+@/workspace/.cursor/gsd-core/references/untrusted-input-boundary.md
 
-**agent_skills:** self-load per @/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/agent-skills-bootstrap.md
+**agent_skills:** self-load per @/workspace/.cursor/gsd-core/references/agent-skills-bootstrap.md (agent type: `gsd-advisor-researcher`)
 
 <documentation_lookup>
-@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/research-documentation-lookup.md
+@/workspace/.cursor/gsd-core/references/research-documentation-lookup.md
 </documentation_lookup>
 
 <input>

@@ -20,7 +20,7 @@
  * `reviewer` bodies in the capability registry, not a hand-maintained tail.
  * A capability of EITHER `role: "runtime"` (the six dual-purpose hosts —
  * antigravity/claude/codex/cursor/opencode/qwen) or the lane-only
- * `role: "reviewer"` (gemini/coderabbit/ollama/lm_studio/llama_cpp) may carry
+ * `role: "reviewer"` (coderabbit/ollama/lm_studio/llama_cpp) may carry
  * a `reviewer` body, and it is the body's `reviewer.slug` — NOT the capability
  * id — that becomes the roster entry: the two differ for `lm-studio` (id) /
  * `lm_studio` (slug) and `llama-cpp` (id) / `llama_cpp` (slug), ADR-2782's
@@ -113,6 +113,22 @@ exports.KNOWN_REVIEWER_SLUGS = (() => {
         return [];
     }
 })();
+/**
+ * #5359: map a lane flag alias (`agy` for `--agy`) to its canonical slug via the
+ * descriptor roster's declared `flags` (same source as `review-lane explicit-from-argv`).
+ * Guarded like KNOWN_REVIEWER_SLUGS: a load failure degrades to the plain error.
+ */
+function laneSlugForAlias(name, lanes) {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const roster = lanes ?? require('./review-lane-descriptor.cjs').REVIEWER_LANES;
+        // `l.slug !== name`: an undetected canonical slug (`--codex` flag) is not an alias.
+        return roster.find((l) => l.slug !== name && l.flags.includes(`--${name}`))?.slug;
+    }
+    catch {
+        return undefined;
+    }
+}
 /** Instance names are lowercase slugs that must not shadow a built-in slug. */
 exports.INSTANCE_NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 function normalizeConfiguredDefaultReviewers(rawValue) {
@@ -229,7 +245,7 @@ function resolveReviewerSelection(input) {
         // ADR-2782 D4: absent-safe governs DISCOVERY, never explicit selection.
         // Not finding a lane nobody asked for is normal; failing to run a lane
         // somebody asked for is an error. Every miss used to be an `info`, so a
-        // PARTIAL miss (`--gemini --qwen` with qwen absent) ran the review with a
+        // PARTIAL miss (`--codex --qwen` with qwen absent) ran the review with a
         // thinner reviewer set while present_results reported success — "a cross-AI
         // review that silently drops a lane is blind in one eye" (review.md).
         // A total miss already errored, but only as a side effect of the selected
@@ -239,7 +255,10 @@ function resolveReviewerSelection(input) {
         // Sorted so the error order does not depend on flag order on the command line.
         const missing = [...explicitFlags].filter((slug) => !detected.has(slug)).sort();
         for (const slug of missing) {
-            errors.push(`explicit reviewer '${slug}' is not available on this host`);
+            const canonical = laneSlugForAlias(slug, input.lanes);
+            errors.push(canonical
+                ? `explicit reviewer '${slug}' is a flag alias; pass its canonical slug '${canonical}'`
+                : `explicit reviewer '${slug}' is not available on this host`);
         }
         // Guarded on the error count as it stood BEFORE this branch, so the
         // aggregate message fires under exactly the conditions it did previously.
