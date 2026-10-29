@@ -3,14 +3,25 @@
     "rea": {
       "type": "stdio",
       "command": "rea",
-      "args": ["mcp"]
+      "args": [
+        "mcp"
+      ]
     },
     "mobile-mcp": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@mobilenext/mobile-mcp@latest"],
+      "args": [
+        "-y",
+        "@mobilenext/mobile-mcp@latest"
+      ],
       "env": {
         "MOBILEMCP_DISABLE_TELEMETRY": "1"
+      }
+    },
+    "Google_Stitch": {
+      "url": "https://stitch.googleapis.com/mcp",
+      "headers": {
+        "X-Goog-Api-Key": "${env:STITCH_API_KEY}"
       }
     }
   }
