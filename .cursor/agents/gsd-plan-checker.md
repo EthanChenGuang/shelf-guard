@@ -46,7 +46,7 @@ of one route there, never a prescription.
 </adversarial_stance>
 
 <required_reading>
-@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/gates.md
+@.cursor/gsd-core/references/gates.md
 </required_reading>
 
 This agent implements the **Revision Gate** pattern (bounded quality loop with escalation on cap exhaustion).
@@ -58,7 +58,7 @@ Before verifying, discover project context:
 
 **Project skills:** Check `.cursor/skills/` or `.agents/skills/` directory if either exists:
 
-**agent_skills:** self-load per @/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/agent-skills-bootstrap.md
+**agent_skills:** self-load per @.cursor/gsd-core/references/agent-skills-bootstrap.md (agent type: `gsd-plan-checker`)
 1. List available skills (subdirectories)
 2. Read `SKILL.md` for each skill (lightweight index ~130 lines)
 3. Load specific `rules/*.md` files as needed during verification
@@ -117,10 +117,10 @@ Same methodology (goal-backward), different timing, different subject matter.
 <verification_dimensions>
 
 At decision points during plan verification, apply structured reasoning:
-@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/thinking-models-planning.md
+@.cursor/gsd-core/references/thinking-models-planning.md
 
 For calibration on scoring and issue identification, reference these examples:
-@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/few-shot-examples/plan-checker.md
+@.cursor/gsd-core/references/few-shot-examples/plan-checker.md
 
 ## Dimension 1: Requirement Coverage
 
@@ -517,16 +517,16 @@ issue:
 
 ## Dimension 8: Nyquist Compliance
 
-**Question:** Is every task's completion decided by an automated check that can actually fail?
+**Question:** Is every task's completion decided by an automated check that can fail?
 
 Checks 8a-8e (presence, latency, sampling continuity, Wave 0 completeness, VALIDATION.md gate),
-their skip condition and the Dimension 8 output table: @gsd-core/references/nyquist-compliance.md
+skip condition and Dimension 8 output table: @.cursor/gsd-core/references/nyquist-compliance.md
 
 ### Check 8f - Stated Failing Direction (#3172)
 
 Each runnable `<automated>` command needs a `<fails_when>` sibling naming what output constitutes
-failure. Consume the supplied `{FAILING_DIRECTIONS}` probe, never re-derive it:
-@gsd-core/references/failing-direction.md
+failure. Consume the `{FAILING_DIRECTIONS}` probe, never re-derive it:
+@.cursor/gsd-core/references/failing-direction.md
 
 ## Dimension 9: Cross-Plan Data Contracts
 
@@ -694,11 +694,12 @@ issue:
 1. For each `<automated>` block piping a package-manager list command into grep with a `^` anchor: BLOCKER.
 2. For each `<automated>` block containing `2>/dev/null || echo` where the result feeds a `[ "$VAR" = ... ]` comparison: BLOCKER.
 3. For each `<automated>` block asserting a specific numeric count not cited as measured in this plan: WARNING.
+4. For each count/match gate (`grep -c`, `grep -q`, `rg`), run it — read-only commands only — against the current tree (#4927). It already passes at HEAD with no recorded baseline: BLOCKER (it measures nothing). A literal differing in case from the heading/key the task writes: BLOCKER. Never run a gate that builds, installs, or writes. See `planner-verify-command-grounding.md`.
 
 ## Dimension: Verify Command Path Resolvability (#2401)
 
-**Question:** Does each `<automated>` command's target resolve? Consume the supplied
-`{VERIFY_PATHS}` probe, never re-run/hand-reason it: @gsd-core/references/verify-command-path-resolvability.md
+**Question:** Does each `<automated>` command's target resolve? Consume the
+`{VERIFY_PATHS}` probe, never re-run/hand-reason it: @.cursor/gsd-core/references/verify-command-path-resolvability.md
 
 ## Dimension: Numeric/Factual Claim Authority (#1480)
 
@@ -724,8 +725,9 @@ issue:
 ## Step 1: Load Context
 
 Load phase operation context:
+@.cursor/gsd-core/references/gsd-run-resolver.md
+
 ```bash
-_GSD_SHIM_NAME="gsd-tools.cjs"; _GSD_RUNTIME_ROOT="${RUNTIME_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"; GSD_TOOLS="${_GSD_RUNTIME_ROOT}/gsd-core/bin/${_GSD_SHIM_NAME}"; _gsd_at() { for _p; do if [ -f "$_p" ]; then GSD_TOOLS="$_p"; return 0; fi; done; return 1; }; if _gsd_at "${_GSD_RUNTIME_ROOT}/gsd-core/bin/${_GSD_SHIM_NAME}" "${_GSD_RUNTIME_ROOT}/.claude/gsd-core/bin/${_GSD_SHIM_NAME}" "${_GSD_RUNTIME_ROOT}/.codex/gsd-core/bin/${_GSD_SHIM_NAME}"; then gsd_run() { node "$GSD_TOOLS" "$@"; }; elif unset -f gsd_run; _G="$(command -v gsd_run)"; then GSD_TOOLS="$_G"; gsd_run() { "$GSD_TOOLS" "$@"; }; elif _gsd_at "${CLAUDE_CONFIG_DIR:-/home/guang/Projects/Experiments/image-comparation/.cursor}/gsd-core/bin/${_GSD_SHIM_NAME}" "${HERMES_HOME:-$HOME/.hermes}/gsd-core/bin/${_GSD_SHIM_NAME}" "${CURSOR_CONFIG_DIR:-$HOME/.cursor}/gsd-core/bin/${_GSD_SHIM_NAME}" "${CODEX_HOME:-$HOME/.codex}/gsd-core/bin/${_GSD_SHIM_NAME}" "${GEMINI_CONFIG_DIR:-$HOME/.gemini}/gsd-core/bin/${_GSD_SHIM_NAME}" "${COPILOT_CONFIG_DIR:-$HOME/.copilot}/gsd-core/bin/${_GSD_SHIM_NAME}" "${WINDSURF_CONFIG_DIR:-$HOME/.codeium/windsurf}/gsd-core/bin/${_GSD_SHIM_NAME}" "${AUGMENT_CONFIG_DIR:-$HOME/.augment}/gsd-core/bin/${_GSD_SHIM_NAME}" "${TRAE_CONFIG_DIR:-$HOME/.trae}/gsd-core/bin/${_GSD_SHIM_NAME}" "${QWEN_CONFIG_DIR:-$HOME/.qwen}/gsd-core/bin/${_GSD_SHIM_NAME}" "${CODEBUDDY_CONFIG_DIR:-$HOME/.codebuddy}/gsd-core/bin/${_GSD_SHIM_NAME}" "${CLINE_CONFIG_DIR:-$HOME/.cline}/gsd-core/bin/${_GSD_SHIM_NAME}" "${GROK_AGENTS_HOME:-$HOME/.agents}/gsd-core/bin/${_GSD_SHIM_NAME}" "${ANTIGRAVITY_CONFIG_DIR:-$HOME/.gemini/antigravity}/gsd-core/bin/${_GSD_SHIM_NAME}" "${OPENCODE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/opencode}/gsd-core/bin/${_GSD_SHIM_NAME}" "${KILO_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/kilo}/gsd-core/bin/${_GSD_SHIM_NAME}"; then gsd_run() { node "$GSD_TOOLS" "$@"; }; else echo "ERROR: gsd-tools.cjs not found at $GSD_TOOLS and gsd_run is not on PATH. Run: npx -y @opengsd/gsd-core@latest --claude --local" >&2; exit 1; fi; GSD_IDENTITY_STATUS=unverified; case "$(gsd_run runtime-identity --raw 2>/dev/null || true)" in '{"packageName":"@opengsd/gsd-core"'*'}') GSD_IDENTITY_STATUS=ok;; esac; export GSD_IDENTITY_STATUS; [ "$GSD_IDENTITY_STATUS" = ok ] || echo "WARNING: \"$GSD_TOOLS\" did not prove it is @opengsd/gsd-core - it is either a different package or an @opengsd/gsd-core older than the runtime-identity verb. See docs/how-to/diagnose-a-foreign-gsd-tools.md" >&2; if [ -n "${CLAUDE_ENV_FILE:-}" ] && [ -n "${GSD_TOOLS:-}" ]; then printf "export PATH='%s':\"\$PATH\"\n" "${GSD_TOOLS%/*}" >> "$CLAUDE_ENV_FILE" 2>/dev/null || true; fi
 INIT=$(gsd_run query init.phase-op "${PHASE_ARG}")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
@@ -764,12 +766,15 @@ shopt -s nullglob 2>/dev/null; setopt NULL_GLOB 2>/dev/null
 
 for plan in "$PHASE_DIR"/*-PLAN.md; do
   echo "=== $plan ==="
-  PLAN_STRUCTURE=$(gsd_run query verify.plan-structure "$plan")
+  PLAN_STRUCTURE=$(gsd_run query verify.plan-structure "$plan") && STRUCTURE_EXIT=0 || STRUCTURE_EXIT=$?
   echo "$PLAN_STRUCTURE"
+  echo "structure_exit=$STRUCTURE_EXIT"
 done
 ```
 
 Parse JSON result: `{ valid, errors, warnings, task_count, tasks: [{name, hasFiles, hasAction, hasVerify, hasDone}], frontmatter_fields }`
+
+The exit status follows the verdict (#5170): exit `0` = `valid: true`, exit `1` = `valid: false` (a negative verdict — the JSON is still authoritative, so read `errors`). Any other status (`69` `UNAVAILABLE`: the plan file is missing or unreadable; the JSON carries `error`) means the structure was **not evaluated**: raise it as a blocker for that plan, never as "no structure errors".
 
 Map errors/warnings to verification dimensions:
 - Missing frontmatter field → `task_completeness` or `must_haves_derivation`
@@ -827,8 +832,10 @@ For each requirement: find covering task(s), verify action is specific, flag gap
 Use `verify.plan-structure` (already run in Step 2):
 
 ```bash
-PLAN_STRUCTURE=$(gsd_run query verify.plan-structure "$PLAN_PATH")
+PLAN_STRUCTURE=$(gsd_run query verify.plan-structure "$PLAN_PATH") && STRUCTURE_EXIT=0 || STRUCTURE_EXIT=$?
 ```
+
+Exit `0` / `1` are the verdict (`valid` true / false, read the JSON); any other status means the structure was not evaluated (Step 2).
 
 The `tasks` array in the result shows each task's completeness:
 - `hasFiles` — files element present
@@ -896,7 +903,7 @@ Severities: `blocker` (must fix), `warning` (should fix), `info` (suggestions).
 
 <examples>
 
-@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/plan-checker-examples.md
+@.cursor/gsd-core/references/plan-checker-examples.md
 
 </examples>
 

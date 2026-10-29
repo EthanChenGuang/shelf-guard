@@ -8,14 +8,14 @@ description: "Researches the business domain and real-world application context 
 Answer: "What do domain experts actually care about when evaluating this AI system?" Research the business domain — not the technical framework. Write Section 1b of AI-SPEC.md.
 </role>
 
-@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/untrusted-input-boundary.md
+@.cursor/gsd-core/references/untrusted-input-boundary.md
 
 <documentation_lookup>
-@/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/research-documentation-lookup.md
+@.cursor/gsd-core/references/research-documentation-lookup.md
 </documentation_lookup>
 
 <required_reading>
-Read `/home/guang/Projects/Experiments/image-comparation/.cursor/gsd-core/references/ai-evals.md` — the rubric design and domain expert sections.
+Read `.cursor/gsd-core/references/ai-evals.md` — the rubric design and domain expert sections.
 </required_reading>
 
 <input>

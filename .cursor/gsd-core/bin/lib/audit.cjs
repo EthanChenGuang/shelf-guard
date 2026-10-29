@@ -25,10 +25,15 @@ const coreUtils = require("./core-utils.cjs");
 const { normalizeLineEndings } = coreUtils;
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const planningWorkspace = require("./planning-workspace.cjs");
-const { planningDir, quickDirFrom, todosDir } = planningWorkspace;
+const { planningDir, quickDirFrom, debugDir, todosDir } = planningWorkspace;
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const frontmatter = require("./frontmatter.cjs");
-const { extractFrontmatter, spliceFrontmatter } = frontmatter;
+// #4378 (roll-in): scanSeeds publishes the SAME canonical seed identity the
+// list-seeds gate derives — one grammar, two surfaces, no drift. commands.cjs
+// does not require this module, so the edge is acyclic.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const commandsModule = require("./commands.cjs");
+const { extractFrontmatter, frontmatterBlock, spliceFrontmatter, isFrontmatterWriteRefusal } = frontmatter;
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const phaseIdMod = require("./phase-id.cjs");
 const { PHASE_NUMBER_TOKEN_SOURCE, scopeToPhase } = phaseIdMod;
@@ -41,6 +46,11 @@ const shell_command_projection_cjs_2 = require("./shell-command-projection.cjs")
 const io = require("./io.cjs");
 const { output, error: ioError } = io;
 const command_arg_projection_cjs_1 = require("./command-arg-projection.cjs");
+// #5118: the verification-status owner's report reader and closed enum.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const verificationMod = require("./verification.cjs");
+const { reportStatusOf, VERIFICATION_STATUS, VerificationStatusError } = verificationMod;
+const clock_cjs_1 = require("./clock.cjs");
 // The SCOPE BOUNDARY convention's filename (`agents/gsd-executor.md`), shared
 // verbatim with the #2287 phase-boundary reader in `uat.cts`.
 const DEFERRED_ITEMS_FILENAME = 'deferred-items.md';
@@ -252,19 +262,27 @@ function deriveOpenQuestionsDigest(questions) {
 }
 // ─── scanDebugSessions ────────────────────────────────────────────────────────
 /**
- * Scan .planning/debug/ for open sessions.
- * Open = status NOT in ['resolved', 'complete'].
- * Ignores the resolved/ subdirectory.
+ * #4869: gsd-debugger's archive_session step appends every resolved session to
+ * this file in the debug directory. It is a document, not a session: it has no
+ * frontmatter, so its status would derive `unknown` and read as open forever.
+ * Excluded by this fixed name only. Any other file with missing or unparseable
+ * frontmatter is still an open session. Every shipped debug-directory reader
+ * excludes the same name from active sessions (#5011).
  */
-function scanDebugSessions(planDir) {
-    const debugDir = node_path_1.default.join(planDir, 'debug');
-    if (!node_fs_1.default.existsSync(debugDir))
+const DEBUG_KNOWLEDGE_BASE_FILENAME = 'knowledge-base.md';
+/**
+ * Scan the root-scoped .planning/debug/ directory supplied by the caller for open sessions.
+ * Open = status NOT in ['resolved', 'complete'].
+ * Ignores the resolved/ subdirectory and the debugger's knowledge base.
+ */
+function scanDebugSessions(debugPath) {
+    if (!node_fs_1.default.existsSync(debugPath))
         return { items: [], acknowledged: 0 };
     const results = [];
     let acknowledged = 0;
     let files;
     try {
-        files = node_fs_1.default.readdirSync(debugDir, { withFileTypes: true });
+        files = node_fs_1.default.readdirSync(debugPath, { withFileTypes: true });
     }
     catch {
         return { items: [{ scan_error: true, slug: '', status: '', updated: '', hypothesis: '' }], acknowledged: 0 };
@@ -274,10 +292,12 @@ function scanDebugSessions(planDir) {
             continue;
         if (!entry.name.endsWith('.md'))
             continue;
-        const filePath = node_path_1.default.join(debugDir, entry.name);
+        if (entry.name === DEBUG_KNOWLEDGE_BASE_FILENAME)
+            continue;
+        const filePath = node_path_1.default.join(debugPath, entry.name);
         let safeFilePath;
         try {
-            safeFilePath = (0, security_cjs_1.requireSafePath)(filePath, planDir, 'debug session file', security_cjs_1.PathAcceptance.AbsoluteInsideRoot);
+            safeFilePath = (0, security_cjs_1.requireSafePath)(filePath, node_path_1.default.dirname(debugPath), 'debug session file', security_cjs_1.PathAcceptance.AbsoluteInsideRoot);
         }
         catch {
             continue;
@@ -286,9 +306,9 @@ function scanDebugSessions(planDir) {
         // document at this read boundary, same seam as `src/uat.cts`'s
         // `readNormalizedDocument` — `platformReadSync` performs no line-ending
         // normalization itself, and extractFrontmatter/status-derivation below
-        // degrade a lone-CR file's frontmatter to `unknown`, which every scan
-        // in this module treats as "not open" (fail-open, the permissive
-        // direction) rather than a real parse gap.
+        // degrade a lone-CR file's frontmatter to `unknown`, which this scan
+        // reports as an open session (#4869) — so an un-normalized resolved
+        // session would resurface as open.
         const rawContent = (0, shell_command_projection_cjs_1.platformReadSync)(safeFilePath);
         if (rawContent === null)
             continue;
@@ -586,9 +606,11 @@ function scanTodos(todosBase) {
     }
     const displayFiles = openFiles.slice(0, 5);
     for (const { entry, content, fm } of displayFiles) {
-        // Extract first line of body after frontmatter
-        const bodyMatch = content.replace(/^---[\s\S]*?---\r?\n?/, '');
-        const firstLine = (0, text_lines_cjs_1.splitLines)(bodyMatch.trim())[0] || '';
+        // Extract first line of body after frontmatter — the block `extractFrontmatter` read above
+        // (the one fence owner), so a `---` inside a value cannot end it early.
+        const block = frontmatterBlock(content);
+        const todoBody = block ? block.rest : content;
+        const firstLine = (0, text_lines_cjs_1.splitLines)(todoBody.trim())[0] || '';
         const summary = (0, security_cjs_1.sanitizeForDisplay)(firstLine.slice(0, 100));
         results.push({
             filename: (0, security_cjs_1.sanitizeLabel)(entry.name),
@@ -601,6 +623,14 @@ function scanTodos(todosBase) {
         results.push({ _remainder_count: openFiles.length - 5, filename: '', priority: '', area: '', summary: '' });
     }
     return { items: results, acknowledged };
+}
+// #4378 (roll-in): true when the filename is a well-formed seed name —
+// `SEED-` prefix, `.md` suffix, and no control bytes anywhere in between (the
+// scanSeeds admission filter passes such names through to the identity
+// derivation; a name with an embedded control byte falls back to its raw
+// stem exactly as the pre-canonical code did).
+function seedIdMatchRawName(name) {
+    return !/[\u0000-\u001f\u007f]/.test(name);
 }
 // ─── scanSeeds ────────────────────────────────────────────────────────────────
 /**
@@ -653,16 +683,18 @@ function scanSeeds(planDir) {
             acknowledged++;
             continue;
         }
-        // Extract seed_id from filename or frontmatter. The regex match is
-        // `\w`/hyphen-constrained (safe by construction, like `archived_milestone`)
-        // but the fallback taken when a filename doesn't fully match — e.g. a
-        // `SEED-`-prefixed, `.md`-suffixed name with a control byte SOMEWHERE in
-        // the middle, which still passes the `startsWith`/`endsWith` filter above
-        // — is the raw, unconstrained basename. Both branches are routed through
-        // sanitizeLabel below.
-        const seedIdMatch = entry.name.match(/^(SEED-[\w-]+)\.md$/);
-        const seed_id = seedIdMatch ? seedIdMatch[1] : node_path_1.default.basename(entry.name, '.md');
-        const slug = (0, security_cjs_1.sanitizeLabel)(seed_id.replace(/^SEED-/, ''));
+        // #4378 (roll-in): the canonical identity comes from the SAME derivation
+        // the list-seeds surface uses — frontmatter `id:` when it matches a seed
+        // grammar (legacy `SEED-NNN` or date-suffixed `SEED-YYMMDD-xxx`), else the
+        // filename's id prefix, else the whole stem. The old fused
+        // filename-stem id (e.g. `SEED-081-region` for `SEED-081-region.md`)
+        // disagreed with list-seeds and misfiled deferrals; publishing the
+        // canonical id keeps the two surfaces answering identically. The raw-
+        // basename fallback for control-byte-bearing names is preserved.
+        const stem = node_path_1.default.basename(entry.name, '.md');
+        const derived = commandsModule.deriveSeedIdentity(stem, fm.id);
+        const seed_id = seedIdMatchRawName(entry.name) ? derived.seed_id : stem;
+        const slug = (0, security_cjs_1.sanitizeLabel)(derived.slug);
         let title = (0, security_cjs_1.sanitizeForDisplay)(fm.title || '');
         if (!title) {
             const headingMatch = content.match(/^#\s*(.+)$/m);
@@ -801,9 +833,9 @@ function scanUatGaps(planDir, cwd) {
             // document at this read boundary, same seam as `src/uat.cts`'s
             // `readNormalizedDocument` — `platformReadSync` performs no line-ending
             // normalization itself, and extractFrontmatter/status-derivation below
-            // degrade a lone-CR file's frontmatter to `unknown`, which every scan
-            // in this module treats as "not open" (fail-open, the permissive
-            // direction) rather than a real parse gap.
+            // degrade a lone-CR file's frontmatter to `unknown`, which this scan
+            // reports as an open gap unless `result: all_pass` (#4869 triage) — so
+            // an un-normalized terminal UAT would resurface as open.
             const rawContent = (0, shell_command_projection_cjs_1.platformReadSync)(safeFilePath);
             if (rawContent === null)
                 continue;
@@ -882,8 +914,10 @@ function scanVerificationGaps(planDir, cwd) {
                 continue;
             const content = normalizeLineEndings(rawContent);
             const fm = extractFrontmatter(content, safeFilePath);
-            const status = (fm.status || 'unknown').toLowerCase();
-            if (status !== 'gaps_found' && status !== 'human_needed')
+            // #5118: the owner's report reader judges `status` — exact match, no
+            // case folding; an out-of-set value throws VerificationStatusError.
+            const status = reportStatusOf(fm, safeFilePath);
+            if (status !== VERIFICATION_STATUS.GAPS_FOUND && status !== VERIFICATION_STATUS.HUMAN_NEEDED)
                 continue;
             if (isAuditItemAcknowledged(fm, { snapshotKey: 'status', currentValue: status })) {
                 acknowledged++;
@@ -1059,8 +1093,10 @@ function scanDeferredItems(planDir, cwd) {
 function auditOpenArtifacts(cwd) {
     const planDir = planningDir(cwd);
     const debugSessions = (() => {
+        // #5042: debug sessions are shared project state; workflow writers use
+        // the root .planning/debug directory even when a workstream is active.
         try {
-            return scanDebugSessions(planDir);
+            return scanDebugSessions(debugDir(cwd));
         }
         catch {
             return { items: [{ scan_error: true, slug: '', status: '', updated: '', hypothesis: '' }], acknowledged: 0 };
@@ -1083,7 +1119,7 @@ function auditOpenArtifacts(cwd) {
         }
     })();
     const todos = (() => {
-        // #4256: the ONE root-scoped category — todos are shared project state,
+        // #4256: todos are shared project state, like debug sessions (#5042),
         // so the close gate reads todosDir(cwd) (the root), not the workstream-
         // scoped planDir every other scan below receives. Reading planDir here
         // made audit-open print "All artifact types clear. Safe to proceed."
@@ -1115,7 +1151,11 @@ function auditOpenArtifacts(cwd) {
         try {
             return scanVerificationGaps(planDir, cwd);
         }
-        catch {
+        catch (err) {
+            // #5118: an out-of-set report status is the owner's hard error, not a
+            // scan failure to fold into a sentinel — let it reach the CLI seam.
+            if (err instanceof VerificationStatusError)
+                throw err;
             return { items: [{ scan_error: true, phase: '', file: '', status: '' }], acknowledged: 0 };
         }
     })();
@@ -1384,6 +1424,26 @@ function resolvePhaseTargetDir(planDir, cwd, phase, archivedMilestone) {
  * artifact identifier that resolves outside the project is refused before
  * any read or write is attempted.
  */
+/**
+ * #4802: splice the acknowledgement marker, surfacing `spliceFrontmatter`'s
+ * write refusal (the one owner of that decision) as an `ioError` naming the
+ * file — an unparseable frontmatter block is NOT an empty one, and splicing
+ * over it would discard every field the author actually wrote.
+ */
+function spliceAcknowledgement(content, fm, fileLabel) {
+    try {
+        return spliceFrontmatter(content, fm);
+    }
+    catch (err) {
+        if (!isFrontmatterWriteRefusal(err))
+            throw err;
+        if (err.code === 'FRONTMATTER_UNPARSEABLE') {
+            ioError(`refusing to acknowledge — the frontmatter of "${fileLabel}" is not parseable YAML (splicing would discard every other frontmatter field); fix the YAML syntax error first, then re-run`);
+        }
+        ioError(`refusing to acknowledge "${fileLabel}" — ${err.message}`);
+        throw err; // unreachable — ioError throws
+    }
+}
 function cmdAuditAcknowledge(cwd, args, raw) {
     // args already has the family + subcommand tokens stripped by the caller
     // (audit-command-router.cts:147 passes `hubArgs.slice(2)`), so validation
@@ -1403,7 +1463,9 @@ function cmdAuditAcknowledge(cwd, args, raw) {
     // All declared flags above are value flags, so each resolves to `string |
     // null` at runtime; the cast narrows away the `boolean` arm of
     // ParsedNamedArgs's value type that this call site never produces.
-    const at = atFlag || new Date().toISOString().slice(0, 10);
+    // #4905: without --at, the operator-facing local calendar day (#2136)
+    // through the clock seam, which honors the GSD_NOW_MS pin (#474).
+    const at = atFlag || clock_cjs_1.realClock.localToday();
     const planDir = planningDir(cwd);
     const markerBase = { milestone: milestone, at };
     // #3078-CR MEDIUM 2: every `fs.readFileSync` in this function (below, and
@@ -1494,7 +1556,7 @@ function cmdAuditAcknowledge(cwd, args, raw) {
             currentValue = deriveOpenQuestionsDigest(deriveOpenQuestions(normalizedContent, fm));
         }
         fm.audit_acknowledged = { ...markerBase, [snapshotKey]: currentValue };
-        const newContent = spliceFrontmatter(content, fm);
+        const newContent = spliceAcknowledgement(content, fm, file);
         (0, shell_command_projection_cjs_2.platformWriteSync)(safeFilePath, newContent);
         output({ acknowledged: true, category, phase, file, [snapshotKey]: currentValue }, raw, 'true');
         return;
@@ -1533,9 +1595,48 @@ function cmdAuditAcknowledge(cwd, args, raw) {
     else if (category === 'seeds') {
         if (!seedId)
             ioError('--seed-id is required for --category seeds');
-        safeFilePath = (0, security_cjs_1.requireSafePath)(node_path_1.default.join(planDir, 'seeds', `${seedId}.md`), planDir, 'audit acknowledge target', security_cjs_1.PathAcceptance.AbsoluteInsideRoot);
-        if (!node_fs_1.default.existsSync(safeFilePath))
+        // #4378 (roll-in): `--seed-id` arrives as whichever id an audit/list
+        // surface published — the canonical identity (frontmatter `id:` or the
+        // derived prefix, e.g. `SEED-081`, `SEED-260914-k3x`) or, for callers
+        // scripted against pre-canonical output, the full filename stem. Resolve
+        // by scanning the seeds directory and matching each candidate's derived
+        // identity (falling back to the literal stem), then prove the winner with
+        // requireSafePath exactly like every other acknowledge target. The direct
+        // `seeds/<seedId>.md` build stays as the final fallback so a genuine
+        // miss still reports the same "file not found" error as before.
+        const seedsAckDir = node_path_1.default.join(planDir, 'seeds');
+        let ackCandidate = null;
+        let ackEntries = [];
+        try {
+            ackEntries = node_fs_1.default.readdirSync(seedsAckDir).filter((n) => n.startsWith('SEED-') && n.endsWith('.md'));
+        }
+        catch {
+            ackEntries = [];
+        }
+        for (const name of ackEntries) {
+            const stem = node_path_1.default.basename(name, '.md');
+            let fmId;
+            try {
+                const rawAck = (0, shell_command_projection_cjs_1.platformReadSync)(node_path_1.default.join(seedsAckDir, name));
+                if (rawAck !== null)
+                    fmId = extractFrontmatter(normalizeLineEndings(rawAck), node_path_1.default.join(seedsAckDir, name)).id;
+            }
+            catch {
+                fmId = undefined;
+            }
+            const { seed_id: derivedAckId } = commandsModule.deriveSeedIdentity(stem, fmId);
+            if (derivedAckId === seedId || stem === seedId) {
+                ackCandidate = name;
+                break;
+            }
+        }
+        if (ackCandidate !== null) {
+            safeFilePath = (0, security_cjs_1.requireSafePath)(node_path_1.default.join(seedsAckDir, ackCandidate), planDir, 'audit acknowledge target', security_cjs_1.PathAcceptance.AbsoluteInsideRoot);
+        }
+        else {
+            safeFilePath = (0, security_cjs_1.requireSafePath)(node_path_1.default.join(seedsAckDir, `${seedId}.md`), planDir, 'audit acknowledge target', security_cjs_1.PathAcceptance.AbsoluteInsideRoot);
             ioError(`file not found: seeds/${seedId}.md`);
+        }
         const content = node_fs_1.default.readFileSync(safeFilePath, 'utf-8');
         currentValue = (extractFrontmatter(content, safeFilePath).status || 'dormant').toLowerCase();
     }
@@ -1584,11 +1685,12 @@ function cmdAuditAcknowledge(cwd, args, raw) {
         return; // unreachable — ioError throws — satisfies TS control-flow analysis
     }
     const presenceOnly = category === 'todos';
-    const fm = createIfMissing ? fmForCreate : extractFrontmatter(node_fs_1.default.readFileSync(safeFilePath, 'utf-8'), safeFilePath);
+    const existingContent = createIfMissing ? '' : node_fs_1.default.readFileSync(safeFilePath, 'utf-8');
+    const fm = createIfMissing ? fmForCreate : extractFrontmatter(existingContent, safeFilePath);
     fm.audit_acknowledged = presenceOnly ? { ...markerBase } : { ...markerBase, [snapshotKey]: currentValue };
-    const newContent = createIfMissing
-        ? spliceFrontmatter('', fm)
-        : spliceFrontmatter(node_fs_1.default.readFileSync(safeFilePath, 'utf-8'), fm);
+    // #4802: createIfMissing splices into '' (no block to refuse on); an existing
+    // file with broken YAML is refused by `spliceAcknowledgement`.
+    const newContent = spliceAcknowledgement(existingContent, fm, safeFilePath);
     (0, shell_command_projection_cjs_2.platformWriteSync)(safeFilePath, newContent);
     output({ acknowledged: true, category, ...(presenceOnly ? {} : { [snapshotKey]: currentValue }) }, raw, 'true');
 }

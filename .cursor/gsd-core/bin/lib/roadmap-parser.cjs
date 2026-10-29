@@ -79,6 +79,17 @@ function stripShippedMilestones(content) {
     return (0, markdown_sectionizer_cjs_1.stripTaggedBlocks)(content, 'details');
 }
 /**
+ * #5543: run `edit` over the ROADMAP with every shipped `<details>` block hidden
+ * and restored byte-for-byte afterwards. For writers whose active milestone
+ * could not be resolved: the first `### Phase N:` in document order must never
+ * be the one inside a shipped block. Layout-independent (the active phase may
+ * sit before or after a shipped block) and, unlike a "region after the last
+ * `</details>`" cut, not fooled by a `</details>` in a fence or inline code.
+ */
+function editOutsideShippedBlocks(content, edit) {
+    return (0, markdown_sectionizer_cjs_1.editOutsideTaggedBlocks)(content, 'details', edit);
+}
+/**
  * #3982: strip only <details> blocks whose <summary> marks a CLOSED milestone
  * (ARCHIVED/SHIPPED/✅/… without an active marker) — the narrow form of
  * stripShippedMilestones the current-milestone window needs. A blanket strip
@@ -572,6 +583,55 @@ function sliceMilestoneWindow(content, version) {
     return content.slice(selected.index, computeMilestoneSectionEnd(content, selected[0], selected.index));
 }
 /**
+ * Enumerate the milestone section ranges recognized by the ROADMAP readers.
+ * Markdown boundaries reuse the reader's heading tokenizer, milestone-signal
+ * vocabulary, name/version extractor, and section-end owner. Collapsed
+ * archives reuse the same `<details><summary>` shape handled by
+ * `extractCurrentMilestoneScoped`.
+ */
+function milestoneSections(content) {
+    const sections = [];
+    const headings = (0, markdown_sectionizer_cjs_1.tokenizeHeadings)(content);
+    for (const heading of headings) {
+        if (heading.level < 1 || heading.level > 3)
+            continue;
+        if (/^Phase\s+\S/i.test(heading.text))
+            continue;
+        if (!MILESTONE_HEADING_SIGNAL_PATTERN.test(heading.text))
+            continue;
+        const extracted = extractMilestoneHeadingName(heading.text);
+        const version = extracted?.version ?? null;
+        const versionMajor = version?.match(/^v(\d+)/i);
+        const milestoneInt = versionMajor ? parseInt(versionMajor[1], 10) : null;
+        const lineEnd = content.indexOf('\n', heading.offset);
+        const fullLine = content.slice(heading.offset, lineEnd === -1 ? content.length : lineEnd);
+        sections.push({
+            start: heading.offset,
+            end: computeMilestoneSectionEnd(content, fullLine, heading.offset, undefined, headings),
+            version,
+            milestoneInt: milestoneInt !== null && Number.isSafeInteger(milestoneInt) ? milestoneInt : null,
+        });
+    }
+    const detailsPattern = /<details\b[^>]*>[\s\S]*?<\/details>/gi;
+    let detailsMatch;
+    while ((detailsMatch = detailsPattern.exec(content)) !== null) {
+        const summary = detailsMatch[0].match(/<summary[^>]*>([^<]*)<\/summary>/i)?.[1]?.trim() ?? '';
+        if (!MILESTONE_HEADING_SIGNAL_PATTERN.test(summary))
+            continue;
+        const extracted = extractMilestoneHeadingName(summary);
+        const version = extracted?.version ?? null;
+        const versionMajor = version?.match(/^v(\d+)/i);
+        const milestoneInt = versionMajor ? parseInt(versionMajor[1], 10) : null;
+        sections.push({
+            start: detailsMatch.index,
+            end: detailsMatch.index + detailsMatch[0].length,
+            version,
+            milestoneInt: milestoneInt !== null && Number.isSafeInteger(milestoneInt) ? milestoneInt : null,
+        });
+    }
+    return sections.sort((a, b) => a.start - b.start || a.end - b.end);
+}
+/**
  * #3184: counts RAW phase references — a `#{2,4} Phase <id>:` heading
  * (fence-aware via `tokenizeHeadings`) or a `#2199` bullet entry — BEFORE any
  * sentinel filter. Used for BOTH sides of `classifyMilestoneWindow`'s row-8
@@ -600,17 +660,37 @@ function sliceMilestoneWindow(content, version) {
 // decoy `### [GSD.04] Notes:` outside the window manufactured a false V005
 // while suppressing the correct V004. The digit anchor forecloses both.
 const BRACKET_PHASE_ENTRY_HEADING_RE = new RegExp(`^${PHASE_HEADING_PREFIX_SRC}${PHASE_NUMBER_TOKEN_SOURCE}${OPTIONAL_PHASE_TAG_SOURCE}\\s*:`, 'i');
+// #1729: `(?:\s*\([^)\n]{0,200}\))?` tolerates a pre-colon ( ) tag (literal
+// mirror of OPTIONAL_PHASE_TAG_SOURCE). Hoisted out of hasPhaseEntries (#4144
+// round 5 Blocker 1) so a consumer OUTSIDE this file's own phase-entry count —
+// the bracket roadmap migrator's "phase-like but unparsed" refusal
+// (src/roadmap-upgrade.cts) — can ask "is this heading text a phase heading
+// by the readers' own rules" without re-deriving the pattern. A heading with
+// no phase-number token and no trailing colon (`## Phase Details`, `##
+// Phase Lifecycle`, `### Phase Notes`) is NOT a phase heading by this
+// grammar — it is an ordinary section heading that happens to start with the
+// word "Phase".
+const PHASE_HEADING_TEXT_RE = /^(?:\[[^\]]{1,200}\]\s*)?Phase\s+([\w][\w.-]*)(?:\s*\([^)\n]{0,200}\))?\s*:/i;
+/**
+ * #4144 round 5 Blocker 1: whether `headingText` — a heading's text with its
+ * leading `#{1,6}` markers and surrounding whitespace already stripped
+ * (`tokenizeHeadings`'s own `h.text`, or the equivalent for a line a caller
+ * already knows is a `#{2,4}` heading) — is a phase heading by the readers'
+ * own grammar. The single owner of this test; `hasPhaseEntries` below is
+ * itself just the first caller.
+ */
+function isPhaseHeadingText(headingText) {
+    return PHASE_HEADING_TEXT_RE.test(headingText);
+}
 function hasPhaseEntries(markdown, phaseIdConvention) {
-    // #1729: `(?:\s*\([^)\n]{0,200}\))?` tolerates a pre-colon ( ) tag (literal mirror of OPTIONAL_PHASE_TAG_SOURCE).
     // #3641: the widened grammar engages ONLY when the resolved convention is
     // 'bracket' — a project that has not opted in runs the legacy pattern
     // alone, byte-identically.
-    const phaseHeadingPattern = /^(?:\[[^\]]{1,200}\]\s*)?Phase\s+([\w][\w.-]*)(?:\s*\([^)\n]{0,200}\))?\s*:/i;
     const bracketMode = phaseIdConvention === 'bracket';
     for (const h of (0, markdown_sectionizer_cjs_1.tokenizeHeadings)(markdown)) {
         if (h.level < 2 || h.level > 4)
             continue;
-        if (phaseHeadingPattern.test(h.text))
+        if (isPhaseHeadingText(h.text))
             return true;
         if (bracketMode && BRACKET_PHASE_ENTRY_HEADING_RE.test(h.text))
             return true;
@@ -670,6 +750,23 @@ function collectTablePhaseRows(window) {
         }
     }
     return rows;
+}
+/**
+ * True when `content` contains a GFM table whose header row is phase-listing
+ * SHAPED (`| Phase | ... |`), regardless of whether it also declares a `Name`
+ * column. `collectTablePhaseRows` correctly refuses to mint a phase from a
+ * `| Phase | Status |`-shaped table (no name column, so no declaration) —
+ * but that table's mere presence still signals this roadmap has moved to
+ * table-based tracking, not checklist-based tracking. Callers that decide
+ * whether to treat bare checklist entries as phase declarations (#4899's
+ * roadmap.cts synthesis fallback) must see this signal even when
+ * `collectTablePhaseRows` itself returns nothing for the same content —
+ * otherwise a thin, name-less Progress table cannot suppress a checklist
+ * synthesis it was never meant to coexist with.
+ */
+function hasPhaseListingTableHeader(content) {
+    const unfenced = (0, markdown_sectionizer_cjs_1.stripFencedCode)(content).text;
+    return unfenced.split(/\r?\n/).some((line) => PHASE_LISTING_HEADER_RE.test(line));
 }
 /**
  * #3262: the sole owner of "which phase ids does THIS milestone window
@@ -840,6 +937,44 @@ function classifyMilestoneWindow(input) {
                         SCOPE.COMPLETE // rows 6, 7
     );
 }
+// #5007 (Phase 6 / ADR-4910 §8): the bulk phase-heading-block strip (heading
+// line + body through to the next heading of any level) used by BOTH the
+// <details>-fallback branch and preambleWithoutPhaseDetails inside
+// extractCurrentMilestoneScoped below — literally the same regex, previously
+// duplicated verbatim at both call sites. Composed from
+// phaseHeadingPrefixSrcFor (LABEL_ONLY, no convention argument — reproduces
+// the prior bare `Phase\s+` literal byte-for-byte, same non-widening
+// discipline as the phase.cts counter sites) rather than routed through
+// buildPhaseHeadingScanRegex, since this site needs the whole matched block
+// (heading + body), not a phase-number/title capture. The one real behavior
+// change here is the phase-number token itself: the prior literal admitted
+// any `[\w][\w.-]*` (including non-numeric garbage); PHASE_NUMBER_TOKEN_SOURCE
+// tightens it to the real phase-number grammar (digits, optional trailing
+// letter, dotted subphases) — verified against real phase-number fixtures
+// (plain, decimal, and bracket-tag-bearing) in tests/roadmap-parser.test.cjs.
+const PHASE_HEADING_BLOCK_STRIP_RE = new RegExp(
+// #1729: `(?:\s*\([^)\n]{0,200}\))?` (OPTIONAL_PHASE_TAG_SOURCE) tolerates a pre-colon ( ) tag.
+`^#{2,4}\\s*${phaseHeadingPrefixSrcFor(PHASE_HEADING_BASELINE.LABEL_ONLY)}${PHASE_NUMBER_TOKEN_SOURCE}${OPTIONAL_PHASE_TAG_SOURCE}\\s*:[^\\n]*(?:\\n(?!#{1,6}\\s)[^\\n]*)*\\n?`, 'gim');
+/**
+ * #5038: single owner for classifying a `milestone:` scalar as STATE.md spells
+ * it. The frontmatter parser (FAILSAFE_SCHEMA) and the raw-regex readers both
+ * see YAML null as text, so every reader classifies it here. Recognizes the
+ * YAML 1.2 core-schema null spellings (`null`, `Null`, `NULL`, `~`) with an
+ * optional trailing ` # comment` and optional surrounding quotes (the
+ * frontmatter parser has already stripped them, so the raw readers must agree);
+ * a blank value is absent, not null.
+ */
+function classifyMilestoneScalar(raw) {
+    if (typeof raw !== 'string')
+        return { explicitNull: false, version: null };
+    const trimmed = raw.trim();
+    if (trimmed === '')
+        return { explicitNull: false, version: null };
+    const bare = trimmed.replace(/\s+#.*$/, '').trim().replace(/^(['"])(.*)\1$/, '$2');
+    if (/^(?:null|Null|NULL|~)$/.test(bare))
+        return { explicitNull: true, version: null };
+    return { explicitNull: false, version: trimmed };
+}
 /**
  * Extract the current milestone section from ROADMAP.md by positive lookup,
  * carrying a `scope` discriminator (ADR-3180 Decision 2) alongside the value.
@@ -874,18 +1009,23 @@ function extractCurrentMilestoneScoped(content, cwd, ws, phaseIdConvention) {
         return { value: stripShippedMilestones(content), scope: SCOPE.COMPLETE };
     }
     let version = null;
+    let stateAssertsNoMilestone = false;
     try {
         const statePath = node_path_1.default.join(planningDir(cwd, ws), 'STATE.md');
         const stateRaw = (0, shell_command_projection_cjs_1.platformReadSync)(statePath);
         if (stateRaw !== null) {
             const milestoneMatch = stateRaw.match(/^milestone:\s*(.+)/m);
             if (milestoneMatch) {
-                version = milestoneMatch[1].trim();
+                const classified = classifyMilestoneScalar(milestoneMatch[1]);
+                version = classified.version;
+                stateAssertsNoMilestone = classified.explicitNull;
             }
         }
     }
     catch { /* ignore */ }
-    if (!version) {
+    // #5038: an explicit `milestone: null` is a deliberate "no milestone" — do
+    // not let the in-progress bullet guess one (same stance as getMilestoneInfo).
+    if (!version && !stateAssertsNoMilestone) {
         const inProgressMatch = content.match(/(?:🚧|🔄)\s*\*\*v(\d+\.\d+)\s/);
         if (inProgressMatch) {
             version = 'v' + inProgressMatch[1];
@@ -964,8 +1104,9 @@ function extractCurrentMilestoneScoped(content, cwd, ws, phaseIdConvention) {
                 const firstMilestoneMatch = content.match(anyMilestoneOrDetails);
                 const preambleCutoff = firstMilestoneMatch ? firstMilestoneMatch.index : detailsOpenIdx;
                 const preamble = (0, markdown_sectionizer_cjs_1.stripTaggedBlocks)(content.slice(0, preambleCutoff), 'details')
-                    // #1729: `(?:\s*\([^)\n]{0,200}\))?` tolerates a pre-colon ( ) tag (literal mirror of OPTIONAL_PHASE_TAG_SOURCE).
-                    .replace(/^#{2,4}\s*Phase\s+[\w][\w.-]*(?:\s*\([^)\n]{0,200}\))?\s*:[^\n]*(?:\n(?!#{1,6}\s)[^\n]*)*\n?/gim, '')
+                    // #5007 (Phase 6 / ADR-4910 §8): shared owner, see
+                    // PHASE_HEADING_BLOCK_STRIP_RE above.
+                    .replace(PHASE_HEADING_BLOCK_STRIP_RE, '')
                     .replace(/^#{1,4}\s*Phase Details\b[^\n]*\n?/gim, '');
                 const value = preamble + content.slice(detailsOpenIdx, detailsEnd);
                 return {
@@ -1200,15 +1341,23 @@ function extractCurrentMilestoneScoped(content, cwd, ws, phaseIdConvention) {
     // every phase (phase_count: 0, exit 0). Only strip preamble phase details when
     // the selected milestone section actually contains its own — otherwise the
     // preamble phases ARE this milestone's phases and must be preserved.
-    const currentSectionHasPhaseDetails = /^#{2,4}\s*Phase\s+\S/im.test(currentSection);
+    // #5007 (Phase 6 / ADR-4910 §8): a pure "does this section have ANY phase
+    // heading" boolean — same shape as phase.cts:1691's anyHeadingPattern
+    // (composed directly from phaseHeadingPrefixSrcFor, no shared owner exposes
+    // a captureless existence check), but this site's terminal token is `\S`
+    // (any non-whitespace), not phase.cts:1691's `\d` — kept as `\S` to
+    // reproduce this site's own prior behavior byte-for-byte rather than
+    // forcing the two sites onto an identical terminal token that would be a
+    // behavior change here.
+    const currentSectionHasPhaseDetails = new RegExp(`^#{2,4}\\s*${phaseHeadingPrefixSrcFor(PHASE_HEADING_BASELINE.LABEL_ONLY)}\\S`, 'im').test(currentSection);
     const preambleBase = (0, markdown_sectionizer_cjs_1.stripTaggedBlocks)(beforeMilestones, 'details');
     // #3235: the conditional wraps the REPLACE, not the pattern. This used to select between the
     // strip regex and a `/$/` sentinel, which made the do-not-strip branch an identity replacement
     // (CodeQL js/identity-replacement, alert 53) -- correct, but it left both branches sharing one
     // replacement argument, so changing `''` would silently give the no-op branch a real effect.
-    // #1729: `(?:\s*\([^)\n]{0,200}\))?` tolerates a pre-colon ( ) tag (literal mirror of OPTIONAL_PHASE_TAG_SOURCE).
+    // #5007 (Phase 6 / ADR-4910 §8): shared owner, see PHASE_HEADING_BLOCK_STRIP_RE above.
     const preambleWithoutPhaseDetails = currentSectionHasPhaseDetails
-        ? preambleBase.replace(/^#{2,4}\s*Phase\s+[\w][\w.-]*(?:\s*\([^)\n]{0,200}\))?\s*:[^\n]*(?:\n(?!#{1,6}\s)[^\n]*)*\n?/gim, '')
+        ? preambleBase.replace(PHASE_HEADING_BLOCK_STRIP_RE, '')
         : preambleBase;
     // Unconditional in BOTH branches -- the #730 `Phase Details` heading strip is independent of
     // whether the selected milestone section carries phase details of its own.
@@ -1618,14 +1767,22 @@ function getMilestoneInfo(cwd) {
         if (roadmap === null)
             throw new Error('missing');
         let stateVersion = null;
+        // #5038: true only when the `milestone:` key is PRESENT and classifies as
+        // an explicit null (any spelling classifyMilestoneScalar accepts), as
+        // opposed to ABSENT. Gates the ROADMAP auto-derivation fallback, which
+        // only bootstraps a milestone for a project that never mentioned one.
+        let explicitlyNoMilestone = false;
         if (cwd) {
             try {
                 const statePath = node_path_1.default.join(planningDir(cwd), 'STATE.md');
                 const stateRaw = (0, shell_command_projection_cjs_1.platformReadSync)(statePath);
                 if (stateRaw !== null) {
                     const m = stateRaw.match(/^milestone:\s*(.+)/m);
-                    if (m)
-                        stateVersion = m[1].trim();
+                    if (m) {
+                        const classified = classifyMilestoneScalar(m[1]);
+                        explicitlyNoMilestone = classified.explicitNull;
+                        stateVersion = classified.version;
+                    }
                 }
             }
             catch {
@@ -1681,6 +1838,11 @@ function getMilestoneInfo(cwd) {
             // no 🚧 bullet, no usable heading (absent, phase-only-excluded, shipped,
             // or heading-but-nameless). §7.2 rule 4 — never fabricate a name.
             return scoped({ version: stateVersion, name: null }, SCOPE.TRUNCATED);
+        }
+        // #5038: an explicit null is a deliberate "no milestone"; do not let the
+        // auto-derivation fallback below replace it with a guessed version.
+        if (explicitlyNoMilestone) {
+            return scoped(null, SCOPE.UNSCOPED);
         }
         // No STATE.md version. The 🚧 in-progress bullet is still consulted first
         // (unchanged from the pre-#3216 fallback).
@@ -2015,17 +2177,21 @@ function currentMilestoneRawRanges(content, cwd) {
     if (!cwd)
         return null;
     let version = null;
+    let stateAssertsNoMilestone = false;
     try {
         const statePath = node_path_1.default.join(planningDir(cwd), 'STATE.md');
         const stateRaw = (0, shell_command_projection_cjs_1.platformReadSync)(statePath);
         if (stateRaw !== null) {
             const milestoneMatch = stateRaw.match(/^milestone:\s*(.+)/m);
-            if (milestoneMatch)
-                version = milestoneMatch[1].trim();
+            if (milestoneMatch) {
+                const classified = classifyMilestoneScalar(milestoneMatch[1]);
+                version = classified.version;
+                stateAssertsNoMilestone = classified.explicitNull;
+            }
         }
     }
     catch { /* ignore */ }
-    if (!version) {
+    if (!version && !stateAssertsNoMilestone) {
         const inProgressMatch = content.match(/(?:🚧|🔄)\s*\*\*v(\d+\.\d+)\s/);
         if (inProgressMatch)
             version = 'v' + inProgressMatch[1];
@@ -2056,6 +2222,69 @@ function currentMilestoneRawRanges(content, cwd) {
     }
     return { primary: { start: sectionStart, end: sectionEnd }, details };
 }
+/**
+ * #4731 — extract a bold-labeled phase field (Goal, Requirements, ...) reading
+ * past hard-wrapped continuation lines. The roadmapper soft-wraps long fields
+ * at ~85 chars, so a single-line capture silently truncated every wrapped
+ * Goal/Requirements. Stops at: another `**Field**` label line, a blank line,
+ * or any heading. Wrapped lines are trimmed and joined with single spaces; a
+ * single-line field is returned unchanged (trimmed). Returns null when the
+ * label is absent.
+ */
+function extractPhaseFieldMultiline(section, label) {
+    // #2769 label shapes: `**X:**`, `**X**:`, and the spaced `**X** :`.
+    // #4837: anchored to line start (`^[ \t]*`, `m` flag) so an inline
+    // `**Label**` mention embedded in an EARLIER field's own body text cannot
+    // shadow the real field's own declaration line. `[ \t]*` (not `\s*`) keeps
+    // the anchor scoped to same-line leading whitespace under the `m` flag.
+    const labelRe = new RegExp('^[ \\t]*\\*\\*' + label + '(?::\\*\\*|\\*\\*\\s*:?)\\s*([^\\n]+)', 'im');
+    const match = section.match(labelRe);
+    if (!match)
+        return null;
+    const startIdx = match.index ?? 0;
+    const after = section.slice(startIdx + match[0].length);
+    const firstLine = match[1].trim();
+    // #4837 (isolated-review finding): the continuation loop's fence-stop check
+    // only ever sees lines AFTER the label's own line — a fence opener on the
+    // SAME line as the label (`**Requirements:** ```js`) was invisible to it,
+    // leaking one line of fence content before the closing fence line
+    // coincidentally matched the same stop check. Checked here too, so a fence
+    // opening on the label's own line is caught just as conservatively.
+    if (/^(?:`{3,}|~{3,})/.test(firstLine))
+        return null;
+    const contLines = [];
+    const lines = after.split('\n');
+    for (let li = 0; li < lines.length; li++) {
+        const raw = lines[li];
+        // The split's first element is the remainder of the captured first line's
+        // own newline — an empty leading element is the line break, not a blank
+        // continuation line.
+        if (li === 0 && !raw.trim())
+            continue;
+        if (!raw.trim())
+            break;
+        // #4837: a list item is a structural boundary — the real corruption
+        // vector (a `- Deferred to Phase N: OTHER-ID` bullet folding a foreign
+        // REQ-ID into this field's citation-scan input).
+        if (/^\s*[-*+]\s/.test(raw))
+            break;
+        // #4837: case-insensitive label-start character class — a
+        // lowercase-first-letter label (`**requirements:**`) is as much a field
+        // boundary as a capitalized one.
+        if (/^\s*\*\*[A-Za-z][A-Za-z ]*:?(\*\*)?:?\s/.test(raw))
+            break;
+        if (/^\s*#{1,4}\s/.test(raw))
+            break;
+        if (/^\s*\|/.test(raw))
+            break;
+        // #4837: a fenced code block opener stops the scan — folding fence
+        // content is never safe, and stopping early is conservative.
+        if (/^\s*(?:`{3,}|~{3,})/.test(raw))
+            break;
+        contLines.push(raw.trim());
+    }
+    return [firstLine, ...contLines].join(' ').trim() || null;
+}
 module.exports = {
     stripShippedMilestones,
     extractCurrentMilestone,
@@ -2065,9 +2294,11 @@ module.exports = {
     replaceInCurrentMilestone,
     getRoadmapPhaseInternal,
     getMilestoneInfo,
+    classifyMilestoneScalar,
     getMilestonePhaseFilter,
     currentMilestoneRawRanges,
     withPhaseSection,
+    editOutsideShippedBlocks,
     computeMilestoneSectionEnd,
     locateMilestoneHeadings,
     listMilestoneHeadings,
@@ -2077,6 +2308,7 @@ module.exports = {
     // own doc comment. milestone.cts's destructive-consumer guard consumes
     // this instead of composing locate+select+section-end itself.
     sliceMilestoneWindow,
+    milestoneSections,
     hasVersionedMilestones,
     hasMilestoneSectioning,
     // #3642: the >=1 sibling buildStateFrontmatter's unbounded branch consumes.
@@ -2090,9 +2322,16 @@ module.exports = {
     // guards and the edit-phase workflow's pre/post capture are built on.
     scanMilestonePhaseIds,
     collectTablePhaseRows,
+    hasPhaseListingTableHeader,
     findMilestoneScopeHeadingLines,
     // #3641: the scope axis's phase-ENTRY predicate, exported so roadmap
     // validate's V004 document-level check routes through the same single
     // owner (and its convention gate) instead of a private inline copy.
+    extractPhaseFieldMultiline,
     hasPhaseEntries,
+    // #4144 round 5 Blocker 1: the readers' own phase-heading grammar, so the
+    // bracket roadmap migrator's "phase-like but unparsed" refusal
+    // (src/roadmap-upgrade.cts) can gate on it instead of a private, looser
+    // "starts with the word Phase" regex.
+    isPhaseHeadingText,
 };

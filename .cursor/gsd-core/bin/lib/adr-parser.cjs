@@ -52,6 +52,7 @@ const CANONICAL_HEADERS = {
         'recommendation',
         'strategy',
         'decision outcome',
+        'locked decisions',
     ],
     considered_options: [
         'considered options',
@@ -190,7 +191,8 @@ function normalizeAdrHeader(raw) {
         .toLowerCase()
         .replace(/[\s:._-]+/g, ' ')
         .replace(/[^\w\s]/g, '')
-        .trim();
+        .trim()
+        .replace(/^\d+(?:\s+\d+)*\s+/, '');
 }
 // Normalized synonym index (audit M7). classifyHeader receives an ALREADY-normalized
 // header (via normalizeAdrHeader), but historically compared it against the RAW synonym
@@ -219,13 +221,45 @@ function classifyHeader(normalizedHeader) {
     }
     return null;
 }
+// A list item starts with a bullet (-, *, +) or an ordered marker (1. or 1)).
+const LIST_MARKER = /^([-*+]|\d+[.)])\s+/;
+/**
+ * Split a section body into one entry per top-level list item (#5227).
+ *
+ * A line that opens a list item starts a new entry with its marker stripped. Any
+ * other non-blank line, and any marker line indented deeper than the first item
+ * (a nested sub-bullet), joins the current entry with a single space, so a
+ * hard-wrapped item stays one entry. Text before the first marker is its own
+ * entry. A block with no list marker at all keeps one entry per line, so a plain
+ * `## Status` body still yields its first line.
+ */
 function splitEntries(blockText) {
-    return (typeof blockText === 'string' ? blockText : '')
+    const lines = (typeof blockText === 'string' ? blockText : '')
         .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => line.replace(/^[-*+]\s+/, '').trim())
-        .filter(Boolean);
+        .filter((line) => line.trim() !== '');
+    if (!lines.some((line) => LIST_MARKER.test(line.trim())))
+        return lines.map((line) => line.trim());
+    const entries = [];
+    let topIndent = -1;
+    let open = false;
+    for (const raw of lines) {
+        const text = raw.trim();
+        const indent = raw.length - raw.trimStart().length;
+        const isMarker = LIST_MARKER.test(text);
+        if (isMarker && (topIndent < 0 || indent <= topIndent)) {
+            if (topIndent < 0)
+                topIndent = indent;
+            entries.push(text.replace(LIST_MARKER, '').trim());
+            open = true;
+        }
+        else if (open) {
+            entries[entries.length - 1] = `${entries[entries.length - 1]} ${text}`;
+        }
+        else {
+            entries.push(text);
+        }
+    }
+    return entries.filter(Boolean);
 }
 /**
  * Thin adapter: wraps the seam's `collectSections` to produce the same
