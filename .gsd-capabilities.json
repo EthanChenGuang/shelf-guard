@@ -1,0 +1,16 @@
+{
+  "version": "1",
+  "updatedAt": "2026-10-29T11:35:58.708Z",
+  "entries": {
+    "ui-stitch": {
+      "id": "ui-stitch",
+      "version": "1.6.0",
+      "source": "/tmp/gsd-stitch-design/capability/ui-stitch",
+      "integrity": "",
+      "files": [
+        ".gsd/capabilities/ui-stitch"
+      ],
+      "sharedEdits": []
+    }
+  }
+}
